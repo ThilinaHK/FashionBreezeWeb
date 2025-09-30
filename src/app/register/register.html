@@ -1,0 +1,127 @@
+<div class="container-fluid vh-100 d-flex align-items-center justify-content-center" style="background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);">
+  <div class="row w-100 justify-content-center">
+    <div class="col-md-5">
+      <div class="card shadow-lg border-0">
+        <div class="card-body p-4">
+          <div class="text-center mb-4">
+            <h2 class="fw-bold" style="color: #000000;">Create Account</h2>
+            <p class="text-muted">Register to place your order</p>
+          </div>
+          
+          <form (ngSubmit)="onRegister()" #registerForm="ngForm">
+            <div class="row">
+              <div class="col-md-6 mb-3">
+                <label class="form-label">Full Name</label>
+                <input 
+                  type="text" 
+                  class="form-control"
+                  [(ngModel)]="name"
+                  name="name"
+                  required
+                  placeholder="Enter your name"
+                >
+              </div>
+              <div class="col-md-6 mb-3">
+                <label class="form-label">Email</label>
+                <input 
+                  type="email" 
+                  class="form-control"
+                  [(ngModel)]="email"
+                  name="email"
+                  required
+                  placeholder="Enter your email"
+                >
+              </div>
+            </div>
+            
+            <div class="row">
+              <div class="col-md-6 mb-3">
+                <label class="form-label">Country</label>
+                <select 
+                  class="form-select"
+                  [(ngModel)]="country"
+                  name="country"
+                  required
+                >
+                  @for (c of countries; track c.code) {
+                    <option [value]="c.code">{{ c.phoneCode }} {{ c.name }}</option>
+                  }
+                </select>
+              </div>
+              <div class="col-md-6 mb-3">
+                <label class="form-label">Phone</label>
+                <div class="input-group">
+                  <span class="input-group-text">{{ getSelectedCountry()?.phoneCode }}</span>
+                  <input 
+                    type="tel" 
+                    class="form-control"
+                    [(ngModel)]="phone"
+                    name="phone"
+                    required
+                    placeholder="Enter phone number"
+                  >
+                </div>
+              </div>
+            </div>
+            
+            <div class="row">
+              <div class="col-md-12 mb-3">
+                <label class="form-label">Password</label>
+                <input 
+                  type="password" 
+                  class="form-control"
+                  [(ngModel)]="password"
+                  name="password"
+                  required
+                  placeholder="Create password"
+                >
+              </div>
+            </div>
+            
+            <div class="mb-4">
+              <label class="form-label">Address</label>
+              <input 
+                type="text" 
+                class="form-control mb-2"
+                [(ngModel)]="address1"
+                name="address1"
+                required
+                placeholder="Address Line 1"
+              >
+              <input 
+                type="text" 
+                class="form-control mb-2"
+                [(ngModel)]="address2"
+                name="address2"
+                placeholder="Address Line 2 (Optional)"
+              >
+              <input 
+                type="text" 
+                class="form-control"
+                [(ngModel)]="address3"
+                name="address3"
+                placeholder="City, State, ZIP (Optional)"
+              >
+            </div>
+            
+            @if (errorMessage()) {
+              <div class="alert alert-danger" role="alert">
+                {{ errorMessage() }}
+              </div>
+            }
+            
+            <button type="submit" class="btn btn-lg w-100 mb-3" style="background: #000000; color: white; border: none;" [disabled]="!registerForm.form.valid">
+              Register & Continue
+            </button>
+          </form>
+          
+          <div class="text-center">
+            <small class="text-muted">
+              Already have an account? <a href="/client" style="color: #000000; text-decoration: underline;">Continue as guest</a>
+            </small>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

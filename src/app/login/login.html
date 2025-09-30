@@ -1,0 +1,61 @@
+<div class="container-fluid vh-100 d-flex align-items-center justify-content-center" style="background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);">
+  <div class="row w-100 justify-content-center">
+    <div class="col-md-4">
+      <div class="card shadow-lg border-0">
+        <div class="card-body p-5">
+          <div class="text-center mb-4">
+            <h2 class="fw-bold" style="color: #000000;">Fashion Breeze Admin</h2>
+            <p class="text-muted">Sign in to your account</p>
+          </div>
+          
+          <form (ngSubmit)="onLogin()" #loginForm="ngForm">
+            <div class="mb-3">
+              <label for="username" class="form-label">Username</label>
+              <input 
+                type="text" 
+                class="form-control form-control-lg"
+                id="username" 
+                name="username"
+                [(ngModel)]="username"
+                required
+                placeholder="Enter username"
+              >
+            </div>
+            
+            <div class="mb-4">
+              <label for="password" class="form-label">Password</label>
+              <input 
+                type="password" 
+                class="form-control form-control-lg"
+                id="password" 
+                name="password"
+                [(ngModel)]="password"
+                required
+                placeholder="Enter password"
+              >
+            </div>
+            
+            @if (errorMessage()) {
+              <div class="alert alert-danger" role="alert">
+                {{ errorMessage() }}
+              </div>
+            }
+            
+            <button type="submit" class="btn btn-lg w-100 mb-3" style="background: #000000; color: white; border: none;" [disabled]="!loginForm.form.valid">
+              Sign In
+            </button>
+          </form>
+          
+          <div class="card bg-light">
+            <div class="card-body text-center">
+              <small class="text-muted">
+                <strong>Demo Credentials:</strong><br>
+                Username: test | Password: test
+              </small>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

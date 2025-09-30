@@ -1,0 +1,474 @@
+<div class="client-app">
+  <!-- Navigation -->
+  <nav class="navbar navbar-expand-lg navbar-dark shadow" style="background: linear-gradient(135deg, #000000 0%, #333333 100%);">
+    <div class="container">
+      <a class="navbar-brand fw-bold fs-3">👕 Fashion Breeze</a>
+      <div class="d-flex align-items-center gap-3">
+        @if (isUserRegistered()) {
+          <span class="text-white">Welcome, {{ getUserName() }}!</span>
+        }
+        <button class="btn position-relative" style="border: 2px solid #ffffff; color: #ffffff; background: rgba(255,255,255,0.1);" (click)="showCart.set(!showCart())">
+          <i class="bi bi-cart3"></i> Cart
+          <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-dark">
+            {{ cart().length }}
+          </span>
+        </button>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Success Alert -->
+  @if (orderPlaced()) {
+    <div class="container mt-3">
+      <div class="alert alert-success alert-dismissible fade show" role="alert">
+        <i class="bi bi-check-circle-fill me-2"></i>
+        <strong>Success!</strong> Your order has been placed successfully!
+      </div>
+    </div>
+  }
+
+  <!-- Hero Carousel -->
+  <div id="heroCarousel" class="carousel slide" data-bs-ride="carousel" data-bs-interval="5000">
+    <div class="carousel-indicators">
+      <button type="button" data-bs-target="#heroCarousel" data-bs-slide-to="0" class="active"></button>
+      <button type="button" data-bs-target="#heroCarousel" data-bs-slide-to="1"></button>
+      <button type="button" data-bs-target="#heroCarousel" data-bs-slide-to="2"></button>
+    </div>
+    <div class="carousel-inner">
+      <div class="carousel-item active">
+        <div class="hero-slide bg-gradient-1">
+          <div class="container">
+            <div class="row align-items-center min-vh-50">
+              <div class="col-lg-6 text-white">
+                <h1 class="display-3 fw-bold mb-4">Fashion Breeze</h1>
+                <p class="lead mb-4">Discover the latest trends in fashion. Premium quality clothing delivered to your door.</p>
+                <button class="btn btn-lg px-4" style="background: #000000; color: white; border: none; box-shadow: 0 4px 15px rgba(0,0,0,0.3);" (click)="scrollToProducts()">Shop Now</button>
+              </div>
+              <div class="col-lg-6">
+                <img src="https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=600&h=400&fit=crop" class="img-fluid rounded shadow" alt="Fashion Collection">
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="carousel-item">
+        <div class="hero-slide bg-gradient-2">
+          <div class="container">
+            <div class="row align-items-center min-vh-50">
+              <div class="col-lg-6 text-white">
+                <h1 class="display-3 fw-bold mb-4">Summer Collection</h1>
+                <p class="lead mb-4">Beat the heat with our stylish summer wear. Comfortable and trendy designs.</p>
+                <button class="btn btn-lg px-4" style="background: #000000; color: white; border: none; box-shadow: 0 4px 15px rgba(0,0,0,0.3);">Explore</button>
+              </div>
+              <div class="col-lg-6">
+                <img src="https://images.unsplash.com/photo-1523381210434-271e8be1f52b?w=600&h=400&fit=crop" class="img-fluid rounded shadow" alt="Summer Collection">
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="carousel-item">
+        <div class="hero-slide bg-gradient-3">
+          <div class="container">
+            <div class="row align-items-center min-vh-50">
+              <div class="col-lg-6 text-white">
+                <h1 class="display-3 fw-bold mb-4">Free Delivery</h1>
+                <p class="lead mb-4">Free shipping on orders over $50. Fast and reliable delivery service.</p>
+                <button class="btn btn-lg px-4" style="background: #000000; color: white; border: none; box-shadow: 0 4px 15px rgba(0,0,0,0.3);">Order Now</button>
+              </div>
+              <div class="col-lg-6">
+                <img src="https://images.unsplash.com/photo-1556905055-8f358a7a47b2?w=600&h=400&fit=crop" class="img-fluid rounded shadow" alt="Free Delivery">
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <button class="carousel-control-prev" type="button" data-bs-target="#heroCarousel" data-bs-slide="prev">
+      <span class="carousel-control-prev-icon"></span>
+    </button>
+    <button class="carousel-control-next" type="button" data-bs-target="#heroCarousel" data-bs-slide="next">
+      <span class="carousel-control-next-icon"></span>
+    </button>
+  </div>
+
+  <!-- Category Navigation -->
+  <div class="py-3" style="background: linear-gradient(135deg, #000000 0%, #333333 100%); box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+    <div class="container">
+      <div class="row justify-content-center">
+        <div class="col-12">
+          <div class="d-flex flex-wrap justify-content-center gap-2">
+            <button class="btn btn-sm text-white fw-bold" 
+                    [class]="selectedCategory() === 'All' ? 'btn-light text-dark' : 'btn-outline-light'"
+                    (click)="setCategory('All')">All</button>
+            <button class="btn btn-sm text-white fw-bold" 
+                    [class]="selectedCategory() === 'For Men' ? 'btn-light text-dark' : 'btn-outline-light'"
+                    (click)="setCategory('For Men')">For Men</button>
+            <button class="btn btn-sm text-white fw-bold" 
+                    [class]="selectedCategory() === 'For Women' ? 'btn-light text-dark' : 'btn-outline-light'"
+                    (click)="setCategory('For Women')">For Women</button>
+            <button class="btn btn-sm text-white fw-bold" 
+                    [class]="selectedCategory() === 'Skin' ? 'btn-light text-dark' : 'btn-outline-light'"
+                    (click)="setCategory('Skin')">Skin</button>
+            <button class="btn btn-sm text-white fw-bold" 
+                    [class]="selectedCategory() === 'Hair' ? 'btn-light text-dark' : 'btn-outline-light'"
+                    (click)="setCategory('Hair')">Hair</button>
+            <button class="btn btn-sm text-white fw-bold" 
+                    [class]="selectedCategory() === 'Home' ? 'btn-light text-dark' : 'btn-outline-light'"
+                    (click)="setCategory('Home')">Home</button>
+            <button class="btn btn-sm text-white fw-bold" 
+                    [class]="selectedCategory() === 'Fragrances' ? 'btn-light text-dark' : 'btn-outline-light'"
+                    (click)="setCategory('Fragrances')">Fragrances</button>
+            <button class="btn btn-sm text-white fw-bold" 
+                    [class]="selectedCategory() === 'Gifting' ? 'btn-light text-dark' : 'btn-outline-light'"
+                    (click)="setCategory('Gifting')">Gifting</button>
+            <button class="btn btn-sm text-white fw-bold" 
+                    [class]="selectedCategory() === 'Kids' ? 'btn-light text-dark' : 'btn-outline-light'"
+                    (click)="setCategory('Kids')">Kids</button>
+            <button class="btn btn-sm text-white fw-bold" 
+                    [class]="selectedCategory() === 'Mind & Body' ? 'btn-light text-dark' : 'btn-outline-light'"
+                    (click)="setCategory('Mind & Body')">Mind & Body</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Products Section -->
+  <div id="products-section" class="py-5" style="background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%); position: relative; overflow: hidden;">
+    <div style="position: absolute; top: -50px; right: -50px; width: 200px; height: 200px; background: rgba(0,0,0,0.1); border-radius: 50%; z-index: 1;"></div>
+    <div style="position: absolute; bottom: -30px; left: -30px; width: 150px; height: 150px; background: rgba(0,0,0,0.05); border-radius: 50%; z-index: 1;"></div>
+    
+    <div class="container" style="position: relative; z-index: 2;">
+      <div class="text-center mb-5">
+        <h2 class="fw-bold mb-3" style="color: #000000; font-size: 3rem; text-shadow: 2px 2px 4px rgba(0,0,0,0.1);">Our Collection</h2>
+        <div style="width: 100px; height: 4px; background: linear-gradient(90deg, #000000, #333333); margin: 0 auto; border-radius: 2px;"></div>
+        <p class="mt-3 fs-5" style="color: #666666;">Discover our premium selection of fashion items</p>
+      </div>
+    
+      <!-- Filters -->
+      <div class="row justify-content-center mb-4">
+        <div class="col-md-6 mb-3">
+          <h6 class="text-center mb-2" style="color: #000000;">Advanced Filters</h6>
+          <div class="d-flex justify-content-center">
+            <div class="btn-group flex-wrap" role="group">
+              @for (category of categories(); track category) {
+                <button type="button" 
+                        class="btn btn-sm" 
+                        [class]="selectedCategory() === category ? 'btn-light text-dark' : 'btn-outline-light'"
+                        (click)="setCategory(category)">
+                  {{ category }}
+                </button>
+              }
+            </div>
+          </div>
+        </div>
+        
+        <div class="col-md-6 mb-3">
+          <h6 class="text-center mb-2" style="color: #000000;">Price Range: ${{ priceRange().min }} - ${{ priceRange().max }}</h6>
+          <div class="px-3">
+            <div class="row">
+              <div class="col-6">
+                <label class="form-label text-dark">Min: ${{ priceRange().min }}</label>
+                <input type="range" class="form-range" 
+                       [min]="0" [max]="maxPrice()" 
+                       [value]="priceRange().min"
+                       (input)="setPriceRange(+$event.target.value, priceRange().max)">
+              </div>
+              <div class="col-6">
+                <label class="form-label text-dark">Max: ${{ priceRange().max }}</label>
+                <input type="range" class="form-range" 
+                       [min]="0" [max]="maxPrice()" 
+                       [value]="priceRange().max"
+                       (input)="setPriceRange(priceRange().min, +$event.target.value)">
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <div class="text-center mb-3">
+        <small style="color: #666666;">Showing {{ getFilteredProducts().length }} of {{ products().length }} products</small>
+      </div>
+      
+      <div class="row g-4">
+        @for (product of getFilteredProducts(); track product.id) {
+          <div class="col-lg-3 col-md-6">
+            <div class="card h-100 shadow-sm border-0 product-card" [class.out-of-stock]="product.status === 'outofstock'">
+              <img [src]="product.image" [alt]="product.name" class="card-img-top">
+              <div class="card-body d-flex flex-column">
+                <h5 class="card-title fw-bold">{{ product.name }}</h5>
+                <div class="d-flex gap-2 mb-2">
+                  <span class="badge bg-secondary">{{ product.category }}</span>
+                  <span class="badge bg-primary">{{ product.code }}</span>
+                </div>
+                <p class="card-text text-success fs-4 fw-bold mb-3">${{ product.price }}</p>
+                @if (product.status === 'outofstock') {
+                  <span class="badge bg-danger mb-2">Out of Stock</span>
+                  <button class="btn btn-secondary mt-auto" disabled>
+                    <i class="bi bi-x-circle me-2"></i>Out of Stock
+                  </button>
+                } @else {
+                  <div class="d-flex gap-2 mt-auto">
+                    <button (click)="openProductModal(product)" class="btn flex-fill" style="border: 2px solid #000000; color: #000000; background: rgba(0,0,0,0.05); transition: all 0.3s ease;">
+                      <i class="bi bi-eye me-1"></i>Details
+                    </button>
+                    <button (click)="addToCart(product)" class="btn flex-fill" style="background: #000000; color: white; border: none; box-shadow: 0 4px 15px rgba(0,0,0,0.3); transition: all 0.3s ease;">
+                      <i class="bi bi-cart-plus me-1"></i>Add
+                    </button>
+                  </div>
+                }
+              </div>
+            </div>
+          </div>
+        }
+      </div>
+    </div>
+  </div>
+
+  <!-- Cart Modal -->
+  @if (showCart()) {
+    <div class="modal d-block" tabindex="-1" style="background: rgba(0,0,0,0.5);">
+      <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+          <div class="modal-header bg-primary text-white">
+            <h5 class="modal-title"><i class="bi bi-cart3 me-2"></i>Your Cart</h5>
+            <button type="button" class="btn" (click)="showCart.set(false)" style="background: #ffffff; color: black; border: 1px solid #000000; width: 35px; height: 35px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1rem; transition: all 0.3s ease;">
+              <i class="bi bi-x"></i>
+            </button>
+          </div>
+          <div class="modal-body">
+            @if (cart().length === 0) {
+              <div class="text-center py-4">
+                <i class="bi bi-cart-x display-1 text-muted"></i>
+                <p class="mt-3 text-muted">Your cart is empty</p>
+              </div>
+            } @else {
+              @for (item of cart(); track item.id) {
+                <div class="d-flex align-items-center border-bottom py-3">
+                  <img [src]="item.image" [alt]="item.name" class="rounded me-3" style="width: 60px; height: 60px; object-fit: cover;">
+                  <div class="flex-grow-1">
+                    <h6 class="mb-1">{{ item.name }}</h6>
+                    <small class="text-muted">Quantity: {{ item.quantity }}</small>
+                    @if (item.size) {
+                      <br><small class="text-muted">Size: {{ item.size }}</small>
+                    }
+                  </div>
+                  <div class="d-flex align-items-center gap-3">
+                    <span class="fw-bold text-success">${{ (item.price * item.quantity).toFixed(2) }}</span>
+                    <button (click)="removeFromCart(item.id)" class="btn btn-outline-danger btn-sm">
+                      <i class="bi bi-trash"></i>
+                    </button>
+                  </div>
+                </div>
+              }
+              <div class="text-end mt-4">
+                <h4 class="fw-bold">Total: <span class="text-success">${{ getTotal().toFixed(2) }}</span></h4>
+              </div>
+            }
+          </div>
+          @if (cart().length > 0) {
+            <div class="modal-footer">
+              <button (click)="placeOrder()" class="btn btn-lg w-100" style="background: #000000; color: white; border: none; box-shadow: 0 4px 15px rgba(0,0,0,0.3);">
+                <i class="bi bi-whatsapp me-2"></i>Place Order via WhatsApp
+              </button>
+            </div>
+          }
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- Product Modal -->
+  @if (showProductModal()) {
+    <div class="modal d-block" tabindex="-1" style="background: rgba(0,0,0,0.95); z-index: 9999; backdrop-filter: blur(5px);">
+      <div class="modal-dialog" style="max-width: 90vw; width: 90vw; height: 85vh; margin: 7.5vh auto;">
+        <div class="modal-content" style="height: 85vh; border-radius: 12px; border: none; background: #0f0f0f; color: white;">
+          <div class="modal-header text-white" style="border-bottom: 1px solid rgba(255,255,255,0.2); background: rgba(0,0,0,0.9); backdrop-filter: blur(20px); padding: 1.5rem 2rem;">
+            <div class="d-flex align-items-center">
+              <div class="me-3" style="width: 4px; height: 40px; background: linear-gradient(to bottom, #000000, #333333); border-radius: 2px;"></div>
+              <h3 class="modal-title fw-light mb-0" style="letter-spacing: 0.5px; font-weight: 300;">{{ selectedProduct()?.name }}</h3>
+            </div>
+            <button type="button" class="btn" (click)="closeProductModal()" style="background: #ffffff; color: black; border: 1px solid #000000; width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.2rem; transition: all 0.3s ease;">
+              <i class="bi bi-x"></i>
+            </button>
+          </div>
+          <div class="modal-body" style="overflow-y: auto; height: calc(85vh - 120px); background: #0f0f0f; padding: 1.5rem;">
+            <div class="row h-100 g-4">
+              <div class="col-lg-7">
+                <div class="d-flex flex-column h-100">
+                  <div class="position-relative flex-grow-1 d-flex align-items-center justify-content-center" style="min-height: 500px; background: rgba(255,255,255,0.02); border-radius: 12px; border: 1px solid rgba(255,255,255,0.1);">
+                    <img [src]="selectedProduct()?.image" [alt]="selectedProduct()?.name" 
+                         class="img-fluid product-zoom" 
+                         [style.transform]="'scale(' + zoomLevel() + ')'" 
+                         style="transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1); cursor: zoom-in; max-height: 65vh; object-fit: contain; border-radius: 8px;" 
+                         (click)="toggleZoom()">
+                    <div class="zoom-controls position-absolute" style="top: 1rem; right: 1rem;">
+                      <div class="btn-group" style="background: rgba(0,0,0,0.7); border-radius: 8px; backdrop-filter: blur(10px);">
+                        <button class="btn btn-sm" (click)="zoomOut()" style="background: transparent; color: white; border: none; padding: 0.5rem;">
+                          <i class="bi bi-zoom-out"></i>
+                        </button>
+                        <button class="btn btn-sm" (click)="zoomIn()" style="background: transparent; color: white; border: none; padding: 0.5rem;">
+                          <i class="bi bi-zoom-in"></i>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="d-flex justify-content-center gap-2 mt-4">
+                    @for (img of getProductImages(); track $index) {
+                      <div class="position-relative">
+                        <img [src]="img" class="rounded" 
+                             style="cursor: pointer; width: 70px; height: 70px; object-fit: cover; border: 2px solid; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); opacity: 0.7;" 
+                             [style.border-color]="img === selectedProduct()?.image ? '#000000' : 'rgba(255,255,255,0.2)'"
+                             [style.opacity]="img === selectedProduct()?.image ? '1' : '0.7'"
+                             (click)="changeMainImage(img)">
+                        @if (img === selectedProduct()?.image) {
+                          <div class="position-absolute top-0 start-0 w-100 h-100 rounded" style="border: 2px solid #000000; background: rgba(0,0,0,0.1);"></div>
+                        }
+                      </div>
+                    }
+                  </div>
+                </div>
+              </div>
+              <div class="col-lg-5">
+                <div class="sticky-top" style="top: 20px;">
+                  <div class="mb-4">
+                    <h1 class="fw-light mb-2" style="color: #ffffff; font-size: 2rem; letter-spacing: 0.5px;">{{ selectedProduct()?.name }}</h1>
+                    <p class="text-muted mb-0" style="font-size: 0.9rem; letter-spacing: 0.3px;">{{ selectedProduct()?.code }}</p>
+                  </div>
+                  <div class="d-flex justify-content-between align-items-center mb-4 p-3 rounded" style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.1);">
+                    <div>
+                      <h2 class="mb-1" style="color: #ffffff; font-weight: 600; font-size: 2.2rem;">${{ selectedProduct()?.price }}</h2>
+                      <small class="text-muted">Inclusive of all taxes</small>
+                    </div>
+                    <div class="text-end">
+                      <div class="d-flex align-items-center mb-1">
+                        <div class="text-warning me-2">
+                          @for (star of getStars(selectedProduct()?.rating || 0); track $index) {
+                            <i class="bi" [class]="star" style="font-size: 0.9rem;"></i>
+                          }
+                        </div>
+                        <span class="fw-semibold" style="color: #ffffff;">{{ selectedProduct()?.rating }}</span>
+                      </div>
+                      <small class="text-muted">({{ selectedProduct()?.reviewCount }} reviews)</small>
+                    </div>
+                  </div>
+                
+                  <div class="mb-4">
+                    <h6 class="fw-semibold mb-3" style="color: #ffffff; font-size: 1rem; letter-spacing: 0.3px;">Product Details</h6>
+                    <p style="color: #b0b0b0; line-height: 1.7; font-size: 0.95rem;">{{ getProductDescription() }}</p>
+                  </div>
+                
+                  <div class="mb-4">
+                    <h6 class="fw-semibold mb-3" style="color: #ffffff; font-size: 1rem; letter-spacing: 0.3px;">Select Size</h6>
+                    <div class="d-flex flex-wrap gap-2">
+                      @for (size of availableSizes(); track size) {
+                        <div>
+                          <input type="radio" class="btn-check" [id]="'size-' + size" 
+                                 [value]="size" [(ngModel)]="selectedSize" name="size" 
+                                 [disabled]="!isSizeInStock(size)">
+                          <label class="btn" 
+                                 [for]="'size-' + size"
+                                 style="min-width: 50px; height: 50px; border: 1px solid; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); font-weight: 500;"
+                                 [style.background]="isSizeInStock(size) ? 'rgba(255,255,255,0.05)' : 'rgba(128,128,128,0.1)'"
+                                 [style.border-color]="isSizeInStock(size) ? 'rgba(255,255,255,0.2)' : 'rgba(128,128,128,0.3)'"
+                                 [style.color]="isSizeInStock(size) ? '#ffffff' : '#666'">
+                            {{ size }}
+                          </label>
+                        </div>
+                      }
+                    </div>
+                  </div>
+                
+                  <div class="mb-5">
+                    <h6 class="fw-semibold mb-3" style="color: #ffffff; font-size: 1rem; letter-spacing: 0.3px;">Quantity</h6>
+                    <div class="input-group" style="width: 140px;">
+                      <button class="btn" (click)="decreaseQuantity()" style="background: rgba(255,255,255,0.05); color: white; border: 1px solid rgba(255,255,255,0.2); transition: all 0.3s ease;">
+                        <i class="bi bi-dash"></i>
+                      </button>
+                      <input type="number" class="form-control text-center" [(ngModel)]="modalQuantity" min="1" style="background: rgba(255,255,255,0.05); color: white; border: 1px solid rgba(255,255,255,0.2); font-weight: 500;">
+                      <button class="btn" (click)="increaseQuantity()" style="background: rgba(255,255,255,0.05); color: white; border: 1px solid rgba(255,255,255,0.2); transition: all 0.3s ease;">
+                        <i class="bi bi-plus"></i>
+                      </button>
+                    </div>
+                  </div>
+                
+                  @if (selectedProduct()?.status === 'outofstock') {
+                    <button class="btn btn-secondary btn-lg w-100" disabled>
+                      <i class="bi bi-x-circle me-2"></i>Out of Stock
+                    </button>
+                  } @else {
+                    <button (click)="addToCartFromModal()" class="btn btn-lg w-100 mb-5" style="background: #000000; color: white; border: none; height: 60px; font-weight: 600; letter-spacing: 0.5px; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); font-size: 1.1rem;">
+                      <i class="bi bi-cart-plus me-3"></i>Add to Cart • ${{ (selectedProduct()?.price * modalQuantity()).toFixed(2) }}
+                    </button>
+                  }
+                
+                  <!-- Similar Products Slideshow -->
+                  <div class="border-top pt-4" style="border-color: rgba(255,255,255,0.1) !important;">
+                    <div class="d-flex justify-content-between align-items-center mb-4">
+                      <h6 class="fw-semibold mb-0" style="color: #ffffff; font-size: 1.1rem; letter-spacing: 0.3px;">You might also like</h6>
+                      <div class="btn-group">
+                        <button class="btn btn-sm" (click)="previousSlide()" [disabled]="currentSlide() === 0" style="background: rgba(255,255,255,0.05); color: white; border: 1px solid rgba(255,255,255,0.2); width: 35px; height: 35px;">
+                          <i class="bi bi-chevron-left"></i>
+                        </button>
+                        <button class="btn btn-sm" (click)="nextSlide()" [disabled]="currentSlide() >= getMaxSlides()" style="background: rgba(255,255,255,0.05); color: white; border: 1px solid rgba(255,255,255,0.2); width: 35px; height: 35px;">
+                          <i class="bi bi-chevron-right"></i>
+                        </button>
+                      </div>
+                    </div>
+                    <div class="position-relative overflow-hidden">
+                      <div class="d-flex transition-transform" [style.transform]="'translateX(-' + (currentSlide() * 100) + '%)'" style="transition: transform 0.3s ease;">
+                        @for (product of getSimilarProducts(); track product.id) {
+                          <div class="flex-shrink-0" style="width: 50%;">
+                            <div class="card h-100 me-2" style="cursor: pointer; background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.1); transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); border-radius: 8px;" (click)="openProductModal(product)">
+                              <img [src]="product.image" [alt]="product.name" class="card-img-top" style="height: 140px; object-fit: cover; border-radius: 8px 8px 0 0;">
+                              <div class="card-body p-3">
+                                <h6 class="card-title mb-2" style="font-size: 0.85rem; color: white; font-weight: 500; line-height: 1.3;">{{ product.name }}</h6>
+                                <p class="fw-semibold mb-2" style="color: #ffffff; font-size: 1rem;">${{ product.price }}</p>
+                                <div class="d-flex align-items-center">
+                                  <div class="text-warning me-1">
+                                    @for (star of getStars(product.rating); track $index) {
+                                      <i class="bi" [class]="star" style="font-size: 8px;"></i>
+                                    }
+                                  </div>
+                                  <small class="text-muted">{{ product.rating }}</small>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        }
+                      </div>
+                    </div>
+                  </div>
+                
+                  <!-- Customer Comments -->
+                  <div class="border-top pt-4 mt-4" style="border-color: rgba(255,255,255,0.1) !important;">
+                    <h6 class="fw-semibold mb-4" style="color: #ffffff; font-size: 1.1rem; letter-spacing: 0.3px;">Customer Reviews</h6>
+                    <div class="customer-comments" style="max-height: 350px; overflow-y: auto; background: rgba(255,255,255,0.02); border-radius: 8px; padding: 1.5rem; border: 1px solid rgba(255,255,255,0.1);">
+                      @for (comment of getCustomerComments(); track $index) {
+                        <div class="pb-4 mb-4" style="border-bottom: 1px solid rgba(255,255,255,0.1);">
+                          <div class="d-flex justify-content-between align-items-start mb-3">
+                            <div>
+                              <strong style="color: #ffffff; font-weight: 600;">{{ comment.customer }}</strong>
+                              <div class="text-warning mt-1">
+                                @for (star of getStars(comment.rating); track $index) {
+                                  <i class="bi" [class]="star" style="font-size: 0.8rem;"></i>
+                                }
+                              </div>
+                            </div>
+                            <small style="color: #888; font-size: 0.8rem;">{{ comment.date }}</small>
+                          </div>
+                          <p class="mb-0" style="font-size: 0.9rem; color: #b0b0b0; line-height: 1.6;">{{ comment.comment }}</p>
+                        </div>
+                      }
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  }
+</div>
