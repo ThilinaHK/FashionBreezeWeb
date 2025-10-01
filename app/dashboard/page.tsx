@@ -121,13 +121,11 @@ export default function DashboardPage() {
         body: JSON.stringify({ orderId, status })
       });
       if (response.ok) {
-        // Update local state immediately
         const updatedOrder = orders.find(order => order._id === orderId);
         setOrders(orders.map(order => 
           order._id === orderId ? { ...order, status } : order
         ));
         
-        // Send notification to customer
         if (updatedOrder?.customerInfo?.email) {
           await fetch('/api/notifications', {
             method: 'POST',
@@ -200,7 +198,6 @@ export default function DashboardPage() {
       
       if (response.ok) {
         const result = await response.json();
-        // Update products immediately without reload
         if (editingProduct) {
           setProducts(products.map(p => 
             (p.id === editingProduct.id || p._id === editingProduct._id) ? { ...p, ...formData } : p
@@ -251,8 +248,6 @@ export default function DashboardPage() {
       const method = editingCategory ? 'PUT' : 'POST';
       const body = editingCategory ? { id: editingCategory._id || editingCategory.id, name: categoryName } : { name: categoryName };
       
-      console.log('Saving category:', { method, body });
-      
       const response = await fetch('/api/categories', {
         method,
         headers: { 'Content-Type': 'application/json' },
@@ -261,9 +256,7 @@ export default function DashboardPage() {
       
       if (response.ok) {
         const result = await response.json();
-        console.log('Category save result:', result);
         
-        // Update categories immediately
         if (editingCategory) {
           setCategories(categories.map(cat => {
             const catId = cat._id || cat.id;
@@ -280,7 +273,6 @@ export default function DashboardPage() {
           setCategories([...categories, newCategory]);
         }
         
-        // Reload categories from server to ensure sync
         await loadCategories();
         
         setShowCategoryModal(false);
@@ -289,8 +281,6 @@ export default function DashboardPage() {
         setToast({message: editingCategory ? 'Category updated successfully!' : 'Category created successfully!', type: 'success'});
         setTimeout(() => setToast(null), 3000);
       } else {
-        const errorData = await response.json();
-        console.error('Category save failed:', errorData);
         setToast({message: 'Failed to save category', type: 'error'});
         setTimeout(() => setToast(null), 3000);
       }
@@ -499,7 +489,7 @@ export default function DashboardPage() {
                   <tbody>
                     {loadingProducts ? (
                       <tr>
-                        <td colSpan={8} className="text-center py-4">
+                        <td colSpan={9} className="text-center py-4">
                           <div className="spinner-border text-primary" role="status">
                             <span className="visually-hidden">Loading...</span>
                           </div>
@@ -606,7 +596,8 @@ export default function DashboardPage() {
                           </button>
                         </td>
                       </tr>
-                    ))}
+                      ))
+                    )}
                   </tbody>
                 </table>
               </div>
@@ -654,11 +645,11 @@ export default function DashboardPage() {
                       </tr>
                     ) : (
                       customers.filter(customer => 
-                      customer.name.toLowerCase().includes(customerFilter.toLowerCase()) ||
-                      customer.email.toLowerCase().includes(customerFilter.toLowerCase()) ||
-                      customer.country.toLowerCase().includes(customerFilter.toLowerCase()) ||
-                      (customer.address?.line1 || '').toLowerCase().includes(customerFilter.toLowerCase())
-                    ).map((customer, index) => (
+                        customer.name.toLowerCase().includes(customerFilter.toLowerCase()) ||
+                        customer.email.toLowerCase().includes(customerFilter.toLowerCase()) ||
+                        customer.country.toLowerCase().includes(customerFilter.toLowerCase()) ||
+                        (customer.address?.line1 || '').toLowerCase().includes(customerFilter.toLowerCase())
+                      ).map((customer, index) => (
                       <tr key={customer._id || index}>
                         <td><span className="badge bg-secondary">{customer._id?.slice(-8) || customer.id}</span></td>
                         <td className="fw-bold">{customer.name || 'N/A'}</td>
@@ -686,7 +677,8 @@ export default function DashboardPage() {
                           </select>
                         </td>
                       </tr>
-                    ))}
+                      ))
+                    )}
                   </tbody>
                 </table>
               </div>
@@ -733,9 +725,9 @@ export default function DashboardPage() {
                       </tr>
                     ) : (
                       orders.filter(order => 
-                      (order.customerInfo?.name || '').toLowerCase().includes(orderFilter.toLowerCase()) ||
-                      (order._id || '').toLowerCase().includes(orderFilter.toLowerCase())
-                    ).map((order, index) => (
+                        (order.customerInfo?.name || '').toLowerCase().includes(orderFilter.toLowerCase()) ||
+                        (order._id || '').toLowerCase().includes(orderFilter.toLowerCase())
+                      ).map((order, index) => (
                       <tr key={order._id || index}>
                         <td><span className="badge bg-secondary">{order.orderNumber || order._id?.slice(-8) || `FB${index + 1}`}</span></td>
                         <td>{order.customerInfo?.name || 'N/A'}</td>
@@ -894,7 +886,6 @@ export default function DashboardPage() {
           </div>
         )}
 
-        {/* Order Details Modal */}
         {showOrderModal && selectedOrder && (
           <div className="modal d-block" tabIndex={-1} style={{background: 'rgba(0,0,0,0.5)'}}>
             <div className="modal-dialog modal-lg">
@@ -984,7 +975,6 @@ export default function DashboardPage() {
           </div>
         )}
 
-        {/* Toast Notification */}
         {toast && (
           <div className={`position-fixed top-0 end-0 m-3`} style={{zIndex: 9999}}>
             <div className={`alert alert-${toast.type === 'success' ? 'success' : 'danger'} alert-dismissible fade show`} role="alert">
