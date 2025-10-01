@@ -1,0 +1,50 @@
+[
+  {
+    "id": 1,
+    "name": "Classic White T-Shirt",
+    "code": "CL001",
+    "price": 5997,
+    "category": "For Men",
+    "image": "https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=400&h=400&fit=crop",
+    "sizes": { "S": 12, "M": 8, "L": 15, "XL": 3 },
+    "status": "instock",
+    "rating": 4.5,
+    "reviewCount": 128
+  },
+  {
+    "id": 2,
+    "name": "Blue Denim Jeans",
+    "code": "CL002", 
+    "price": 14997,
+    "category": "For Men",
+    "image": "https://images.unsplash.com/photo-1542272604-787c3835535d?w=400&h=400&fit=crop",
+    "sizes": { "S": 7, "M": 10, "L": 6, "XL": 4 },
+    "status": "instock",
+    "rating": 4.2,
+    "reviewCount": 89
+  },
+  {
+    "id": 3,
+    "name": "Summer Floral Dress",
+    "code": "WD001",
+    "price": 8997,
+    "category": "For Women", 
+    "image": "https://images.unsplash.com/photo-1595777457583-95e059d581b8?w=400&h=400&fit=crop",
+    "sizes": { "XS": 5, "S": 8, "M": 12, "L": 7 },
+    "status": "instock",
+    "rating": 4.7,
+    "reviewCount": 156
+  },
+  {
+    "id": 4,
+    "name": "Kids Rainbow Hoodie",
+    "code": "KH001",
+    "price": 6997,
+    "category": "Kids",
+    "image": "https://images.unsplash.com/photo-1503944583220-79d8926ad5e2?w=400&h=400&fit=crop", 
+    "sizes": { "XS": 10, "S": 15, "M": 8, "L": 5 },
+    "status": "instock",
+    "rating": 4.8,
+    "reviewCount": 203
+  }
+]
