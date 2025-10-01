@@ -25,7 +25,7 @@ export async function POST(request: NextRequest) {
     
     // Verify each item in the order
     const verifiedItems = order.items.map((item: any) => {
-      const currentProduct = products.find(p => p.id === item.id || p._id === item._id);
+      const currentProduct = products.find((p: any) => p.id === item.id || p._id === item._id);
       return {
         ...item,
         verified: !!currentProduct,
