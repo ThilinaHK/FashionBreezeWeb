@@ -644,7 +644,16 @@ export default function DashboardPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {customers.filter(customer => 
+                    {loadingCustomers ? (
+                      <tr>
+                        <td colSpan={8} className="text-center py-4">
+                          <div className="spinner-border text-info" role="status">
+                            <span className="visually-hidden">Loading...</span>
+                          </div>
+                        </td>
+                      </tr>
+                    ) : (
+                      customers.filter(customer => 
                       customer.name.toLowerCase().includes(customerFilter.toLowerCase()) ||
                       customer.email.toLowerCase().includes(customerFilter.toLowerCase()) ||
                       customer.country.toLowerCase().includes(customerFilter.toLowerCase()) ||
@@ -714,7 +723,16 @@ export default function DashboardPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {orders.filter(order => 
+                    {loadingOrders ? (
+                      <tr>
+                        <td colSpan={7} className="text-center py-4">
+                          <div className="spinner-border text-warning" role="status">
+                            <span className="visually-hidden">Loading...</span>
+                          </div>
+                        </td>
+                      </tr>
+                    ) : (
+                      orders.filter(order => 
                       (order.customerInfo?.name || '').toLowerCase().includes(orderFilter.toLowerCase()) ||
                       (order._id || '').toLowerCase().includes(orderFilter.toLowerCase())
                     ).map((order, index) => (
