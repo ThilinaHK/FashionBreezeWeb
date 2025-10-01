@@ -46,7 +46,8 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ id: result.insertedId, ...newCategory }, { status: 201 });
   } catch (error) {
     // Fallback response
-    const newCategory = { id: Date.now(), name: request.body?.name || 'New Category', productCount: 0 };
+    const body = await request.json();
+    const newCategory = { id: Date.now(), name: body.name || 'New Category', productCount: 0 };
     return NextResponse.json(newCategory, { status: 201 });
   } finally {
     if (client) await client.close();
