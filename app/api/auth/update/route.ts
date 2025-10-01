@@ -23,10 +23,12 @@ export async function PUT(request: NextRequest) {
       updatedAt: new Date()
     };
     
-    const result = await db.collection('users').updateOne(
+    const result = await db.collection('customers').updateOne(
       { _id: userId },
       { $set: updateData }
     );
+    
+    console.log('Customer profile updated in customers collection:', result.modifiedCount);
     
     console.log('Profile update result:', result.modifiedCount);
     

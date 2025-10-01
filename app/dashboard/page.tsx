@@ -5,9 +5,16 @@ import { Product } from '../types';
 
 export default function DashboardPage() {
   const [products, setProducts] = useState<Product[]>([]);
+  const [categories, setCategories] = useState<any[]>([]);
+  const [customers, setCustomers] = useState<any[]>([]);
+  const [orders, setOrders] = useState<any[]>([]);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [activeTab, setActiveTab] = useState('products');
   const [showModal, setShowModal] = useState(false);
+  const [showCategoryModal, setShowCategoryModal] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+  const [editingCategory, setEditingCategory] = useState<any>(null);
+  const [categoryName, setCategoryName] = useState('');
   const [formData, setFormData] = useState({
     name: '',
     code: '',
@@ -25,6 +32,9 @@ export default function DashboardPage() {
       
       if (loggedIn) {
         loadProducts();
+        loadCategories();
+        loadCustomers();
+        loadOrders();
       }
     }
   }, []);
@@ -33,9 +43,53 @@ export default function DashboardPage() {
     try {
       const response = await fetch('/api/products');
       const products = await response.json();
-      setProducts(products);
+      setProducts(Array.isArray(products) ? products : []);
     } catch (error) {
       console.error('Error loading products:', error);
+      setProducts([]);
+    }
+  };
+
+  const loadCategories = async () => {
+    try {
+      const response = await fetch('/api/categories');
+      const categories = await response.json();
+      setCategories(categories);
+    } catch (error) {
+      console.error('Error loading categories:', error);
+    }
+  };
+
+  const loadCustomers = async () => {
+    try {
+      const response = await fetch('/api/customers');
+      const customers = await response.json();
+      setCustomers(customers);
+    } catch (error) {
+      console.error('Error loading customers:', error);
+    }
+  };
+
+  const loadOrders = async () => {
+    try {
+      const response = await fetch('/api/orders');
+      const orders = await response.json();
+      setOrders(orders);
+    } catch (error) {
+      console.error('Error loading orders:', error);
+    }
+  };
+
+  const updateOrderStatus = async (orderId: string, status: string) => {
+    try {
+      await fetch('/api/orders', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ orderId, status })
+      });
+      loadOrders();
+    } catch (error) {
+      console.error('Error updating order status:', error);
     }
   };
 
@@ -82,19 +136,13 @@ export default function DashboardPage() {
         body: JSON.stringify(formData)
       });
       
-      const result = await response.json();
-      console.log('Save result:', result);
-      
       if (response.ok) {
         await loadProducts();
         closeModal();
         alert(editingProduct ? 'Product updated successfully!' : 'Product created successfully!');
-      } else {
-        alert('Error: ' + (result.error || 'Failed to save product'));
       }
     } catch (error) {
       console.error('Error saving product:', error);
-      alert('Network error. Please try again.');
     } finally {
       setSaving(false);
     }
@@ -107,6 +155,47 @@ export default function DashboardPage() {
         loadProducts();
       } catch (error) {
         console.error('Error deleting product:', error);
+      }
+    }
+  };
+
+  const openCategoryModal = (category?: any) => {
+    setEditingCategory(category || null);
+    setCategoryName(category?.name || '');
+    setShowCategoryModal(true);
+  };
+
+  const saveCategoryHandler = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      const method = editingCategory ? 'PUT' : 'POST';
+      const body = editingCategory ? { id: editingCategory.id, name: categoryName } : { name: categoryName };
+      
+      await fetch('/api/categories', {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      });
+      
+      loadCategories();
+      setShowCategoryModal(false);
+      setCategoryName('');
+    } catch (error) {
+      console.error('Error saving category:', error);
+    }
+  };
+
+  const deleteCategory = async (id: number) => {
+    if (confirm('Delete this category?')) {
+      try {
+        await fetch('/api/categories', {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id })
+        });
+        loadCategories();
+      } catch (error) {
+        console.error('Error deleting category:', error);
       }
     }
   };
@@ -157,6 +246,33 @@ export default function DashboardPage() {
           </div>
         </div>
 
+        <div className="row mb-4">
+          <div className="col-12">
+            <ul className="nav nav-tabs">
+              <li className="nav-item">
+                <button className={`nav-link ${activeTab === 'products' ? 'active' : ''}`} onClick={() => setActiveTab('products')}>
+                  <i className="bi bi-box-seam me-2"></i>Products
+                </button>
+              </li>
+              <li className="nav-item">
+                <button className={`nav-link ${activeTab === 'categories' ? 'active' : ''}`} onClick={() => setActiveTab('categories')}>
+                  <i className="bi bi-tags me-2"></i>Categories
+                </button>
+              </li>
+              <li className="nav-item">
+                <button className={`nav-link ${activeTab === 'customers' ? 'active' : ''}`} onClick={() => setActiveTab('customers')}>
+                  <i className="bi bi-people me-2"></i>Customers
+                </button>
+              </li>
+              <li className="nav-item">
+                <button className={`nav-link ${activeTab === 'orders' ? 'active' : ''}`} onClick={() => setActiveTab('orders')}>
+                  <i className="bi bi-cart-check me-2"></i>Orders
+                </button>
+              </li>
+            </ul>
+          </div>
+        </div>
+
         <div className="row g-4 mb-5">
           <div className="col-md-3">
             <div className="card border-0 shadow-sm">
@@ -170,87 +286,210 @@ export default function DashboardPage() {
           <div className="col-md-3">
             <div className="card border-0 shadow-sm">
               <div className="card-body text-center p-4">
-                <i className="bi bi-check-circle display-4 text-success mb-3"></i>
-                <h3 className="fw-bold">{products.filter(p => p.status === 'instock').length}</h3>
-                <p className="text-muted mb-0">In Stock</p>
+                <i className="bi bi-people display-4 text-info mb-3"></i>
+                <h3 className="fw-bold">{customers.length}</h3>
+                <p className="text-muted mb-0">Customers</p>
               </div>
             </div>
           </div>
           <div className="col-md-3">
             <div className="card border-0 shadow-sm">
               <div className="card-body text-center p-4">
-                <i className="bi bi-x-circle display-4 text-danger mb-3"></i>
-                <h3 className="fw-bold">{products.filter(p => p.status === 'outofstock').length}</h3>
-                <p className="text-muted mb-0">Out of Stock</p>
+                <i className="bi bi-cart-check display-4 text-warning mb-3"></i>
+                <h3 className="fw-bold">{orders.length}</h3>
+                <p className="text-muted mb-0">Orders</p>
               </div>
             </div>
           </div>
           <div className="col-md-3">
             <div className="card border-0 shadow-sm">
               <div className="card-body text-center p-4">
-                <i className="bi bi-tags display-4 text-warning mb-3"></i>
-                <h3 className="fw-bold">{new Set(products.map(p => p.category)).size}</h3>
+                <i className="bi bi-tags display-4 text-success mb-3"></i>
+                <h3 className="fw-bold">{categories.length}</h3>
                 <p className="text-muted mb-0">Categories</p>
               </div>
             </div>
           </div>
         </div>
 
-        <div className="card border-0 shadow-sm">
-          <div className="card-header bg-primary text-white d-flex justify-content-between align-items-center">
-            <h5 className="mb-0"><i className="bi bi-list me-2"></i>Product Management</h5>
-            <button className="btn btn-light" onClick={() => openModal()}>
-              <i className="bi bi-plus-circle me-2"></i>Add Product
-            </button>
-          </div>
-          <div className="card-body">
-            <div className="table-responsive">
-              <table className="table table-hover">
-                <thead>
-                  <tr>
-                    <th>Image</th>
-                    <th>Name</th>
-                    <th>Code</th>
-                    <th>Category</th>
-                    <th>Price</th>
-                    <th>Status</th>
-                    <th>Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {products.map(product => (
-                    <tr key={product.id}>
-                      <td>
-                        <img src={product.image} alt={product.name} style={{width: '50px', height: '50px', objectFit: 'cover'}} className="rounded" />
-                      </td>
-                      <td className="fw-bold">{product.name}</td>
-                      <td><span className="badge bg-secondary">{product.code}</span></td>
-                      <td><span className="badge bg-info">{product.category}</span></td>
-                      <td className="fw-bold text-success">LKR {product.price}</td>
-                      <td>
-                        <span className={`badge ${product.status === 'instock' ? 'bg-success' : 'bg-danger'}`}>
-                          {product.status === 'instock' ? 'In Stock' : 'Out of Stock'}
-                        </span>
-                      </td>
-                      <td>
-                        <div className="d-flex gap-2">
-                          <button className="btn btn-sm btn-outline-primary" onClick={() => openModal(product)}>
-                            <i className="bi bi-pencil"></i>
-                          </button>
-                          <button className="btn btn-sm btn-outline-danger" onClick={() => deleteProduct(product.id)}>
-                            <i className="bi bi-trash"></i>
-                          </button>
-                        </div>
-                      </td>
+        {activeTab === 'products' && (
+          <div className="card border-0 shadow-sm">
+            <div className="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+              <h5 className="mb-0"><i className="bi bi-list me-2"></i>Product Management</h5>
+              <button className="btn btn-light" onClick={() => openModal()}>
+                <i className="bi bi-plus-circle me-2"></i>Add Product
+              </button>
+            </div>
+            <div className="card-body">
+              <div className="table-responsive">
+                <table className="table table-hover">
+                  <thead>
+                    <tr>
+                      <th>Image</th>
+                      <th>Name</th>
+                      <th>Code</th>
+                      <th>Category</th>
+                      <th>Price</th>
+                      <th>Status</th>
+                      <th>Actions</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {products.map(product => (
+                      <tr key={product.id}>
+                        <td>
+                          <img src={product.image} alt={product.name} style={{width: '50px', height: '50px', objectFit: 'cover'}} className="rounded" />
+                        </td>
+                        <td className="fw-bold">{product.name}</td>
+                        <td><span className="badge bg-secondary">{product.code}</span></td>
+                        <td><span className="badge bg-info">{product.category}</span></td>
+                        <td className="fw-bold text-success">LKR {product.price}</td>
+                        <td>
+                          <span className={`badge ${product.status === 'instock' ? 'bg-success' : 'bg-danger'}`}>
+                            {product.status === 'instock' ? 'In Stock' : 'Out of Stock'}
+                          </span>
+                        </td>
+                        <td>
+                          <div className="d-flex gap-2">
+                            <button className="btn btn-sm btn-outline-primary" onClick={() => openModal(product)}>
+                              <i className="bi bi-pencil"></i>
+                            </button>
+                            <button className="btn btn-sm btn-outline-danger" onClick={() => deleteProduct(product.id)}>
+                              <i className="bi bi-trash"></i>
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
           </div>
-        </div>
+        )}
 
-        {/* Product Modal */}
+        {activeTab === 'categories' && (
+          <div className="card border-0 shadow-sm">
+            <div className="card-header bg-success text-white d-flex justify-content-between align-items-center">
+              <h5 className="mb-0"><i className="bi bi-tags me-2"></i>Category Management</h5>
+              <button className="btn btn-light" onClick={() => openCategoryModal()}>
+                <i className="bi bi-plus-circle me-2"></i>Add Category
+              </button>
+            </div>
+            <div className="card-body">
+              <div className="table-responsive">
+                <table className="table table-hover">
+                  <thead>
+                    <tr>
+                      <th>ID</th>
+                      <th>Name</th>
+                      <th>Products</th>
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {categories.map(category => (
+                      <tr key={category.id}>
+                        <td>{category.id}</td>
+                        <td className="fw-bold">{category.name}</td>
+                        <td><span className="badge bg-info">{category.productCount}</span></td>
+                        <td>
+                          <button className="btn btn-sm btn-outline-primary me-2" onClick={() => openCategoryModal(category)}>
+                            <i className="bi bi-pencil"></i>
+                          </button>
+                          <button className="btn btn-sm btn-outline-danger" onClick={() => deleteCategory(category.id)}>
+                            <i className="bi bi-trash"></i>
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'customers' && (
+          <div className="card border-0 shadow-sm">
+            <div className="card-header bg-info text-white">
+              <h5 className="mb-0"><i className="bi bi-people me-2"></i>Customer Management</h5>
+            </div>
+            <div className="card-body">
+              <div className="table-responsive">
+                <table className="table table-hover">
+                  <thead>
+                    <tr>
+                      <th>Name</th>
+                      <th>Email</th>
+                      <th>Phone</th>
+                      <th>Country</th>
+                      <th>Registered</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {customers.map((customer, index) => (
+                      <tr key={customer._id || index}>
+                        <td className="fw-bold">{customer.name}</td>
+                        <td>{customer.email}</td>
+                        <td>{customer.phone}</td>
+                        <td>{customer.country}</td>
+                        <td>{new Date(customer.createdAt || Date.now()).toLocaleDateString()}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'orders' && (
+          <div className="card border-0 shadow-sm">
+            <div className="card-header bg-warning text-dark">
+              <h5 className="mb-0"><i className="bi bi-cart-check me-2"></i>Order Management</h5>
+            </div>
+            <div className="card-body">
+              <div className="table-responsive">
+                <table className="table table-hover">
+                  <thead>
+                    <tr>
+                      <th>Order ID</th>
+                      <th>Customer</th>
+                      <th>Total</th>
+                      <th>Status</th>
+                      <th>Date</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {orders.map((order, index) => (
+                      <tr key={order._id || index}>
+                        <td><span className="badge bg-secondary">{order._id?.slice(-8) || `ORD${index + 1}`}</span></td>
+                        <td>{order.customerInfo?.name || 'N/A'}</td>
+                        <td className="fw-bold text-success">LKR {order.total?.toFixed(2) || '0.00'}</td>
+                        <td>
+                          <select 
+                            className="form-select form-select-sm" 
+                            value={order.status || 'pending'}
+                            onChange={(e) => updateOrderStatus(order._id, e.target.value)}
+                          >
+                            <option value="pending">Pending</option>
+                            <option value="confirmed">Confirmed</option>
+                            <option value="shipped">Shipped</option>
+                            <option value="delivered">Delivered</option>
+                            <option value="cancelled">Cancelled</option>
+                          </select>
+                        </td>
+                        <td>{new Date(order.createdAt || Date.now()).toLocaleDateString()}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        )}
+
         {showModal && (
           <div className="modal d-block" tabIndex={-1} style={{background: 'rgba(0,0,0,0.5)'}}>
             <div className="modal-dialog">
@@ -284,8 +523,6 @@ export default function DashboardPage() {
                         <option value="Fragrances">Fragrances</option>
                         <option value="Skin">Skin</option>
                         <option value="Home">Home</option>
-                        <option value="Gifting">Gifting</option>
-                        <option value="Mind & Body">Mind & Body</option>
                       </select>
                     </div>
                     <div className="mb-3">
@@ -301,13 +538,42 @@ export default function DashboardPage() {
                     </div>
                   </div>
                   <div className="modal-footer">
-                    <button type="button" className="btn btn-secondary" onClick={closeModal} disabled={saving}>Cancel</button>
+                    <button type="button" className="btn btn-secondary" onClick={closeModal}>Cancel</button>
                     <button type="submit" className="btn btn-primary" disabled={saving}>
-                      {saving ? (
-                        <><i className="bi bi-hourglass-split me-2"></i>Saving...</>
-                      ) : (
-                        editingProduct ? 'Update' : 'Create'
-                      )}
+                      {saving ? 'Saving...' : (editingProduct ? 'Update' : 'Create')}
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {showCategoryModal && (
+          <div className="modal d-block" tabIndex={-1} style={{background: 'rgba(0,0,0,0.5)'}}>
+            <div className="modal-dialog">
+              <div className="modal-content">
+                <div className="modal-header">
+                  <h5 className="modal-title">{editingCategory ? 'Edit Category' : 'Add Category'}</h5>
+                  <button type="button" className="btn-close" onClick={() => setShowCategoryModal(false)}></button>
+                </div>
+                <form onSubmit={saveCategoryHandler}>
+                  <div className="modal-body">
+                    <div className="mb-3">
+                      <label className="form-label">Category Name</label>
+                      <input 
+                        type="text" 
+                        className="form-control" 
+                        value={categoryName}
+                        onChange={(e) => setCategoryName(e.target.value)}
+                        required 
+                      />
+                    </div>
+                  </div>
+                  <div className="modal-footer">
+                    <button type="button" className="btn btn-secondary" onClick={() => setShowCategoryModal(false)}>Cancel</button>
+                    <button type="submit" className="btn btn-success">
+                      {editingCategory ? 'Update' : 'Create'}
                     </button>
                   </div>
                 </form>

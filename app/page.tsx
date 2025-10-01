@@ -102,10 +102,14 @@ export default function ClientPage() {
   const loadProducts = async () => {
     try {
       setLoading(true);
+      console.log('=== MAIN PAGE LOADING PRODUCTS ===');
       const response = await fetch('/api/products');
+      console.log('Products API response status:', response.status);
       const products = await response.json();
-      setProducts(products);
-      updateCategories(products);
+      console.log('Products received in main page:', products.length);
+      console.log('Products data:', products);
+      setProducts(Array.isArray(products) ? products : []);
+      updateCategories(Array.isArray(products) ? products : []);
     } catch (error) {
       console.error('Error loading products:', error);
       loadFallbackProducts();

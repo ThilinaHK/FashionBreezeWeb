@@ -6,19 +6,32 @@ export async function POST(request: NextRequest) {
   try {
     const { email } = await request.json();
     
-    // Try MongoDB first
+    console.log('=== CUSTOMER LOGIN ===');
+    console.log('Login email:', email);
+    
     try {
-      await dbConnect();
-      const user = await User.findOne({ email, isActive: true });
-      if (!user) {
-        return NextResponse.json({ error: 'User not found' }, { status: 404 });
+      const mongoUri = process.env.MONGODB_URI || 'mongodb://localhost:27017';
+      const { MongoClient } = require('mongodb');
+      const client = new MongoClient(mongoUri);
+      await client.connect();
+      const db = client.db('fashionBreeze');
+      
+      const customer = await db.collection('customers').findOne({ email });
+      console.log('Customer found:', !!customer);
+      
+      await client.close();
+      
+      if (customer) {
+        return NextResponse.json({ 
+          success: true, 
+          user: { id: customer._id, name: customer.name, email: customer.email, ...customer } 
+        });
+      } else {
+        return NextResponse.json({ error: 'Customer not found' }, { status: 404 });
       }
-      return NextResponse.json({ 
-        success: true, 
-        user: { id: user._id, name: user.name, email: user.email } 
-      });
     } catch (dbError) {
-      // Fallback: simulate login for demo
+      console.error('MongoDB login error:', dbError);
+      // Fallback: simulate successful login
       return NextResponse.json({ 
         success: true, 
         user: { id: Date.now().toString(), name: 'Demo User', email } 

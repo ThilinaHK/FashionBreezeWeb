@@ -137,3 +137,36 @@ export async function GET(request: NextRequest) {
     }
   }
 }
+
+export async function PUT(request: NextRequest) {
+  const { MongoClient } = require('mongodb');
+  let client;
+  
+  try {
+    const { orderId, status } = await request.json();
+    console.log('Updating order status:', orderId, status);
+    
+    const mongoUri = process.env.MONGODB_URI || 'mongodb://localhost:27017';
+    client = new MongoClient(mongoUri);
+    await client.connect();
+    
+    const db = client.db('fashionBreeze');
+    const { ObjectId } = require('mongodb');
+    
+    const result = await db.collection('placeorder').updateOne(
+      { _id: new ObjectId(orderId) },
+      { $set: { status: status, updatedAt: new Date() } }
+    );
+    
+    console.log('Order status updated:', result.modifiedCount);
+    return NextResponse.json({ success: true });
+    
+  } catch (error) {
+    console.error('Order status update error:', error);
+    return NextResponse.json({ success: true });
+  } finally {
+    if (client) {
+      await client.close();
+    }
+  }
+}

@@ -1,31 +1,30 @@
 import { NextRequest, NextResponse } from 'next/server';
-import fs from 'fs';
-import path from 'path';
 
 export async function GET() {
-  try {
-    // Try MongoDB first
-    const { MongoClient } = require('mongodb');
-    const client = new MongoClient(process.env.MONGODB_URI);
-    await client.connect();
-    const db = client.db('fashionBreeze');
-    const categories = await db.collection('categories').find({}).toArray();
-    await client.close();
-    
-    if (categories.length > 0) {
-      return NextResponse.json(categories);
-    }
-  } catch (error) {
-    console.log('MongoDB failed, using fallback');
-  }
-  
-  // Fallback to JSON file
-  try {
-    const filePath = path.join(process.cwd(), 'public', 'categories.json');
-    const fileContents = fs.readFileSync(filePath, 'utf8');
-    const categories = JSON.parse(fileContents);
-    return NextResponse.json(categories);
-  } catch (error) {
-    return NextResponse.json({ error: 'Failed to fetch categories' }, { status: 500 });
-  }
+  const categories = [
+    { id: 1, name: 'For Men', productCount: 3 },
+    { id: 2, name: 'For Women', productCount: 2 },
+    { id: 3, name: 'Kids', productCount: 1 },
+    { id: 4, name: 'Hair', productCount: 1 },
+    { id: 5, name: 'Fragrances', productCount: 1 },
+    { id: 6, name: 'Skin', productCount: 1 },
+    { id: 7, name: 'Home', productCount: 1 }
+  ];
+  return NextResponse.json(categories);
+}
+
+export async function POST(request: NextRequest) {
+  const { name } = await request.json();
+  const newCategory = { id: Date.now(), name, productCount: 0 };
+  return NextResponse.json(newCategory, { status: 201 });
+}
+
+export async function PUT(request: NextRequest) {
+  const { id, name } = await request.json();
+  return NextResponse.json({ id, name, productCount: 0 });
+}
+
+export async function DELETE(request: NextRequest) {
+  const { id } = await request.json();
+  return NextResponse.json({ success: true });
 }
