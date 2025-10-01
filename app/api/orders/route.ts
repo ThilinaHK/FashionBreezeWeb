@@ -24,7 +24,7 @@ export async function POST(request: NextRequest) {
     
     // Test connection
     const collections = await db.listCollections().toArray();
-    console.log('Available collections:', collections.map(c => c.name));
+    console.log('Available collections:', collections.map((c: any) => c.name));
     
     // Get cart items
     const cart = await db.collection('carts').findOne({ userId: userId });
@@ -115,7 +115,7 @@ export async function GET(request: NextRequest) {
     
     // List collections to verify placeorder exists
     const collections = await db.listCollections().toArray();
-    console.log('Available collections:', collections.map(c => c.name));
+    console.log('Available collections:', collections.map((c: any) => c.name));
     
     const query = userId ? { userId: userId } : {};
     console.log('Querying placeorder collection with:', query);

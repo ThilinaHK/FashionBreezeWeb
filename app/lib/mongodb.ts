@@ -6,6 +6,13 @@ if (!MONGODB_URI) {
   throw new Error('Please define the MONGODB_URI environment variable');
 }
 
+declare global {
+  var mongoose: {
+    conn: any;
+    promise: Promise<any> | null;
+  };
+}
+
 let cached = global.mongoose;
 
 if (!cached) {

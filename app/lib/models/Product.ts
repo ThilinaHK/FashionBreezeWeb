@@ -184,7 +184,7 @@ ProductSchema.virtual('totalStock').get(function() {
 
 // Virtual for in stock status
 ProductSchema.virtual('inStock').get(function() {
-  return this.totalStock > 0;
+  return (this.inventory?.totalStock || 0) > 0;
 });
 
 export default mongoose.models.Product || mongoose.model('Product', ProductSchema);

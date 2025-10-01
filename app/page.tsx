@@ -457,7 +457,7 @@ export default function ClientPage() {
   const getSizeStock = (size: string) => {
     const product = selectedProduct;
     if (!product?.sizes) return 0;
-    const sizeData = product.sizes[size];
+    const sizeData = (product.sizes as any)[size];
     return typeof sizeData === 'object' ? sizeData.stock : sizeData || 0;
   };
 
@@ -468,7 +468,7 @@ export default function ClientPage() {
   const getSizePrice = (size: string) => {
     const product = selectedProduct;
     if (!product?.sizes) return product?.price || 0;
-    const sizeData = product.sizes[size];
+    const sizeData = (product.sizes as any)[size];
     return typeof sizeData === 'object' ? sizeData.price : product?.price || 0;
   };
 
