@@ -1,0 +1,141 @@
+<div class="profile-page">
+  <nav class="navbar navbar-expand-lg navbar-dark shadow-lg" style="background: var(--gradient-primary);">
+    <div class="container">
+      <a href="/client" class="navbar-brand fw-bold fs-3">
+        <img src="../../assets/logo1.png" alt="Fashion Breeze" style="height: 40px; margin-right: 10px;">
+        Fashion Breeze
+      </a>
+
+      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+
+      <div class="collapse navbar-collapse" id="navbarNav">
+        <ul class="navbar-nav me-auto">
+          <li class="nav-item">
+            <a class="nav-link" href="/client">
+              <i class="bi bi-bag me-1"></i>Products
+            </a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="/about">
+              <i class="bi bi-info-circle me-1"></i>About Us
+            </a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="/contact">
+              <i class="bi bi-telephone me-1"></i>Contact Us
+            </a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link active" href="/profile">
+              <i class="bi bi-person me-1"></i>My Profile
+            </a>
+          </li>
+        </ul>
+
+        <div class="d-flex align-items-center gap-3">
+          <button class="btn btn-outline-light" (click)="logout()">
+            <i class="bi bi-box-arrow-right me-2"></i>Logout
+          </button>
+          <a href="/client" class="btn btn-light">
+            <i class="bi bi-arrow-left me-2"></i>Shop Now
+          </a>
+        </div>
+      </div>
+    </div>
+  </nav>
+
+  <div class="container py-5">
+    <div class="row justify-content-center">
+      <div class="col-lg-8">
+        <div class="text-center mb-5">
+          <div class="profile-avatar mb-3">
+            <i class="bi bi-person-circle display-1 text-primary"></i>
+          </div>
+          <h1 class="display-5 fw-bold mb-2">{{ customerData().name || 'Customer' }}</h1>
+          <p class="text-muted">Fashion Breeze Member</p>
+        </div>
+
+        <div class="row g-4">
+          <div class="col-md-6">
+            <div class="card border-0 shadow-sm h-100">
+              <div class="card-header bg-primary text-white">
+                <h5 class="mb-0"><i class="bi bi-person-fill me-2"></i>Personal Information</h5>
+              </div>
+              <div class="card-body">
+                <div class="mb-3">
+                  <strong class="text-muted">Full Name:</strong>
+                  <p class="mb-0">{{ customerData().name || 'Not provided' }}</p>
+                </div>
+                <div class="mb-3">
+                  <strong class="text-muted">Email Address:</strong>
+                  <p class="mb-0">{{ customerData().email || 'Not provided' }}</p>
+                </div>
+                <div class="mb-3">
+                  <strong class="text-muted">Phone Number:</strong>
+                  <p class="mb-0">{{ customerData().phone || 'Not provided' }}</p>
+                </div>
+                <div class="mb-0">
+                  <strong class="text-muted">Country:</strong>
+                  <p class="mb-0">{{ getCountryName() || 'Not provided' }}</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="col-md-6">
+            <div class="card border-0 shadow-sm h-100">
+              <div class="card-header bg-success text-white">
+                <h5 class="mb-0"><i class="bi bi-geo-alt-fill me-2"></i>Delivery Address</h5>
+              </div>
+              <div class="card-body">
+                <div class="mb-3">
+                  <strong class="text-muted">Address Line 1:</strong>
+                  <p class="mb-0">{{ customerData().address?.line1 || 'Not provided' }}</p>
+                </div>
+                <div class="mb-3">
+                  <strong class="text-muted">Address Line 2:</strong>
+                  <p class="mb-0">{{ customerData().address?.line2 || 'Not provided' }}</p>
+                </div>
+                <div class="mb-0">
+                  <strong class="text-muted">City, State, ZIP:</strong>
+                  <p class="mb-0">{{ customerData().address?.line3 || 'Not provided' }}</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card border-0 shadow-sm mt-4">
+          <div class="card-header bg-info text-white">
+            <h5 class="mb-0"><i class="bi bi-clock-fill me-2"></i>Account Information</h5>
+          </div>
+          <div class="card-body">
+            <div class="row">
+              <div class="col-md-6">
+                <strong class="text-muted">Member Since:</strong>
+                <p class="mb-0">{{ customerData().registeredAt ? (customerData().registeredAt | date:'medium') : 'Not available' }}</p>
+              </div>
+              <div class="col-md-6">
+                <strong class="text-muted">Customer ID:</strong>
+                <p class="mb-0">#{{ customerData().id || 'Not available' }}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="text-center mt-5">
+          <div class="d-flex gap-3 justify-content-center">
+            <a href="/client" class="btn btn-primary btn-lg">
+              <i class="bi bi-bag me-2"></i>Continue Shopping
+            </a>
+            <button class="btn btn-outline-danger btn-lg" (click)="logout()">
+              <i class="bi bi-box-arrow-right me-2"></i>Logout
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
