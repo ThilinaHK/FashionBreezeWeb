@@ -53,6 +53,7 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error('Registration error:', error);
     // Fallback: add to in-memory array
+    const body = await request.json();
     const newCustomer = {
       _id: Date.now().toString(),
       ...body,
