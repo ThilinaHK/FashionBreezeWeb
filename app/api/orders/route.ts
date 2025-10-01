@@ -58,7 +58,11 @@ export async function POST(request: NextRequest) {
       orderTotal = 1000;
     }
     
+    // Generate order number
+    const orderNumber = `FB${Date.now().toString().slice(-8)}`;
+    
     const orderData = {
+      orderNumber: orderNumber,
       userId: userId,
       items: orderItems,
       total: orderTotal,
@@ -81,7 +85,7 @@ export async function POST(request: NextRequest) {
       console.log('Cart cleared after order');
     }
     
-    return NextResponse.json({ success: true, orderId: result.insertedId });
+    return NextResponse.json({ success: true, orderId: result.insertedId, orderNumber: orderNumber });
     
   } catch (error) {
     console.error('=== ORDER ERROR ===');

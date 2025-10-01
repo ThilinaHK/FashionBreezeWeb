@@ -20,12 +20,34 @@ export default function RegisterPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
+  const checkEmailExists = async (email: string) => {
+    try {
+      const response = await fetch('/api/auth/check-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email })
+      });
+      const data = await response.json();
+      return data.exists;
+    } catch (error) {
+      return false;
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError('');
     
     try {
+      // Check if email already exists
+      const emailExists = await checkEmailExists(formData.email);
+      if (emailExists) {
+        setError('Email address is already registered. Please use a different email.');
+        setLoading(false);
+        return;
+      }
+
       const response = await fetch('/api/auth/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -35,10 +57,7 @@ export default function RegisterPage() {
       const data = await response.json();
       
       if (data.success) {
-        localStorage.setItem('userRegistered', 'true');
-        localStorage.setItem('userName', data.user.name);
-        localStorage.setItem('userId', data.user.id);
-        localStorage.setItem('userEmail', data.user.email);
+        document.cookie = `userId=${data.user._id || data.user.id}; path=/; max-age=86400`;
         router.push('/');
       } else {
         setError(data.error || 'Registration failed');
@@ -122,8 +141,12 @@ export default function RegisterPage() {
                         value={formData.email}
                         onChange={handleInputChange}
                         required 
-                        placeholder="Enter your email" 
+                        placeholder="Enter your email"
+                        readOnly={!!formData.email}
                       />
+                      {formData.email && (
+                        <small className="text-muted">Email cannot be changed once set</small>
+                      )}
                     </div>
                     <div className="col-md-6">
                       <label className="form-label fw-bold">Phone Number *</label>

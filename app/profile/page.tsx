@@ -23,6 +23,7 @@ export default function ProfilePage() {
   const [statusFilter, setStatusFilter] = useState('all');
   const [dateFilter, setDateFilter] = useState('all');
   const [updateLoading, setUpdateLoading] = useState(false);
+  const [verifyingOrder, setVerifyingOrder] = useState<string | null>(null);
 
   useEffect(() => {
     loadProfile();
@@ -85,6 +86,30 @@ export default function ProfilePage() {
   const closeOrderModal = () => {
     setShowOrderModal(false);
     setSelectedOrder(null);
+  };
+
+  const verifyOrder = async (orderId: string) => {
+    setVerifyingOrder(orderId);
+    try {
+      const response = await fetch('/api/orders/verify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ orderId })
+      });
+      const data = await response.json();
+      if (data.success) {
+        loadOrders();
+        if (data.unavailableCount > 0) {
+          alert(`${data.unavailableCount} items are no longer available`);
+        } else {
+          alert('All items are available!');
+        }
+      }
+    } catch (error) {
+      alert('Failed to verify order');
+    } finally {
+      setVerifyingOrder(null);
+    }
   };
 
   const toggleEditMode = () => {
@@ -424,9 +449,18 @@ export default function ProfilePage() {
                                 </span>
                               </td>
                               <td>
-                                <button className="btn btn-sm btn-outline-primary" onClick={() => viewOrderDetails(order)}>
-                                  <i className="bi bi-eye me-1"></i>View
-                                </button>
+                                <div className="d-flex gap-1">
+                                  <button className="btn btn-sm btn-outline-primary" onClick={() => viewOrderDetails(order)}>
+                                    <i className="bi bi-eye me-1"></i>View
+                                  </button>
+                                  <button className="btn btn-sm btn-outline-warning" onClick={() => verifyOrder(order._id)} disabled={verifyingOrder === order._id}>
+                                    {verifyingOrder === order._id ? (
+                                      <div className="spinner-border spinner-border-sm" role="status"></div>
+                                    ) : (
+                                      <><i className="bi bi-check-circle me-1"></i>Verify</>
+                                    )}
+                                  </button>
+                                </div>
                               </td>
                             </tr>
                           ))}

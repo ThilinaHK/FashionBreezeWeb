@@ -38,6 +38,7 @@ export default function ClientPage() {
     setMounted(true);
     loadProducts();
     loadCartFromStorage();
+    loadCategoriesFromAPI();
     startProductUpdateListener();
   }, []);
 
@@ -163,6 +164,17 @@ export default function ClientPage() {
     const maxProductPrice = Math.max(...productList.map(p => p.price));
     setMaxPrice(Math.ceil(maxProductPrice));
     setPriceRange({ min: 0, max: Math.ceil(maxProductPrice) });
+  };
+
+  const loadCategoriesFromAPI = async () => {
+    try {
+      const response = await fetch('/api/categories');
+      const apiCategories = await response.json();
+      const categoryNames = apiCategories.map((cat: any) => cat.name);
+      setCategories(['All', ...categoryNames]);
+    } catch (error) {
+      console.error('Error loading categories:', error);
+    }
   };
 
   const getFilteredProducts = () => {

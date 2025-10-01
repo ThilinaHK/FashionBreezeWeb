@@ -5,7 +5,26 @@ import path from 'path';
 export async function GET() {
   console.log('=== LOADING PRODUCTS ===');
   
-  // Return hardcoded products for testing
+  // Try MongoDB first
+  try {
+    const mongoUri = process.env.MONGODB_URI;
+    const { MongoClient } = require('mongodb');
+    const client = new MongoClient(mongoUri);
+    await client.connect();
+    const db = client.db('fashionBreeze');
+    
+    const products = await db.collection('products').find({}).toArray();
+    await client.close();
+    
+    if (products.length > 0) {
+      console.log('Loaded products from MongoDB:', products.length);
+      return NextResponse.json(products);
+    }
+  } catch (dbError) {
+    console.log('MongoDB failed, using fallback products');
+  }
+  
+  // Fallback hardcoded products
   const products = [
     {
       id: 1,
@@ -129,7 +148,7 @@ export async function GET() {
     }
   ];
   
-  console.log('Returning hardcoded products:', products.length);
+  console.log('Returning fallback products:', products.length);
   return NextResponse.json(products);
 }
 
