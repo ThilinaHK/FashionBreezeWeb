@@ -22,6 +22,7 @@ export default function ProfilePage() {
   const [ordersPerPage] = useState(5);
   const [statusFilter, setStatusFilter] = useState('all');
   const [dateFilter, setDateFilter] = useState('all');
+  const [updateLoading, setUpdateLoading] = useState(false);
 
   useEffect(() => {
     loadProfile();
@@ -91,6 +92,7 @@ export default function ProfilePage() {
   };
 
   const saveProfile = async () => {
+    setUpdateLoading(true);
     try {
       const response = await fetch('/api/auth/update', {
         method: 'PUT',
@@ -111,6 +113,8 @@ export default function ProfilePage() {
     } catch (error) {
       console.error('Error updating profile:', error);
       alert('Error updating profile');
+    } finally {
+      setUpdateLoading(false);
     }
   };
 
@@ -214,8 +218,12 @@ export default function ProfilePage() {
                   <div>
                     {editMode ? (
                       <>
-                        <button className="btn btn-success btn-sm me-2" onClick={saveProfile}>
-                          <i className="bi bi-check me-1"></i>Save
+                        <button className="btn btn-success btn-sm me-2" onClick={saveProfile} disabled={updateLoading}>
+                          {updateLoading ? (
+                            <><i className="bi bi-hourglass-split me-1"></i>Saving...</>
+                          ) : (
+                            <><i className="bi bi-check me-1"></i>Save</>
+                          )}
                         </button>
                         <button className="btn btn-secondary btn-sm" onClick={toggleEditMode}>
                           <i className="bi bi-x me-1"></i>Cancel

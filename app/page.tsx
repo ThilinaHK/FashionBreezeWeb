@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { Product, CartItem, ChatMessage, Comment } from './types';
+import BootstrapClient from './components/BootstrapClient';
 
 export default function ClientPage() {
   const [products, setProducts] = useState<Product[]>([]);
@@ -525,10 +526,11 @@ export default function ClientPage() {
 
   return (
     <div className="client-app">
+      <BootstrapClient />
       {/* Navigation */}
-      <nav className="navbar navbar-expand-lg navbar-dark shadow-lg" style={{background: 'var(--gradient-primary)', backdropFilter: 'blur(10px)', zIndex: 1050, position: 'relative'}}>
+      <nav className="navbar navbar-expand-lg navbar-light bg-white shadow-lg" style={{zIndex: 1050, position: 'relative'}}>
         <div className="container">
-          <a className="navbar-brand fw-bold fs-3">
+          <a className="navbar-brand fw-bold fs-3 text-dark">
             <img src="/logo.png" alt="Fashion Breeze" style={{height: '45px', width: 'auto', objectFit: 'contain', background: 'rgba(255,255,255,0.9)', padding: '5px', borderRadius: '8px', marginRight: '10px'}} />
             Fashion Breeze
           </a>
@@ -540,17 +542,17 @@ export default function ClientPage() {
           <div className="collapse navbar-collapse" id="navbarNav">
             <ul className="navbar-nav me-auto">
               <li className="nav-item">
-                <a className="nav-link" href="#products-section" onClick={scrollToProducts}>
+                <a className="nav-link text-dark" href="#products-section" onClick={scrollToProducts}>
                   <i className="bi bi-bag me-1"></i>Products
                 </a>
               </li>
               <li className="nav-item">
-                <a className="nav-link" href="/about">
+                <a className="nav-link text-dark" href="/about">
                   <i className="bi bi-info-circle me-1"></i>About Us
                 </a>
               </li>
               <li className="nav-item">
-                <a className="nav-link" href="/contact">
+                <a className="nav-link text-dark" href="/contact">
                   <i className="bi bi-telephone me-1"></i>Contact Us
                 </a>
               </li>
@@ -559,7 +561,7 @@ export default function ClientPage() {
             <div className="d-flex align-items-center gap-3">
               {mounted && isUserRegistered() ? (
                 <div className="dropdown">
-                  <button className="btn btn-outline-light dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                  <button className="btn btn-outline-dark dropdown-toggle" type="button" data-bs-toggle="dropdown">
                     <i className="bi bi-person-circle me-2"></i>{getUserName()}
                   </button>
                   <ul className="dropdown-menu" style={{zIndex: 1060}}>
@@ -577,15 +579,15 @@ export default function ClientPage() {
                 </div>
               ) : (
                 <div className="d-flex gap-2">
-                  <a href="/login" className="btn btn-outline-light">
+                  <a href="/login" className="btn btn-outline-dark">
                     <i className="bi bi-box-arrow-in-right me-2"></i>Login
                   </a>
-                  <a href="/register" className="btn btn-outline-light">
+                  <a href="/register" className="btn btn-outline-dark">
                     <i className="bi bi-person-plus me-2"></i>Register
                   </a>
                 </div>
               )}
-              <button className="btn position-relative glass-effect" style={{border: '2px solid rgba(255,255,255,0.3)', color: 'white', backdropFilter: 'blur(10px)'}} onClick={() => setShowCart(!showCart)}>
+              <button className="btn position-relative btn-outline-dark" onClick={() => setShowCart(!showCart)}>
                 <i className="bi bi-cart3"></i> Cart
                 <span className="position-absolute top-0 start-100 translate-middle badge rounded-pill" style={{background: 'var(--accent-color)'}}>
                   {cart.length}
@@ -595,6 +597,25 @@ export default function ClientPage() {
           </div>
         </div>
       </nav>
+
+      {/* Promotion Banner */}
+      <div className="py-2" style={{background: 'linear-gradient(90deg, #dc2626, #ef4444, #f97316)', color: 'white'}}>
+        <div className="container">
+          <div className="row align-items-center">
+            <div className="col-md-8">
+              <div className="d-flex align-items-center">
+                <i className="bi bi-megaphone-fill me-2 fs-4"></i>
+                <span className="fw-bold me-3">🎉 MEGA SALE:</span>
+                <span>Up to 70% OFF + FREE Shipping on orders over LKR 3000!</span>
+                <span className="badge bg-warning text-dark ms-2">LIMITED TIME</span>
+              </div>
+            </div>
+            <div className="col-md-4 text-md-end">
+              <span className="small">Use code: <strong>MEGA70</strong></span>
+            </div>
+          </div>
+        </div>
+      </div>
 
       {/* Success Alert */}
       {orderPlaced && (
@@ -630,7 +651,45 @@ export default function ClientPage() {
               </div>
             </div>
           </div>
+          <div className="carousel-item">
+            <div className="hero-slide bg-gradient-2">
+              <div className="container">
+                <div className="row align-items-center min-vh-50">
+                  <div className="col-lg-6 text-white">
+                    <h1 className="display-3 fw-bold mb-4">Summer Collection</h1>
+                    <p className="lead mb-4">Beat the heat with our stylish summer wear. Comfortable and trendy designs.</p>
+                    <button className="btn btn-primary btn-lg px-4">Explore</button>
+                  </div>
+                  <div className="col-lg-6">
+                    <img src="https://images.unsplash.com/photo-1523381210434-271e8be1f52b?w=600&h=400&fit=crop" className="img-fluid rounded shadow" alt="Summer Collection" />
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div className="carousel-item">
+            <div className="hero-slide bg-gradient-3">
+              <div className="container">
+                <div className="row align-items-center min-vh-50">
+                  <div className="col-lg-6 text-white">
+                    <h1 className="display-3 fw-bold mb-4">Free Delivery</h1>
+                    <p className="lead mb-4">Free shipping on orders over $50. Fast and reliable delivery service.</p>
+                    <button className="btn btn-primary btn-lg px-4">Order Now</button>
+                  </div>
+                  <div className="col-lg-6">
+                    <img src="https://images.unsplash.com/photo-1556905055-8f358a7a47b2?w=600&h=400&fit=crop" className="img-fluid rounded shadow" alt="Free Delivery" />
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
+        <button className="carousel-control-prev" type="button" data-bs-target="#heroCarousel" data-bs-slide="prev">
+          <span className="carousel-control-prev-icon"></span>
+        </button>
+        <button className="carousel-control-next" type="button" data-bs-target="#heroCarousel" data-bs-slide="next">
+          <span className="carousel-control-next-icon"></span>
+        </button>
       </div>
 
       {/* Category Navigation */}
@@ -659,6 +718,36 @@ export default function ClientPage() {
         <div className="container" style={{position: 'relative', zIndex: 2}}>
           <div className="row">
             <div className="col-lg-3 mb-4">
+              {/* Hot Deals Sidebar */}
+              <div className="card border-0 shadow-sm mb-4">
+                <div className="card-header" style={{background: 'linear-gradient(135deg, #dc2626, #ef4444)', color: 'white'}}>
+                  <h5 className="mb-0"><i className="bi bi-fire me-2"></i>🔥 Hot Deals</h5>
+                </div>
+                <div className="card-body p-3">
+                  <div className="mb-3 p-3 rounded" style={{background: 'linear-gradient(135deg, #fef3c7, #fbbf24)', border: '2px dashed #f59e0b'}}>
+                    <div className="text-center">
+                      <h6 className="fw-bold text-dark mb-2">🎉 FLASH SALE</h6>
+                      <p className="small mb-2 text-dark">Up to <span className="fw-bold fs-5">50% OFF</span></p>
+                      <p className="small text-muted mb-0">Limited time offer!</p>
+                    </div>
+                  </div>
+                  <div className="mb-3 p-3 rounded" style={{background: 'linear-gradient(135deg, #dbeafe, #3b82f6)', color: 'white'}}>
+                    <div className="text-center">
+                      <h6 className="fw-bold mb-2">💳 FREE SHIPPING</h6>
+                      <p className="small mb-2">On orders over <span className="fw-bold">LKR 5000</span></p>
+                      <p className="small mb-0 opacity-75">No minimum quantity</p>
+                    </div>
+                  </div>
+                  <div className="p-3 rounded" style={{background: 'linear-gradient(135deg, #dcfce7, #10b981)', color: 'white'}}>
+                    <div className="text-center">
+                      <h6 className="fw-bold mb-2">🎁 BUY 2 GET 1</h6>
+                      <p className="small mb-2">On selected items</p>
+                      <p className="small mb-0 opacity-75">Mix & match available</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              
               {/* Filters Sidebar */}
               <div className="card border-0 shadow-sm mb-4">
                 <div className="card-header" style={{background: 'var(--gradient-primary)', color: 'white'}}>
