@@ -40,7 +40,11 @@ export class Register {
       this.saveCustomerData();
       localStorage.setItem('userRegistered', 'true');
       localStorage.setItem('userName', this.name());
-      this.router.navigate(['/client']);
+      
+      // Small delay to ensure WhatsApp opens before navigation
+      setTimeout(() => {
+        this.router.navigate(['/client']);
+      }, 1000);
     } else {
       this.errorMessage.set('Please fill all required fields');
     }
@@ -72,22 +76,61 @@ export class Register {
     // Save to localStorage
     localStorage.setItem('customers', JSON.stringify(existingCustomers));
     
-    // Download as JSON file
-    this.downloadCustomersFile(existingCustomers);
+    // Redirect to WhatsApp with cart and customer info
+    this.redirectToWhatsApp(customerData);
     
     console.log('Customer registered:', customerData);
   }
   
-  downloadCustomersFile(customers: any[]) {
-    const dataStr = JSON.stringify(customers, null, 2);
-    const dataBlob = new Blob([dataStr], { type: 'application/json' });
-    const url = URL.createObjectURL(dataBlob);
+  redirectToWhatsApp(customerData: any) {
+    // Get cart data from localStorage
+    const cartData = JSON.parse(localStorage.getItem('cart') || '[]');
     
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = 'customers.json';
-    link.click();
+    if (cartData.length === 0) {
+      // If no cart items, just redirect to client
+      return;
+    }
     
-    URL.revokeObjectURL(url);
+    // Format order details
+    const orderDetails = cartData.map((item: any) => 
+      `${item.code || 'N/A'} - ${item.name}${item.size ? ` (Size: ${item.size})` : ''} - Qty: ${item.quantity} - $${(item.price * item.quantity).toFixed(2)}`
+    ).join('\n');
+    
+    // Calculate total
+    const total = cartData.reduce((sum: number, item: any) => sum + (item.price * item.quantity), 0);
+    
+    // Format address
+    const addressLines = [
+      customerData.address?.line1,
+      customerData.address?.line2,
+      customerData.address?.line3
+    ].filter(line => line && line.trim()).join('\n');
+    
+    // Format customer info
+    const customerInfo = `CUSTOMER DETAILS:
+Name: ${customerData.name}
+Email: ${customerData.email}
+Phone: ${customerData.phone}
+Country: ${this.countries.find(c => c.code === customerData.country)?.name || customerData.country}
+
+DELIVERY ADDRESS:
+${addressLines || 'N/A'}`;
+    
+    // Create WhatsApp message
+    const message = `🛍️ NEW ORDER - Fashion Breeze
+
+ORDER ITEMS:
+${orderDetails}
+
+TOTAL: LKR ${total.toFixed(2)}
+
+${customerInfo}`;
+    
+    // Redirect to WhatsApp
+    const whatsappUrl = `https://wa.me/94707003722?text=${encodeURIComponent(message)}`;
+    window.open(whatsappUrl, '_blank');
+    
+    // Clear cart after order
+    localStorage.removeItem('cart');
   }
 }

@@ -20,20 +20,44 @@ export class Client implements OnInit {
 
   ngOnInit() {
     this.loadProducts();
+    this.loadCartFromStorage();
+    this.startProductUpdateListener();
+  }
+
+  startProductUpdateListener() {
+    // Listen for storage changes from admin
+    window.addEventListener('storage', (e) => {
+      if (e.key === 'products_updated') {
+        this.loadProducts();
+      }
+    });
+    
+    // Also check periodically for same-tab updates
+    setInterval(() => {
+      const timestamp = localStorage.getItem('products_timestamp');
+      if (timestamp && parseInt(timestamp) > this.lastUpdateCheck) {
+        this.loadProducts();
+        this.lastUpdateCheck = parseInt(timestamp);
+      }
+    }, 2000);
+  }
+
+  private lastUpdateCheck = 0;
+
+  loadCartFromStorage() {
+    const savedCart = localStorage.getItem('cart');
+    if (savedCart) {
+      try {
+        const cartData = JSON.parse(savedCart);
+        this.cart.set(cartData);
+      } catch (error) {
+        console.error('Error loading cart from storage:', error);
+      }
+    }
   }
 
   getFilteredProducts() {
-    let filtered = this.products();
-    
-    if (this.selectedCategory() !== 'All') {
-      filtered = filtered.filter(product => product.category === this.selectedCategory());
-    }
-    
-    filtered = filtered.filter(product => 
-      product.price >= this.priceRange().min && product.price <= this.priceRange().max
-    );
-    
-    return filtered;
+    return this.applyFilters();
   }
 
   setCategory(category: string) {
@@ -58,7 +82,7 @@ export class Client implements OnInit {
 
   sendToWhatsApp() {
     const orderDetails = this.cart().map(item => 
-      `${item.code} - ${item.name}${item.size ? ` (Size: ${item.size})` : ''} - Qty: ${item.quantity} - $${(item.price * item.quantity).toFixed(2)}`
+      `${item.code || 'N/A'} - ${item.name}${item.size ? ` (Size: ${item.size})` : ''} - Qty: ${item.quantity} - LKR ${(item.price * item.quantity).toFixed(2)}`
     ).join('\n');
     
     const customerData = JSON.parse(localStorage.getItem('customers') || '[]');
@@ -84,7 +108,7 @@ ${addressLines || 'N/A'}`;
 ORDER ITEMS:
 ${orderDetails}
 
-TOTAL: $${this.getTotal().toFixed(2)}
+TOTAL: LKR ${this.getTotal().toFixed(2)}
 
 ${customerInfo}`;
     
@@ -93,16 +117,24 @@ ${customerInfo}`;
   }
 
   loadProducts() {
-    this.http.get('assets/products.txt', { responseType: 'text' }).subscribe({
-      next: (data) => {
-        try {
-          const products = JSON.parse(data);
-          this.products.set(products);
-          this.updateCategories();
-        } catch (error) {
-          console.error('Error parsing products:', error);
-          this.loadFallbackProducts();
-        }
+    // Check for real-time updates first
+    const updatedProducts = localStorage.getItem('products_updated');
+    if (updatedProducts) {
+      try {
+        const products = JSON.parse(updatedProducts);
+        this.products.set(products);
+        this.updateCategories();
+        return;
+      } catch (error) {
+        console.error('Error parsing updated products:', error);
+      }
+    }
+    
+    // Fallback to JSON file
+    this.http.get<any[]>('assets/products.json').subscribe({
+      next: (products) => {
+        this.products.set(products);
+        this.updateCategories();
       },
       error: (error) => {
         console.error('Error loading products:', error);
@@ -116,7 +148,8 @@ ${customerInfo}`;
       {
         "id": 1,
         "name": "Classic White T-Shirt",
-        "price": 19.99,
+        "code": "CL001",
+        "price": 5997,
         "category": "For Men",
         "image": "https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=400&h=400&fit=crop",
         "images": [
@@ -131,7 +164,8 @@ ${customerInfo}`;
       {
         "id": 2,
         "name": "Blue Denim Jeans",
-        "price": 49.99,
+        "code": "CL002",
+        "price": 14997,
         "category": "For Men",
         "image": "https://images.unsplash.com/photo-1542272604-787c3835535d?w=400&h=400&fit=crop",
         "images": [
@@ -146,7 +180,8 @@ ${customerInfo}`;
       {
         "id": 3,
         "name": "Scented Candle Set",
-        "price": 24.99,
+        "code": "HM001",
+        "price": 7497,
         "category": "Home",
         "image": "https://images.unsplash.com/photo-1602874801006-e26d3d17d0a5?w=400&h=400&fit=crop",
         "images": [
@@ -170,29 +205,33 @@ ${customerInfo}`;
   zoomLevel = signal(1);
   selectedSize = 'M';
   modalQuantity = signal(1);
+  previousSelectedSize = '';
   availableSizes = signal(['XS', 'S', 'M', 'L', 'XL', 'XXL']);
   currentSlide = signal(0);
 
   getSizeStock(size: string) {
     const product = this.selectedProduct();
-    return product?.sizes?.[size] || 0;
+    return product?.sizes?.[size]?.stock || 0;
   }
 
   isSizeInStock(size: string) {
     return this.getSizeStock(size) > 0;
   }
 
-  addToCart(product: any) {
-    const existing = this.cart().find(item => item.id === product.id);
-    if (existing) {
-      existing.quantity++;
-    } else {
-      this.cart.update(cart => [...cart, { ...product, quantity: 1 }]);
-    }
+  getSizePrice(size: string) {
+    const product = this.selectedProduct();
+    return product?.sizes?.[size]?.price || product?.price || 0;
   }
 
-  removeFromCart(productId: number) {
-    this.cart.update(cart => cart.filter(item => item.id !== productId));
+  addToCart(product: any) {
+    const cartItem = { ...product, size: 'M', quantity: 1, price: product.price };
+    this.cart.update(cart => [...cart, cartItem]);
+  }
+
+  removeFromCart(productId: number, size?: string) {
+    this.cart.update(cart => cart.filter(item => !(item.id === productId && (!size || item.size === size))));
+    // Save cart to localStorage
+    localStorage.setItem('cart', JSON.stringify(this.cart()));
   }
 
   getTotal() {
@@ -202,12 +241,15 @@ ${customerInfo}`;
   placeOrder() {
     const isRegistered = localStorage.getItem('userRegistered');
     if (!isRegistered) {
+      // Save cart before redirecting to register
+      localStorage.setItem('cart', JSON.stringify(this.cart()));
       window.location.href = '/register';
       return;
     }
     this.sendToWhatsApp();
     this.orderPlaced.set(true);
     this.cart.set([]);
+    localStorage.removeItem('cart');
     this.showCart.set(false);
     setTimeout(() => this.orderPlaced.set(false), 3000);
   }
@@ -226,6 +268,7 @@ ${customerInfo}`;
     this.zoomLevel.set(1);
     this.modalQuantity.set(1);
     this.selectedSize = 'M';
+    this.previousSelectedSize = '';
     this.currentSlide.set(0);
   }
 
@@ -283,14 +326,28 @@ ${customerInfo}`;
     }
   }
 
+  onSizeSelect(size: string) {
+    if (!this.isSizeInStock(size)) return;
+    
+    this.selectedSize = size;
+    
+    // Auto add to cart when size is selected (only if it's a new selection)
+    if (this.previousSelectedSize !== size) {
+      this.previousSelectedSize = size;
+      this.addToCartFromModal();
+    }
+  }
+
   addToCartFromModal() {
     const product = this.selectedProduct();
-    if (!product) return;
+    if (!product || !this.isSizeInStock(this.selectedSize)) return;
     
+    const sizePrice = this.getSizePrice(this.selectedSize);
     const cartItem = {
       ...product,
       size: this.selectedSize,
-      quantity: this.modalQuantity()
+      quantity: this.modalQuantity(),
+      price: sizePrice
     };
     
     const existing = this.cart().find(item => item.id === product.id && item.size === this.selectedSize);
@@ -299,6 +356,9 @@ ${customerInfo}`;
     } else {
       this.cart.update(cart => [...cart, cartItem]);
     }
+    
+    // Save cart to localStorage
+    localStorage.setItem('cart', JSON.stringify(this.cart()));
     
     this.closeProductModal();
   }
@@ -359,5 +419,110 @@ ${customerInfo}`;
       { customer: 'Lisa K.', rating: 5, date: '1 month ago', comment: 'Perfect! Great material and comfortable fit.' }
     ];
     return comments;
+  }
+
+  getDiscountedProducts() {
+    return this.products().filter(p => p.discount && p.status === 'instock');
+  }
+
+  getBannerPromotion() {
+    const discountedProducts = this.getDiscountedProducts();
+    if (discountedProducts.length === 0) return null;
+    
+    const maxDiscount = Math.max(...discountedProducts.map(p => p.discount));
+    const promoProduct = discountedProducts.find(p => p.discount === maxDiscount);
+    
+    return {
+      discount: maxDiscount,
+      promoCode: promoProduct?.promoCode || 'SALE',
+      productCount: discountedProducts.length,
+      savings: discountedProducts.reduce((total, p) => total + (p.originalPrice - p.price), 0)
+    };
+  }
+
+  showChatbot = signal(false);
+  chatMessages = signal<any[]>([{ text: 'Hi! How can I help you today?', isBot: true }]);
+  chatInput = '';
+
+  toggleChatbot() {
+    this.showChatbot.set(!this.showChatbot());
+  }
+
+  sendMessage() {
+    if (!this.chatInput.trim()) return;
+    
+    this.chatMessages.update(messages => [...messages, { text: this.chatInput, isBot: false }]);
+    const userMessage = this.chatInput.toLowerCase();
+    this.chatInput = '';
+    
+    setTimeout(() => {
+      let botResponse = 'I\'m here to help! You can ask about products, sizes, or orders.';
+      
+      if (userMessage.includes('discount') || userMessage.includes('sale')) {
+        botResponse = 'We have amazing discounts! Use code SUMMER20 for 20% off on selected items.';
+      } else if (userMessage.includes('size') || userMessage.includes('sizing')) {
+        botResponse = 'Our sizes range from XS to XXL. Each product shows available sizes and stock levels.';
+      } else if (userMessage.includes('order') || userMessage.includes('delivery')) {
+        botResponse = 'Orders are processed via WhatsApp. Add items to cart and click "Place Order via WhatsApp".';
+      } else if (userMessage.includes('price') || userMessage.includes('cost')) {
+        botResponse = 'All prices are in LKR. Check our promotional sidebar for current deals!';
+      }
+      
+      this.chatMessages.update(messages => [...messages, { text: botResponse, isBot: true }]);
+    }, 1000);
+  }
+
+  searchTerm = '';
+
+  applyFilters() {
+    let filtered = [...this.products()];
+
+    if (this.searchTerm && this.searchTerm.trim()) {
+      const term = this.searchTerm.toLowerCase().trim();
+      filtered = filtered.filter(p => 
+        (p.name && p.name.toLowerCase().includes(term)) ||
+        (p.code && p.code.toLowerCase().includes(term)) ||
+        (p.category && p.category.toLowerCase().includes(term))
+      );
+    }
+
+    if (this.selectedCategory() !== 'All') {
+      filtered = filtered.filter(product => product.category === this.selectedCategory());
+    }
+    
+    filtered = filtered.filter(product => 
+      product.price >= this.priceRange().min && product.price <= this.priceRange().max
+    );
+    
+    return filtered;
+  }
+
+  clearFilters() {
+    this.selectedCategory.set('All');
+    this.searchTerm = '';
+    this.priceRange.set({ min: 0, max: this.maxPrice() });
+  }
+
+  showAboutModal() {
+    alert('About Us: Fashion Breeze is your premier destination for trendy and affordable fashion. We bring you the latest styles with quality you can trust.');
+  }
+
+  showContactModal() {
+    alert('Contact Us:\nPhone: +94 70 700 3722\nEmail: info@fashionbreeze.lk\nAddress: Colombo, Sri Lanka');
+  }
+
+  showProfileModal() {
+    const customerData = JSON.parse(localStorage.getItem('customers') || '[]');
+    const currentCustomer = customerData[customerData.length - 1] || {};
+    const profile = `Profile Information:\nName: ${currentCustomer.name || 'N/A'}\nEmail: ${currentCustomer.email || 'N/A'}\nPhone: ${currentCustomer.phone || 'N/A'}\nCountry: ${currentCustomer.country || 'N/A'}`;
+    alert(profile);
+  }
+
+  logout() {
+    localStorage.removeItem('userRegistered');
+    localStorage.removeItem('userName');
+    localStorage.removeItem('customers');
+    localStorage.removeItem('cart');
+    window.location.reload();
   }
 }

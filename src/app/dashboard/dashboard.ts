@@ -13,12 +13,15 @@ import { FormsModule } from '@angular/forms';
 export class Dashboard implements OnInit {
   products = signal<any[]>([]);
   filteredProducts = signal<any[]>([]);
+  promotions = signal<any[]>([]);
   editingProduct = signal<any>(null);
   showEditModal = signal(false);
   showFilters = signal(false);
+  showPromotions = signal(false);
   selectedCategory = '';
   selectedStatus = '';
   selectedPriceRange = '';
+  searchTerm = '';
   activeTab = 'details';
 
   constructor(private router: Router, private http: HttpClient) {}
@@ -26,6 +29,7 @@ export class Dashboard implements OnInit {
   ngOnInit() {
     this.checkLogin();
     this.loadProducts();
+    this.loadPromotions();
   }
 
   checkLogin() {
@@ -38,20 +42,39 @@ export class Dashboard implements OnInit {
   }
 
   loadProducts() {
-    this.http.get('assets/products.txt', { responseType: 'text' }).subscribe({
-      next: (data) => {
-        try {
-          const products = JSON.parse(data);
-          this.products.set(products);
-          this.filteredProducts.set(products);
-        } catch (error) {
-          console.error('Error parsing products:', error);
-          this.loadFallbackProducts();
-        }
+    // Check for real-time updates first
+    const updatedProducts = localStorage.getItem('products_updated');
+    if (updatedProducts) {
+      try {
+        const products = JSON.parse(updatedProducts);
+        this.products.set(products);
+        this.filteredProducts.set(products);
+        return;
+      } catch (error) {
+        console.error('Error parsing updated products:', error);
+      }
+    }
+    
+    // Fallback to JSON file
+    this.http.get<any[]>('assets/products.json').subscribe({
+      next: (products) => {
+        this.products.set(products);
+        this.filteredProducts.set(products);
       },
       error: (error) => {
         console.error('Error loading products:', error);
         this.loadFallbackProducts();
+      }
+    });
+  }
+
+  loadPromotions() {
+    this.http.get<any[]>('assets/promotions.json').subscribe({
+      next: (promotions) => {
+        this.promotions.set(promotions);
+      },
+      error: (error) => {
+        console.error('Error loading promotions:', error);
       }
     });
   }
@@ -86,8 +109,37 @@ export class Dashboard implements OnInit {
       p.id === this.editingProduct().id ? this.editingProduct() : p
     );
     this.products.set(updatedProducts);
+    this.filteredProducts.set(updatedProducts);
+    this.updateProductsFile(updatedProducts);
     this.showEditModal.set(false);
     console.log('Product updated:', this.editingProduct());
+  }
+
+  updateProductsFile(products: any[]) {
+    // Save to localStorage for real-time updates
+    localStorage.setItem('products_updated', JSON.stringify(products));
+    localStorage.setItem('products_timestamp', Date.now().toString());
+    
+    // Also download file as backup
+    const jsonData = JSON.stringify(products, null, 2);
+    const blob = new Blob([jsonData], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'products.json';
+    link.click();
+    URL.revokeObjectURL(url);
+    
+    // Show success message
+    alert('Product updated successfully! Changes are now live on client site.');
+  }
+
+  exportProducts() {
+    this.updateProductsFile(this.products());
+  }
+
+  getSizeKeys(sizes: any): string[] {
+    return sizes ? Object.keys(sizes) : [];
   }
 
   closeEditModal() {
@@ -110,36 +162,91 @@ export class Dashboard implements OnInit {
     this.showFilters.set(!this.showFilters());
   }
 
+  togglePromotions() {
+    this.showPromotions.set(!this.showPromotions());
+  }
+
+  getActivePromotions() {
+    return this.promotions().filter(p => p.status === 'active');
+  }
+
+  getPromotionUsagePercentage(promo: any): number {
+    return Math.round((promo.usedCount / promo.usageLimit) * 100);
+  }
+
+  isPromotionExpiringSoon(promo: any): boolean {
+    const validTo = new Date(promo.validTo);
+    const today = new Date();
+    const daysUntilExpiry = Math.ceil((validTo.getTime() - today.getTime()) / (1000 * 3600 * 24));
+    return daysUntilExpiry <= 7 && daysUntilExpiry > 0;
+  }
+
+  getInStockCount(): number {
+    return this.products().filter(p => p.status === 'instock').length;
+  }
+
+  getOutOfStockCount(): number {
+    return this.products().filter(p => p.status === 'outofstock').length;
+  }
+
   getUniqueCategories(): string[] {
-    const categories = this.products().map(p => p.category);
+    const categories = this.products()
+      .map(p => p.category)
+      .filter(category => category && category.trim()) // Filter out empty/null categories
+      .map(category => category.trim()); // Trim whitespace
     return [...new Set(categories)].sort();
   }
 
   applyFilters() {
-    let filtered = this.products();
+    let filtered = [...this.products()]; // Create a copy to avoid mutation
 
-    if (this.selectedCategory) {
-      filtered = filtered.filter(p => p.category === this.selectedCategory);
+    // Search filter
+    if (this.searchTerm && this.searchTerm.trim()) {
+      const term = this.searchTerm.toLowerCase().trim();
+      filtered = filtered.filter(p => 
+        (p.name && p.name.toLowerCase().includes(term)) ||
+        (p.code && p.code.toLowerCase().includes(term)) ||
+        (p.category && p.category.toLowerCase().includes(term))
+      );
     }
 
-    if (this.selectedStatus) {
-      filtered = filtered.filter(p => p.status === this.selectedStatus);
+    // Category filter
+    if (this.selectedCategory && this.selectedCategory.trim()) {
+      filtered = filtered.filter(p => 
+        p.category && p.category.trim() === this.selectedCategory.trim()
+      );
     }
 
-    if (this.selectedPriceRange) {
+    // Status filter
+    if (this.selectedStatus && this.selectedStatus.trim()) {
+      filtered = filtered.filter(p => 
+        p.status && p.status.trim() === this.selectedStatus.trim()
+      );
+    }
+
+    // Price range filter
+    if (this.selectedPriceRange && this.selectedPriceRange.trim()) {
       filtered = filtered.filter(p => {
-        const price = p.price;
+        const price = parseFloat(p.price) || 0;
         switch (this.selectedPriceRange) {
-          case '0-25': return price <= 25;
-          case '25-50': return price > 25 && price <= 50;
-          case '50-100': return price > 50 && price <= 100;
-          case '100+': return price > 100;
+          case '0-7500': return price <= 7500;
+          case '7500-15000': return price > 7500 && price <= 15000;
+          case '15000-30000': return price > 15000 && price <= 30000;
+          case '30000+': return price > 30000;
           default: return true;
         }
       });
     }
 
     this.filteredProducts.set(filtered);
+  }
+
+  clearFilters() {
+    this.selectedCategory = '';
+    this.selectedStatus = '';
+    this.selectedPriceRange = '';
+    this.searchTerm = '';
+    this.filteredProducts.set(this.products());
   }
 
   getCategoryColor(category: string): string {
