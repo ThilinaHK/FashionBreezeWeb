@@ -6,6 +6,11 @@ import { Product } from './types';
 interface CartItem extends Product {
   size?: string;
   quantity: number;
+  selectedSizeData?: {
+    size: string;
+    stock: number;
+    price: number;
+  };
 }
 
 interface ChatMessage {
@@ -860,8 +865,8 @@ export default function ClientPage() {
                     <div className={`card h-100 shadow-sm border-0 product-card ${product.status === 'outofstock' ? 'out-of-stock' : ''}`}>
                       <div className="position-relative">
                         <img src={product.image} alt={product.name} className="card-img-top" />
-                        {product.discount && (
-                          <span className="position-absolute top-0 end-0 m-2 badge bg-danger fs-6">-{product.discount}%</span>
+                        {(product as any).discount && (
+                          <span className="position-absolute top-0 end-0 m-2 badge bg-danger fs-6">-{(product as any).discount}%</span>
                         )}
                       </div>
                       <div className="card-body d-flex flex-column">

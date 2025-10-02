@@ -1,7 +1,17 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Customer } from '../types';
+interface Customer {
+  name: string;
+  email: string;
+  phone: string;
+  country: string;
+  address?: {
+    line1: string;
+    line2?: string;
+    line3?: string;
+  };
+}
 
 export default function ProfilePage() {
   const [customer, setCustomer] = useState<Customer | null>(null);
@@ -98,7 +108,7 @@ export default function ProfilePage() {
       });
       const data = await response.json();
       if (data.success) {
-        loadOrders();
+        loadProfile();
         if (data.unavailableCount > 0) {
           alert(`${data.unavailableCount} items are no longer available`);
         } else {
