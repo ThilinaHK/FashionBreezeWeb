@@ -6,6 +6,8 @@ export interface Product {
   code: string;
   description?: string;
   price: number;
+  cost?: number;
+  vat?: number;
   originalPrice?: number;
   discount?: number;
   promoCode?: string;

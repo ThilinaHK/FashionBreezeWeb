@@ -138,12 +138,15 @@ export default function ProfilePage() {
         })
       });
       
-      if (response.ok) {
+      const data = await response.json();
+      
+      if (data.success) {
         setCustomer({ ...customer, ...formData });
+        localStorage.setItem('userEmail', formData.email);
         setEditMode(false);
         alert('Profile updated successfully!');
       } else {
-        alert('Failed to update profile');
+        alert(data.error || 'Failed to update profile');
       }
     } catch (error) {
       console.error('Error updating profile:', error);

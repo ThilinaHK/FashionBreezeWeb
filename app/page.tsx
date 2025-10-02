@@ -125,14 +125,50 @@ export default function ClientPage() {
   const loadProducts = async () => {
     try {
       setLoading(true);
-      console.log('=== MAIN PAGE LOADING PRODUCTS ===');
-      const response = await fetch('/api/products');
-      console.log('Products API response status:', response.status);
+      
+      // Try to get from cache first
+      const cachedProducts = sessionStorage.getItem('products_cache');
+      const cacheTimestamp = sessionStorage.getItem('products_cache_time');
+      
+      if (cachedProducts && cacheTimestamp) {
+        const age = Date.now() - parseInt(cacheTimestamp);
+        if (age < 300000) { // 5 minutes cache
+          const products = JSON.parse(cachedProducts);
+          setProducts(Array.isArray(products) ? products : []);
+          updateCategories(Array.isArray(products) ? products : []);
+          setLoading(false);
+          return;
+        }
+      }
+      
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10s timeout
+      
+      const response = await fetch('/api/products', {
+        signal: controller.signal,
+        headers: {
+          'Cache-Control': 'max-age=300'
+        }
+      });
+      
+      clearTimeout(timeoutId);
+      
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+      
       const products = await response.json();
-      console.log('Products received in main page:', products.length);
-      console.log('Products data:', products);
-      setProducts(Array.isArray(products) ? products : []);
-      updateCategories(Array.isArray(products) ? products : []);
+      
+      if (Array.isArray(products) && products.length > 0) {
+        setProducts(products);
+        updateCategories(products);
+        
+        // Cache the results
+        sessionStorage.setItem('products_cache', JSON.stringify(products));
+        sessionStorage.setItem('products_cache_time', Date.now().toString());
+      } else {
+        loadFallbackProducts();
+      }
     } catch (error) {
       console.error('Error loading products:', error);
       loadFallbackProducts();
@@ -189,12 +225,41 @@ export default function ClientPage() {
 
   const loadCategoriesFromAPI = async () => {
     try {
-      const response = await fetch('/api/categories');
-      const apiCategories = await response.json();
-      const categoryNames = apiCategories.map((cat: any) => cat.name);
-      setCategories(['All', ...categoryNames]);
+      // Check cache first
+      const cachedCategories = sessionStorage.getItem('categories_cache');
+      const cacheTimestamp = sessionStorage.getItem('categories_cache_time');
+      
+      if (cachedCategories && cacheTimestamp) {
+        const age = Date.now() - parseInt(cacheTimestamp);
+        if (age < 600000) { // 10 minutes cache for categories
+          const categories = JSON.parse(cachedCategories);
+          setCategories(['All', ...categories.map((cat: any) => cat.name)]);
+          return;
+        }
+      }
+      
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 5000);
+      
+      const response = await fetch('/api/categories', {
+        signal: controller.signal
+      });
+      
+      clearTimeout(timeoutId);
+      
+      if (response.ok) {
+        const apiCategories = await response.json();
+        const categoryNames = apiCategories.map((cat: any) => cat.name);
+        setCategories(['All', ...categoryNames]);
+        
+        // Cache categories
+        sessionStorage.setItem('categories_cache', JSON.stringify(apiCategories));
+        sessionStorage.setItem('categories_cache_time', Date.now().toString());
+      }
     } catch (error) {
       console.error('Error loading categories:', error);
+      // Use fallback categories
+      setCategories(['All', "Men's Fashion", "Women's Fashion", 'Kids Fashion']);
     }
   };
 

@@ -5,6 +5,16 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
     const body = await request.json();
     const id = parseInt(params.id);
     
+    // Validate and clean sizes
+    if (body.sizes && Array.isArray(body.sizes)) {
+      body.sizes = body.sizes.filter(size => size.size && size.size.trim());
+    }
+    
+    // Validate and clean colors
+    if (body.colors && Array.isArray(body.colors)) {
+      body.colors = body.colors.filter(color => color.name && color.name.trim());
+    }
+    
     // Always update JSON file for immediate store updates
     const fs = require('fs');
     const path = require('path');

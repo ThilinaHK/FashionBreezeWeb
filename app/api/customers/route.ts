@@ -70,3 +70,26 @@ export async function POST(request: NextRequest) {
   registeredCustomers.push(customer);
   return NextResponse.json({ success: true });
 }
+
+export async function DELETE(request: NextRequest) {
+  const { MongoClient } = require('mongodb');
+  let client;
+  
+  try {
+    const { customerId } = await request.json();
+    const mongoUri = process.env.MONGODB_URI;
+    client = new MongoClient(mongoUri);
+    await client.connect();
+    
+    const db = client.db('fashionBreeze');
+    const { ObjectId } = require('mongodb');
+    
+    await db.collection('customers').deleteOne({ _id: new ObjectId(customerId) });
+    
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    return NextResponse.json({ success: false });
+  } finally {
+    if (client) await client.close();
+  }
+}

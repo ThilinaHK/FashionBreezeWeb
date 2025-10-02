@@ -14,6 +14,21 @@ export async function PUT(request: NextRequest) {
     
     const db = client.db('fashionBreeze');
     
+    // Check if email is being changed and if new email already exists
+    if (email) {
+      const existingUser = await db.collection('customers').findOne({ 
+        email: email, 
+        _id: { $ne: userId } 
+      });
+      
+      if (existingUser) {
+        return NextResponse.json({ 
+          success: false, 
+          error: 'Email address is already registered by another user.' 
+        });
+      }
+    }
+    
     const updateData = {
       name,
       email,
@@ -30,13 +45,11 @@ export async function PUT(request: NextRequest) {
     
     console.log('Customer profile updated in customers collection:', result.modifiedCount);
     
-    console.log('Profile update result:', result.modifiedCount);
-    
     return NextResponse.json({ success: true, updated: result.modifiedCount });
     
   } catch (error) {
     console.error('Profile update error:', error);
-    return NextResponse.json({ success: true }); // Fallback success
+    return NextResponse.json({ success: false, error: 'Failed to update profile' });
   } finally {
     if (client) {
       await client.close();

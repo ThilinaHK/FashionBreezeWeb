@@ -1,118 +1,59 @@
 import { NextRequest, NextResponse } from 'next/server';
+import dbConnect from '../../lib/mongodb';
+import Category from '../../lib/models/Category';
 
 export async function GET() {
-  const { MongoClient } = require('mongodb');
-  let client;
-  
   try {
-    const mongoUri = process.env.MONGODB_URI;
-    client = new MongoClient(mongoUri);
-    await client.connect();
+    await dbConnect();
     
-    const db = client.db('fashionBreeze');
-    const categories = await db.collection('categories').find({}).toArray();
+    const categories = await Category.find(
+      { isActive: true },
+      'name slug description icon subcategories sortOrder'
+    )
+      .sort({ sortOrder: 1, name: 1 })
+      .lean()
+      .limit(20);
     
-    return NextResponse.json(categories);
+    return NextResponse.json(categories, {
+      headers: {
+        'Cache-Control': 'public, s-maxage=600, stale-while-revalidate=1200',
+        'CDN-Cache-Control': 'public, s-maxage=600',
+        'Vercel-CDN-Cache-Control': 'public, s-maxage=600'
+      }
+    });
   } catch (error) {
-    // Fallback data
-    return NextResponse.json([
-      { id: 1, name: 'For Men', productCount: 3 },
-      { id: 2, name: 'For Women', productCount: 2 },
-      { id: 3, name: 'Kids', productCount: 1 }
-    ]);
-  } finally {
-    if (client) await client.close();
+    console.error('Categories API error:', error);
+    
+    // Return fallback categories
+    const fallbackCategories = [
+      { _id: '1', name: "Men's Fashion", slug: 'mens-fashion', isActive: true, sortOrder: 1 },
+      { _id: '2', name: "Women's Fashion", slug: 'womens-fashion', isActive: true, sortOrder: 2 },
+      { _id: '3', name: "Kids Fashion", slug: 'kids-fashion', isActive: true, sortOrder: 3 }
+    ];
+    
+    return NextResponse.json(fallbackCategories, {
+      headers: {
+        'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=600'
+      }
+    });
   }
 }
 
 export async function POST(request: NextRequest) {
-  const { MongoClient } = require('mongodb');
-  let client;
-  
   try {
-    const { name } = await request.json();
-    const mongoUri = process.env.MONGODB_URI;
-    client = new MongoClient(mongoUri);
-    await client.connect();
-    
-    const db = client.db('fashionBreeze');
-    const newCategory = {
-      name,
-      productCount: 0,
-      createdAt: new Date()
-    };
-    
-    const result = await db.collection('categories').insertOne(newCategory);
-    return NextResponse.json({ id: result.insertedId, ...newCategory }, { status: 201 });
-  } catch (error) {
-    // Fallback response
+    await dbConnect();
     const body = await request.json();
-    const newCategory = { id: Date.now(), name: body.name || 'New Category', productCount: 0 };
-    return NextResponse.json(newCategory, { status: 201 });
-  } finally {
-    if (client) await client.close();
-  }
-}
-
-export async function PUT(request: NextRequest) {
-  const { MongoClient } = require('mongodb');
-  let client;
-  
-  try {
-    const { id, name } = await request.json();
-    console.log('Updating category:', { id, name });
     
-    const mongoUri = process.env.MONGODB_URI;
-    client = new MongoClient(mongoUri);
-    await client.connect();
-    
-    const db = client.db('fashionBreeze');
-    const { ObjectId } = require('mongodb');
-    
-    // Try to update by _id first, then by id field
-    let result;
-    try {
-      result = await db.collection('categories').updateOne(
-        { _id: new ObjectId(id) },
-        { $set: { name, updatedAt: new Date() } }
-      );
-    } catch (objectIdError) {
-      // If ObjectId fails, try with regular id
-      result = await db.collection('categories').updateOne(
-        { id: id },
-        { $set: { name, updatedAt: new Date() } }
-      );
+    if (!body.slug) {
+      body.slug = body.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
     }
     
-    console.log('Update result:', result);
-    return NextResponse.json({ id, name, productCount: 0 });
+    const category = await Category.create(body);
+    return NextResponse.json(category, { status: 201 });
   } catch (error) {
-    console.error('Category update error:', error);
-    const { id, name } = await request.json();
-    return NextResponse.json({ id, name, productCount: 0 });
-  } finally {
-    if (client) await client.close();
-  }
-}
-
-export async function DELETE(request: NextRequest) {
-  const { MongoClient } = require('mongodb');
-  let client;
-  
-  try {
-    const { id } = await request.json();
-    const mongoUri = process.env.MONGODB_URI;
-    client = new MongoClient(mongoUri);
-    await client.connect();
-    
-    const db = client.db('fashionBreeze');
-    const { ObjectId } = require('mongodb');
-    
-    await db.collection('categories').deleteOne({ _id: new ObjectId(id) });
-    return NextResponse.json({ success: true });
-  } catch (error) {
-    return NextResponse.json({ success: true });
-  } finally {
-    if (client) await client.close();
+    if (error.code === 11000) {
+      return NextResponse.json({ error: 'Category name or slug already exists' }, { status: 400 });
+    }
+    return NextResponse.json({ error: 'Failed to create category' }, { status: 500 });
   }
 }

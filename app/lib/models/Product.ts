@@ -134,6 +134,14 @@ const ProductSchema = new mongoose.Schema({
       default: true,
     },
   },
+  cost: {
+    type: Number,
+    default: 0,
+  },
+  vat: {
+    type: Number,
+    default: 0,
+  },
   pricing: {
     costPrice: Number,
     profitMargin: Number,

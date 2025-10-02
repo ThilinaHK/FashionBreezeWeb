@@ -23,7 +23,9 @@ export default function DashboardPage() {
     price: 0,
     category: '',
     image: '',
-    status: 'instock' as 'instock' | 'outofstock'
+    status: 'instock' as 'instock' | 'outofstock',
+    sizes: [] as Array<{size: string, stock: number, price: number}>,
+    colors: [] as Array<{name: string, code: string, image: string}>
   });
   const [saving, setSaving] = useState(false);
   const [updatingOrder, setUpdatingOrder] = useState<string | null>(null);
@@ -169,11 +171,13 @@ export default function DashboardPage() {
         price: product.price,
         category: product.category,
         image: product.image,
-        status: product.status
+        status: product.status,
+        sizes: Array.isArray(product.sizes) ? product.sizes : [],
+        colors: Array.isArray(product.colors) ? product.colors : []
       });
     } else {
       setEditingProduct(null);
-      setFormData({ name: '', code: '', cost: 0, vat: 0, price: 0, category: '', image: '', status: 'instock' });
+      setFormData({ name: '', code: '', cost: 0, vat: 0, price: 0, category: '', image: '', status: 'instock', sizes: [], colors: [] });
     }
     setShowModal(true);
   };
@@ -220,6 +224,20 @@ export default function DashboardPage() {
     if (confirm('Are you sure you want to delete this product?')) {
       setDeletingProduct(id);
       try {
+        // Check if product is in any orders
+        const ordersResponse = await fetch('/api/orders');
+        const allOrders = await ordersResponse.json();
+        const productInOrders = allOrders.some((order: any) => 
+          order.items?.some((item: any) => item.id === id || item._id === String(id))
+        );
+        
+        if (productInOrders) {
+          setToast({message: 'Cannot delete product: It exists in customer orders', type: 'error'});
+          setDeletingProduct(null);
+          setTimeout(() => setToast(null), 3000);
+          return;
+        }
+        
         const response = await fetch(`/api/products/${id}`, { method: 'DELETE' });
         if (response.ok) {
           setProducts(products.filter(p => p.id !== id && p._id !== String(id)));
@@ -296,14 +314,30 @@ export default function DashboardPage() {
   const deleteCategory = async (id: number) => {
     if (confirm('Delete this category?')) {
       try {
+        // Check if category has products
+        const categoryToDelete = categories.find(cat => (cat.id || cat._id) === id);
+        const productsInCategory = products.filter(product => 
+          product.category === categoryToDelete?.name
+        );
+        
+        if (productsInCategory.length > 0) {
+          setToast({message: `Cannot delete category: ${productsInCategory.length} products are using this category`, type: 'error'});
+          setTimeout(() => setToast(null), 3000);
+          return;
+        }
+        
         await fetch('/api/categories', {
           method: 'DELETE',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ id })
         });
         loadCategories();
+        setToast({message: 'Category deleted successfully!', type: 'success'});
+        setTimeout(() => setToast(null), 3000);
       } catch (error) {
         console.error('Error deleting category:', error);
+        setToast({message: 'Failed to delete category', type: 'error'});
+        setTimeout(() => setToast(null), 3000);
       }
     }
   };
@@ -329,6 +363,39 @@ export default function DashboardPage() {
       setTimeout(() => setToast(null), 3000);
     } finally {
       setUpdatingCustomer(null);
+    }
+  };
+
+  const deleteCustomer = async (customerId: string) => {
+    if (confirm('Are you sure you want to delete this customer?')) {
+      try {
+        // Check if customer has orders
+        const customerOrders = orders.filter(order => 
+          order.customerInfo?.email === customers.find(c => (c._id || c.id) === customerId)?.email
+        );
+        
+        if (customerOrders.length > 0) {
+          setToast({message: `Cannot delete customer: Has ${customerOrders.length} orders`, type: 'error'});
+          setTimeout(() => setToast(null), 3000);
+          return;
+        }
+        
+        const response = await fetch('/api/customers', {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ customerId })
+        });
+        
+        if (response.ok) {
+          setCustomers(customers.filter(c => (c._id || c.id) !== customerId));
+          setToast({message: 'Customer deleted successfully!', type: 'success'});
+        }
+      } catch (error) {
+        console.error('Error deleting customer:', error);
+        setToast({message: 'Failed to delete customer', type: 'error'});
+      } finally {
+        setTimeout(() => setToast(null), 3000);
+      }
     }
   };
 
@@ -631,7 +698,7 @@ export default function DashboardPage() {
                       <th>Country</th>
                       <th>Address</th>
                       <th>Registered</th>
-                      <th>Status</th>
+                      <th>Actions</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -667,14 +734,22 @@ export default function DashboardPage() {
                         </td>
                         <td>{new Date(customer.createdAt || Date.now()).toLocaleDateString()}</td>
                         <td>
-                          <select 
-                            className="form-select form-select-sm" 
-                            value={customer.status || 'active'}
-                            onChange={(e) => updateCustomerStatus(customer._id || customer.id, e.target.value)}
-                          >
-                            <option value="active">Active</option>
-                            <option value="inactive">Inactive</option>
-                          </select>
+                          <div className="d-flex gap-1">
+                            <select 
+                              className="form-select form-select-sm" 
+                              value={customer.status || 'active'}
+                              onChange={(e) => updateCustomerStatus(customer._id || customer.id, e.target.value)}
+                            >
+                              <option value="active">Active</option>
+                              <option value="inactive">Inactive</option>
+                            </select>
+                            <button 
+                              className="btn btn-outline-danger btn-sm" 
+                              onClick={() => deleteCustomer(customer._id || customer.id)}
+                            >
+                              <i className="bi bi-trash"></i>
+                            </button>
+                          </div>
                         </td>
                       </tr>
                       ))
@@ -835,6 +910,144 @@ export default function DashboardPage() {
                         <option value="instock">In Stock</option>
                         <option value="outofstock">Out of Stock</option>
                       </select>
+                    </div>
+                    <div className="mb-3">
+                      <label className="form-label">Available Sizes</label>
+                      <div className="border rounded p-3">
+                        {formData.sizes.map((sizeItem, index) => (
+                          <div key={index} className="row g-2 mb-2">
+                            <div className="col-4">
+                              <input 
+                                type="text" 
+                                className="form-control form-control-sm" 
+                                placeholder="Size (e.g., S, M, L)" 
+                                value={sizeItem.size}
+                                onChange={(e) => {
+                                  const newSizes = [...formData.sizes];
+                                  newSizes[index].size = e.target.value;
+                                  setFormData({...formData, sizes: newSizes});
+                                }}
+                              />
+                            </div>
+                            <div className="col-3">
+                              <input 
+                                type="number" 
+                                className="form-control form-control-sm" 
+                                placeholder="Stock" 
+                                value={sizeItem.stock}
+                                onChange={(e) => {
+                                  const newSizes = [...formData.sizes];
+                                  newSizes[index].stock = +e.target.value;
+                                  setFormData({...formData, sizes: newSizes});
+                                }}
+                              />
+                            </div>
+                            <div className="col-3">
+                              <input 
+                                type="number" 
+                                className="form-control form-control-sm" 
+                                placeholder="Price" 
+                                value={sizeItem.price}
+                                onChange={(e) => {
+                                  const newSizes = [...formData.sizes];
+                                  newSizes[index].price = +e.target.value;
+                                  setFormData({...formData, sizes: newSizes});
+                                }}
+                              />
+                            </div>
+                            <div className="col-2">
+                              <button 
+                                type="button" 
+                                className="btn btn-outline-danger btn-sm" 
+                                onClick={() => {
+                                  const newSizes = formData.sizes.filter((_, i) => i !== index);
+                                  setFormData({...formData, sizes: newSizes});
+                                }}
+                              >
+                                <i className="bi bi-trash"></i>
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                        <button 
+                          type="button" 
+                          className="btn btn-outline-primary btn-sm" 
+                          onClick={() => {
+                            setFormData({...formData, sizes: [...formData.sizes, {size: '', stock: 0, price: formData.price}]});
+                          }}
+                        >
+                          <i className="bi bi-plus"></i> Add Size
+                        </button>
+                      </div>
+                    </div>
+                    <div className="mb-3">
+                      <label className="form-label">Available Colors</label>
+                      <div className="border rounded p-3">
+                        {formData.colors.map((colorItem, index) => (
+                          <div key={index} className="row g-2 mb-2">
+                            <div className="col-4">
+                              <input 
+                                type="text" 
+                                className="form-control form-control-sm" 
+                                placeholder="Color name (e.g., Red, Blue)" 
+                                value={colorItem.name}
+                                onChange={(e) => {
+                                  const newColors = [...formData.colors];
+                                  newColors[index].name = e.target.value;
+                                  setFormData({...formData, colors: newColors});
+                                }}
+                              />
+                            </div>
+                            <div className="col-3">
+                              <input 
+                                type="text" 
+                                className="form-control form-control-sm" 
+                                placeholder="Color code (#FF0000)" 
+                                value={colorItem.code}
+                                onChange={(e) => {
+                                  const newColors = [...formData.colors];
+                                  newColors[index].code = e.target.value;
+                                  setFormData({...formData, colors: newColors});
+                                }}
+                              />
+                            </div>
+                            <div className="col-3">
+                              <input 
+                                type="url" 
+                                className="form-control form-control-sm" 
+                                placeholder="Color image URL" 
+                                value={colorItem.image}
+                                onChange={(e) => {
+                                  const newColors = [...formData.colors];
+                                  newColors[index].image = e.target.value;
+                                  setFormData({...formData, colors: newColors});
+                                }}
+                              />
+                            </div>
+                            <div className="col-2">
+                              <button 
+                                type="button" 
+                                className="btn btn-outline-danger btn-sm" 
+                                onClick={() => {
+                                  const newColors = formData.colors.filter((_, i) => i !== index);
+                                  setFormData({...formData, colors: newColors});
+                                }}
+                              >
+                                <i className="bi bi-trash"></i>
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                        <button 
+                          type="button" 
+                          className="btn btn-outline-success btn-sm" 
+                          onClick={() => {
+                            setFormData({...formData, colors: [...formData.colors, {name: '', code: '', image: ''}]});
+                          }}
+                        >
+                          <i className="bi bi-plus"></i> Add Color
+                        </button>
+                      </div>
                     </div>
                   </div>
                   <div className="modal-footer">

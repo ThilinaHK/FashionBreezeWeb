@@ -6,13 +6,7 @@ if (!MONGODB_URI) {
   throw new Error('Please define the MONGODB_URI environment variable');
 }
 
-declare global {
-  var mongoose: {
-    conn: any;
-    promise: Promise<any> | null;
-  };
-}
-
+// Global connection cache
 let cached = global.mongoose;
 
 if (!cached) {
@@ -27,9 +21,16 @@ async function dbConnect() {
   if (!cached.promise) {
     const opts = {
       bufferCommands: false,
+      maxPoolSize: 10,
+      serverSelectionTimeoutMS: 5000,
+      socketTimeoutMS: 45000,
+      family: 4,
+      maxIdleTimeMS: 30000,
+      connectTimeoutMS: 10000,
     };
 
     cached.promise = mongoose.connect(MONGODB_URI, opts).then((mongoose) => {
+      console.log('MongoDB connected successfully');
       return mongoose;
     });
   }

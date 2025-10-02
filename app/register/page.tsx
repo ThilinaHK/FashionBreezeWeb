@@ -142,11 +142,7 @@ export default function RegisterPage() {
                         onChange={handleInputChange}
                         required 
                         placeholder="Enter your email"
-                        readOnly={!!formData.email}
                       />
-                      {formData.email && (
-                        <small className="text-muted">Email cannot be changed once set</small>
-                      )}
                     </div>
                     <div className="col-md-6">
                       <label className="form-label fw-bold">Phone Number *</label>
