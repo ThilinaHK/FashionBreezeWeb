@@ -831,7 +831,7 @@ export default function DashboardPage() {
                     </div>
                     <div className="mb-3">
                       <label className="form-label">Status</label>
-                      <select className="form-control" value={formData.status} onChange={(e) => setFormData({...formData, status: e.target.value})}>
+                      <select className="form-control" value={formData.status} onChange={(e) => setFormData({...formData, status: e.target.value as 'instock' | 'outofstock'})}>
                         <option value="instock">In Stock</option>
                         <option value="outofstock">Out of Stock</option>
                       </select>
