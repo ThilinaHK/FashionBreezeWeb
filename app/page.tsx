@@ -1,7 +1,24 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Product, CartItem, ChatMessage, Comment } from './types';
+import { Product } from './types';
+
+interface CartItem extends Product {
+  size?: string;
+  quantity: number;
+}
+
+interface ChatMessage {
+  text: string;
+  isBot: boolean;
+}
+
+interface Comment {
+  customer: string;
+  rating: number;
+  date: string;
+  comment: string;
+}
 
 export default function ClientPage() {
   const [products, setProducts] = useState<Product[]>([]);
@@ -457,7 +474,11 @@ export default function ClientPage() {
   const getProductImages = () => {
     const product = selectedProduct;
     if (!product) return [];
-    return product.images || [product.image];
+    const productAny = product as any;
+    if (Array.isArray(productAny.images)) {
+      return typeof productAny.images[0] === 'string' ? productAny.images as string[] : (productAny.images as any[]).map((img: any) => img.url || img);
+    }
+    return [product.image];
   };
 
   const changeMainImage = (imageUrl: string) => {
