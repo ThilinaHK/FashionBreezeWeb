@@ -23,7 +23,7 @@ export default function DashboardPage() {
     price: 0,
     category: '',
     image: '',
-    status: 'instock'
+    status: 'instock' as 'instock' | 'outofstock'
   });
   const [saving, setSaving] = useState(false);
   const [updatingOrder, setUpdatingOrder] = useState<string | null>(null);
@@ -203,7 +203,7 @@ export default function DashboardPage() {
             (p.id === editingProduct.id || p._id === editingProduct._id) ? { ...p, ...formData } : p
           ));
         } else {
-          setProducts([...products, { id: result.id || result._id || Date.now(), ...formData }]);
+          setProducts([...products, { id: result.id || result._id || Date.now(), ...formData } as Product]);
         }
         closeModal();
         setToast({message: editingProduct ? 'Product updated successfully!' : 'Product created successfully!', type: 'success'});
