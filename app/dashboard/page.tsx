@@ -222,7 +222,7 @@ export default function DashboardPage() {
       try {
         const response = await fetch(`/api/products/${id}`, { method: 'DELETE' });
         if (response.ok) {
-          setProducts(products.filter(p => p.id !== id && p._id !== id));
+          setProducts(products.filter(p => p.id !== id && p._id !== String(id)));
           setToast({message: 'Product deleted successfully!', type: 'success'});
         }
       } catch (error) {
