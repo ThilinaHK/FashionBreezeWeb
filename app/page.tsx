@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react';
 import { Product, CartItem, ChatMessage, Comment } from './types';
-import BootstrapClient from './components/BootstrapClient';
 
 export default function ClientPage() {
   const [products, setProducts] = useState<Product[]>([]);
@@ -538,7 +537,6 @@ export default function ClientPage() {
 
   return (
     <div className="client-app">
-      <BootstrapClient />
       {/* Navigation */}
       <nav className="navbar navbar-expand-lg navbar-light bg-white shadow-lg" style={{zIndex: 1050, position: 'relative'}}>
         <div className="container">
