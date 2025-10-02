@@ -1,28 +1,66 @@
 export interface Product {
-  id: number;
+  _id?: string;
+  id?: number;
   name: string;
+  slug?: string;
   code: string;
+  description?: string;
   price: number;
   originalPrice?: number;
   discount?: number;
   promoCode?: string;
-  category: string;
+  category: string | { _id: string; name: string; slug: string };
+  subcategory?: string;
+  brand?: string;
   image: string;
-  images?: string[];
-  sizes?: { [key: string]: number };
-  status: 'instock' | 'outofstock';
-  rating?: number;
+  images?: Array<{
+    url: string;
+    alt: string;
+    isPrimary: boolean;
+  }> | string[];
+  sizes?: Array<{
+    size: string;
+    stock: number;
+    price: number;
+  }> | { [key: string]: number };
+  colors?: Array<{
+    name: string;
+    code: string;
+    image: string;
+  }>;
+  status: 'active' | 'inactive' | 'draft' | 'outofstock' | 'instock';
+  featured?: boolean;
+  rating?: {
+    average: number;
+    count: number;
+  } | number;
   reviewCount?: number;
+  reviews?: Array<{
+    user: string;
+    rating: number;
+    comment: string;
+    date: Date;
+    verified: boolean;
+  }>;
+  specifications?: {
+    material?: string;
+    careInstructions?: string;
+    origin?: string;
+    weight?: string;
+  };
+  inventory?: {
+    totalStock: number;
+    lowStockThreshold: number;
+    trackInventory: boolean;
+  };
+  visibility?: 'public' | 'private' | 'hidden';
+  createdAt?: Date;
+  updatedAt?: Date;
 }
 
 export interface CartItem extends Product {
   size?: string;
   quantity: number;
-  selectedSizeData?: {
-    size: string;
-    stock: number;
-    price: number;
-  };
 }
 
 export interface Customer {
@@ -47,4 +85,24 @@ export interface Comment {
   rating: number;
   date: string;
   comment: string;
+}
+
+export interface Category {
+  _id: string;
+  name: string;
+  slug: string;
+  description?: string;
+  image?: string;
+  icon?: string;
+  subcategories: Array<{
+    name: string;
+    slug: string;
+    description?: string;
+    image?: string;
+    isActive: boolean;
+  }>;
+  isActive: boolean;
+  sortOrder: number;
+  createdAt: Date;
+  updatedAt: Date;
 }
