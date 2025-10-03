@@ -17,14 +17,19 @@ const SizeSchema = new mongoose.Schema({
 });
 
 const ProductSchema = new mongoose.Schema({
+  id: {
+    type: Number,
+    unique: true,
+    sparse: true,
+  },
   name: {
     type: String,
     required: true,
   },
   slug: {
     type: String,
-    required: true,
     unique: true,
+    sparse: true,
   },
   code: {
     type: String,
@@ -33,7 +38,6 @@ const ProductSchema = new mongoose.Schema({
   },
   description: {
     type: String,
-    required: true,
   },
   shortDescription: String,
   price: {
@@ -49,13 +53,11 @@ const ProductSchema = new mongoose.Schema({
   },
   promoCode: String,
   category: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Category',
+    type: mongoose.Schema.Types.Mixed,
     required: true,
   },
   subcategory: {
     type: String,
-    required: true,
   },
   brand: String,
   tags: [String],

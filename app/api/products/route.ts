@@ -8,10 +8,9 @@ export async function GET() {
     
     // Use lean() for faster queries and select only needed fields
     const products = await Product.find(
-      { status: { $in: ['active', 'instock'] } },
-      'name code price image category subcategory status featured rating discount originalPrice sizes'
+      {},
+      'name code price image category subcategory status featured rating discount originalPrice sizes cost vat'
     )
-      .populate('category', 'name slug')
       .sort({ featured: -1, sortOrder: 1 })
       .lean()
       .limit(100);
@@ -26,38 +25,7 @@ export async function GET() {
     });
   } catch (error) {
     console.error('Products API error:', error);
-    
-    // Return fallback data on error
-    const fallbackProducts = [
-      {
-        _id: '1',
-        id: 1,
-        name: "Classic White T-Shirt",
-        code: "CL001",
-        price: 2500,
-        category: "Men's Fashion",
-        image: "https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=400&h=400&fit=crop",
-        status: "active",
-        rating: { average: 4.5, count: 128 }
-      },
-      {
-        _id: '2',
-        id: 2,
-        name: "Blue Denim Jeans",
-        code: "BDJ002",
-        price: 4500,
-        category: "Men's Fashion",
-        image: "https://images.unsplash.com/photo-1542272604-787c3835535d?w=400&h=400&fit=crop",
-        status: "active",
-        rating: { average: 4.2, count: 89 }
-      }
-    ];
-    
-    return NextResponse.json(fallbackProducts, {
-      headers: {
-        'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=120'
-      }
-    });
+    return NextResponse.json([]);
   }
 }
 
@@ -66,14 +34,41 @@ export async function POST(request: NextRequest) {
     await dbConnect();
     const body = await request.json();
     
+    // Auto-generate ID
+    if (!body.id) {
+      const lastProduct = await Product.findOne().sort({ id: -1 }).select('id');
+      body.id = lastProduct ? lastProduct.id + 1 : 1;
+    }
+    
+    // Auto-generate missing required fields
+    if (!body.slug) {
+      body.slug = body.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') + '-' + body.id;
+    }
+    if (!body.description) {
+      body.description = `High-quality ${body.name} - ${body.category}`;
+    }
+    if (!body.subcategory) {
+      body.subcategory = 'General';
+    }
+    
+    // Handle category - for now, store as string since dashboard sends string
+    // In a full implementation, you'd look up the category ObjectId
+    
+    // Map dashboard status to model status
+    if (body.status === 'instock') {
+      body.status = 'active';
+    } else if (body.status === 'outofstock') {
+      body.status = 'outofstock';
+    }
+    
     // Validate sizes if provided
     if (body.sizes && Array.isArray(body.sizes)) {
-      body.sizes = body.sizes.filter(size => size.size && size.size.trim());
+      body.sizes = body.sizes.filter((size: any) => size.size && size.size.trim());
     }
     
     // Validate colors if provided
     if (body.colors && Array.isArray(body.colors)) {
-      body.colors = body.colors.filter(color => color.name && color.name.trim());
+      body.colors = body.colors.filter((color: any) => color.name && color.name.trim());
     }
     
     const product = await Product.create(body);
@@ -84,8 +79,11 @@ export async function POST(request: NextRequest) {
         'Cache-Control': 'no-cache'
       }
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Product creation error:', error);
+    if (error.code === 11000) {
+      return NextResponse.json({ error: 'Product code or slug already exists' }, { status: 400 });
+    }
     return NextResponse.json({ error: 'Failed to create product' }, { status: 500 });
   }
 }

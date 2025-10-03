@@ -1,80 +1,69 @@
 import { NextRequest, NextResponse } from 'next/server';
+import dbConnect from '../../../lib/mongodb';
+import Product from '../../../lib/models/Product';
 
 export async function PUT(request: NextRequest, { params }: { params: { id: string } }) {
   try {
+    await dbConnect();
     const body = await request.json();
-    const id = parseInt(params.id);
+    const id = params.id;
+    
+    // Map dashboard status to model status
+    if (body.status === 'instock') {
+      body.status = 'active';
+    } else if (body.status === 'outofstock') {
+      body.status = 'outofstock';
+    }
     
     // Validate and clean sizes
     if (body.sizes && Array.isArray(body.sizes)) {
-      body.sizes = body.sizes.filter(size => size.size && size.size.trim());
+      body.sizes = body.sizes.filter((size: any) => size.size && size.size.trim());
     }
     
     // Validate and clean colors
     if (body.colors && Array.isArray(body.colors)) {
-      body.colors = body.colors.filter(color => color.name && color.name.trim());
+      body.colors = body.colors.filter((color: any) => color.name && color.name.trim());
     }
     
-    // Always update JSON file for immediate store updates
-    const fs = require('fs');
-    const path = require('path');
-    const filePath = path.join(process.cwd(), 'src', 'assets', 'products.txt');
+    // Try to find by _id first, then by id field
+    let product = await Product.findByIdAndUpdate(id, body, { new: true, runValidators: true });
     
-    try {
-      const fileContents = fs.readFileSync(filePath, 'utf8');
-      const products = JSON.parse(fileContents);
-      const productIndex = products.findIndex((p: any) => p.id === id);
-      
-      if (productIndex !== -1) {
-        products[productIndex] = { ...products[productIndex], ...body };
-        fs.writeFileSync(filePath, JSON.stringify(products, null, 2));
-        console.log('Product updated in JSON file');
-      }
-    } catch (fileError) {
-      console.error('File update failed:', fileError);
+    if (!product) {
+      // Try finding by id field if _id doesn't work
+      product = await Product.findOneAndUpdate({ id: parseInt(id) }, body, { new: true, runValidators: true });
     }
     
-    // Try MongoDB update
-    try {
-      const { MongoClient } = require('mongodb');
-      const client = new MongoClient(process.env.MONGODB_URI);
-      await client.connect();
-      const db = client.db('fashionBreeze');
-      
-      await db.collection('products').updateOne(
-        { id },
-        { $set: { ...body, updatedAt: new Date() } }
-      );
-      await client.close();
-      console.log('Product updated in MongoDB');
-    } catch (dbError) {
-      console.log('MongoDB update failed:', dbError);
+    if (!product) {
+      return NextResponse.json({ error: 'Product not found' }, { status: 404 });
     }
     
-    return NextResponse.json({ success: true, id, ...body });
-  } catch (error) {
+    return NextResponse.json({ success: true, product });
+  } catch (error: any) {
+    console.error('Product update error:', error);
     return NextResponse.json({ error: 'Failed to update product' }, { status: 500 });
   }
 }
 
 export async function DELETE(request: NextRequest, { params }: { params: { id: string } }) {
   try {
-    const id = parseInt(params.id);
+    await dbConnect();
+    const id = params.id;
     
-    try {
-      const { MongoClient } = require('mongodb');
-      const client = new MongoClient(process.env.MONGODB_URI);
-      await client.connect();
-      const db = client.db('fashionBreeze');
-      
-      await db.collection('products').deleteOne({ id });
-      await client.close();
-      
-      return NextResponse.json({ success: true });
-    } catch (dbError) {
-      return NextResponse.json({ success: true });
+    // Try to delete by _id first, then by id field
+    let result = await Product.findByIdAndDelete(id);
+    
+    if (!result) {
+      // Try finding by id field if _id doesn't work
+      result = await Product.findOneAndDelete({ id: parseInt(id) });
     }
-  } catch (error) {
+    
+    if (!result) {
+      return NextResponse.json({ error: 'Product not found' }, { status: 404 });
+    }
+    
+    return NextResponse.json({ success: true });
+  } catch (error: any) {
+    console.error('Product delete error:', error);
     return NextResponse.json({ error: 'Failed to delete product' }, { status: 500 });
   }
 }

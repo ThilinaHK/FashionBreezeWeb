@@ -1,44 +1,33 @@
 import { NextRequest, NextResponse } from 'next/server';
+import dbConnect from '../../../lib/mongodb';
+import Customer from '../../../lib/models/Customer';
 
 export async function GET(request: NextRequest) {
-  const { MongoClient } = require('mongodb');
-  let client;
-  
   try {
-    const cookies = request.headers.get('cookie');
-    const userId = cookies?.split(';').find(c => c.trim().startsWith('userId='))?.split('=')[1];
+    await dbConnect();
+    const { searchParams } = new URL(request.url);
+    const userId = searchParams.get('userId');
     
     if (!userId) {
-      return NextResponse.json({ authenticated: false });
-    }
-
-    const mongoUri = process.env.MONGODB_URI;
-    client = new MongoClient(mongoUri);
-    await client.connect();
-    
-    const db = client.db('fashionBreeze');
-    const { ObjectId } = require('mongodb');
-    
-    const user = await db.collection('customers').findOne({ _id: new ObjectId(userId) });
-    
-    if (user) {
-      return NextResponse.json({ 
-        authenticated: true, 
-        user: {
-          _id: user._id,
-          name: user.name,
-          email: user.email,
-          phone: user.phone,
-          country: user.country,
-          address: user.address
-        }
-      });
+      return NextResponse.json({ success: false, error: 'User ID required' }, { status: 400 });
     }
     
-    return NextResponse.json({ authenticated: false });
-  } catch (error) {
-    return NextResponse.json({ authenticated: false });
-  } finally {
-    if (client) await client.close();
+    let customer = await Customer.findById(userId);
+    
+    if (!customer) {
+      customer = await Customer.findOne({ id: parseInt(userId) });
+    }
+    
+    if (!customer) {
+      return NextResponse.json({ success: false, error: 'Customer not found' }, { status: 404 });
+    }
+    
+    return NextResponse.json({ 
+      success: true, 
+      user: customer 
+    });
+  } catch (error: any) {
+    console.error('Get user error:', error);
+    return NextResponse.json({ success: false, error: 'Failed to get user' }, { status: 500 });
   }
 }

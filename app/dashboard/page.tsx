@@ -173,7 +173,7 @@ export default function DashboardPage() {
         image: product.image,
         status: product.status,
         sizes: Array.isArray(product.sizes) ? product.sizes : [],
-        colors: Array.isArray(product.colors) ? product.colors : []
+        colors: Array.isArray((product as any).colors) ? (product as any).colors : []
       });
     } else {
       setEditingProduct(null);
@@ -191,7 +191,8 @@ export default function DashboardPage() {
     e.preventDefault();
     setSaving(true);
     try {
-      const url = editingProduct ? `/api/products/${editingProduct.id}` : '/api/products';
+      const productId = editingProduct ? (editingProduct.id || editingProduct._id) : null;
+      const url = editingProduct ? `/api/products/${productId}` : '/api/products';
       const method = editingProduct ? 'PUT' : 'POST';
       
       const response = await fetch(url, {
@@ -204,10 +205,10 @@ export default function DashboardPage() {
         const result = await response.json();
         if (editingProduct) {
           setProducts(products.map(p => 
-            (p.id === editingProduct.id || p._id === editingProduct._id) ? { ...p, ...formData } : p
+            (p.id === editingProduct.id || p._id === editingProduct._id) ? { ...p, ...formData } as unknown as Product : p
           ));
         } else {
-          setProducts([...products, { id: result.id || result._id || Date.now(), ...formData } as Product]);
+          setProducts([...products, { id: result.id || result._id || Date.now(), ...formData } as unknown as Product]);
         }
         closeModal();
         setToast({message: editingProduct ? 'Product updated successfully!' : 'Product created successfully!', type: 'success'});
@@ -220,15 +221,16 @@ export default function DashboardPage() {
     }
   };
 
-  const deleteProduct = async (id: number) => {
+  const deleteProduct = async (product: Product) => {
+    const productId = product.id || product._id;
     if (confirm('Are you sure you want to delete this product?')) {
-      setDeletingProduct(id);
+      setDeletingProduct(product.id);
       try {
         // Check if product is in any orders
         const ordersResponse = await fetch('/api/orders');
         const allOrders = await ordersResponse.json();
         const productInOrders = allOrders.some((order: any) => 
-          order.items?.some((item: any) => item.id === id || item._id === String(id))
+          order.items?.some((item: any) => item.id === product.id || item._id === String(product.id))
         );
         
         if (productInOrders) {
@@ -238,9 +240,9 @@ export default function DashboardPage() {
           return;
         }
         
-        const response = await fetch(`/api/products/${id}`, { method: 'DELETE' });
+        const response = await fetch(`/api/products/${productId}`, { method: 'DELETE' });
         if (response.ok) {
-          setProducts(products.filter(p => p.id !== id && p._id !== String(id)));
+          setProducts(products.filter(p => (p.id || p._id) !== productId));
           setToast({message: 'Product deleted successfully!', type: 'success'});
         }
       } catch (error) {
@@ -366,12 +368,13 @@ export default function DashboardPage() {
     }
   };
 
-  const deleteCustomer = async (customerId: string) => {
+  const deleteCustomer = async (customer: any) => {
+    const customerId = customer._id || customer.id;
     if (confirm('Are you sure you want to delete this customer?')) {
       try {
         // Check if customer has orders
         const customerOrders = orders.filter(order => 
-          order.customerInfo?.email === customers.find(c => (c._id || c.id) === customerId)?.email
+          order.customerInfo?.email === customer.email
         );
         
         if (customerOrders.length > 0) {
@@ -588,7 +591,7 @@ export default function DashboardPage() {
                             <button className="btn btn-sm btn-outline-primary" onClick={() => openModal(product)}>
                               <i className="bi bi-pencil"></i>
                             </button>
-                            <button className="btn btn-sm btn-outline-danger" onClick={() => deleteProduct(product.id)} disabled={deletingProduct === product.id}>
+                            <button className="btn btn-sm btn-outline-danger" onClick={() => deleteProduct(product)} disabled={deletingProduct === product.id}>
                               {deletingProduct === product.id ? (
                                 <div className="spinner-border spinner-border-sm" role="status">
                                   <span className="visually-hidden">Deleting...</span>
@@ -745,7 +748,7 @@ export default function DashboardPage() {
                             </select>
                             <button 
                               className="btn btn-outline-danger btn-sm" 
-                              onClick={() => deleteCustomer(customer._id || customer.id)}
+                              onClick={() => deleteCustomer(customer)}
                             >
                               <i className="bi bi-trash"></i>
                             </button>

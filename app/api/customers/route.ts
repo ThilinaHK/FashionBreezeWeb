@@ -1,26 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
-
-// Import customers from registration module
-let registeredCustomers: any[] = [];
+import dbConnect from '../../lib/mongodb';
+import Customer from '../../lib/models/Customer';
 
 export async function GET() {
-  const { MongoClient } = require('mongodb');
-  let client;
-  
   try {
-    const mongoUri = process.env.MONGODB_URI;
-    client = new MongoClient(mongoUri);
-    await client.connect();
-    
-    const db = client.db('fashionBreeze');
-    const customers = await db.collection('customers').find({}).toArray();
-    
+    await dbConnect();
+    const customers = await Customer.find({}).sort({ createdAt: -1 }).lean();
     return NextResponse.json(customers);
   } catch (error) {
-    console.log('MongoDB failed, using fallback customers');
+    console.error('Error loading customers:', error);
     return NextResponse.json([
       {
         _id: '1',
+        id: 1,
         name: 'John Doe',
         email: 'john@example.com',
         phone: '+1234567890',
@@ -30,66 +22,72 @@ export async function GET() {
           line2: 'Apt 4B',
           line3: 'New York, NY 10001'
         },
+        status: 'active',
         createdAt: new Date().toISOString()
       }
     ]);
-  } finally {
-    if (client) await client.close();
   }
 }
 
 export async function PUT(request: NextRequest) {
-  const { MongoClient } = require('mongodb');
-  let client;
-  
   try {
+    await dbConnect();
     const { customerId, status } = await request.json();
-    const mongoUri = process.env.MONGODB_URI;
-    client = new MongoClient(mongoUri);
-    await client.connect();
     
-    const db = client.db('fashionBreeze');
-    const { ObjectId } = require('mongodb');
+    let customer = await Customer.findByIdAndUpdate(customerId, { status }, { new: true });
     
-    await db.collection('customers').updateOne(
-      { _id: new ObjectId(customerId) },
-      { $set: { status, updatedAt: new Date() } }
-    );
+    if (!customer) {
+      customer = await Customer.findOneAndUpdate({ id: parseInt(customerId) }, { status }, { new: true });
+    }
     
-    return NextResponse.json({ success: true });
-  } catch (error) {
-    return NextResponse.json({ success: false });
-  } finally {
-    if (client) await client.close();
+    if (!customer) {
+      return NextResponse.json({ error: 'Customer not found' }, { status: 404 });
+    }
+    
+    return NextResponse.json({ success: true, customer });
+  } catch (error: any) {
+    return NextResponse.json({ error: 'Failed to update customer' }, { status: 500 });
   }
 }
 
-// Add endpoint to sync with registration
 export async function POST(request: NextRequest) {
-  const customer = await request.json();
-  registeredCustomers.push(customer);
-  return NextResponse.json({ success: true });
+  try {
+    await dbConnect();
+    const body = await request.json();
+    
+    // Auto-generate ID
+    if (!body.id) {
+      const lastCustomer = await Customer.findOne().sort({ id: -1 }).select('id');
+      body.id = lastCustomer ? lastCustomer.id + 1 : 1;
+    }
+    
+    const customer = await Customer.create(body);
+    return NextResponse.json({ success: true, customer }, { status: 201 });
+  } catch (error: any) {
+    if (error.code === 11000) {
+      return NextResponse.json({ error: 'Email already exists' }, { status: 400 });
+    }
+    return NextResponse.json({ error: 'Failed to create customer' }, { status: 500 });
+  }
 }
 
 export async function DELETE(request: NextRequest) {
-  const { MongoClient } = require('mongodb');
-  let client;
-  
   try {
+    await dbConnect();
     const { customerId } = await request.json();
-    const mongoUri = process.env.MONGODB_URI;
-    client = new MongoClient(mongoUri);
-    await client.connect();
     
-    const db = client.db('fashionBreeze');
-    const { ObjectId } = require('mongodb');
+    let result = await Customer.findByIdAndDelete(customerId);
     
-    await db.collection('customers').deleteOne({ _id: new ObjectId(customerId) });
+    if (!result) {
+      result = await Customer.findOneAndDelete({ id: parseInt(customerId) });
+    }
+    
+    if (!result) {
+      return NextResponse.json({ error: 'Customer not found' }, { status: 404 });
+    }
     
     return NextResponse.json({ success: true });
-  } catch (error) {
-    return NextResponse.json({ success: false });
-  } finally {
-    if (client) await client.close();
+  } catch (error: any) {
+    return NextResponse.json({ error: 'Failed to delete customer' }, { status: 500 });
   }
 }

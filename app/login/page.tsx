@@ -65,8 +65,9 @@ export default function LoginPage() {
       if (data.success) {
         localStorage.setItem('userRegistered', 'true');
         localStorage.setItem('userName', data.user.name);
-        localStorage.setItem('userId', data.user.id);
+        localStorage.setItem('userId', data.userId);
         localStorage.setItem('userEmail', data.user.email);
+        document.cookie = `userId=${data.userId}; path=/; max-age=86400`;
         router.push('/');
       } else {
         setError(data.error || 'Login failed');

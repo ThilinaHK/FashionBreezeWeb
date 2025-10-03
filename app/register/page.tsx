@@ -57,7 +57,16 @@ export default function RegisterPage() {
       const data = await response.json();
       
       if (data.success) {
-        document.cookie = `userId=${data.user._id || data.user.id}; path=/; max-age=86400`;
+        localStorage.setItem('userRegistered', 'true');
+        localStorage.setItem('userName', data.user.name);
+        localStorage.setItem('userId', data.userId);
+        localStorage.setItem('userEmail', data.user.email);
+        localStorage.setItem('userPhone', data.user.phone);
+        localStorage.setItem('userCountry', data.user.country);
+        if (data.user.address) {
+          localStorage.setItem('userAddress', JSON.stringify(data.user.address));
+        }
+        document.cookie = `userId=${data.userId}; path=/; max-age=86400`;
         router.push('/');
       } else {
         setError(data.error || 'Registration failed');

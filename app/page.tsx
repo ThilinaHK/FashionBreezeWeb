@@ -1112,13 +1112,13 @@ export default function ClientPage() {
                         <div className="text-end">
                           <div className="d-flex align-items-center mb-1">
                             <div className="text-warning me-2">
-                              {getStars(selectedProduct.rating || 0).map((star, index) => (
+                              {getStars(typeof selectedProduct.rating === 'object' ? selectedProduct.rating.average : selectedProduct.rating || 0).map((star, index) => (
                                 <i key={index} className={`bi ${star}`} style={{fontSize: '0.9rem'}}></i>
                               ))}
                             </div>
-                            <span className="fw-semibold" style={{color: '#ffffff'}}>{selectedProduct.rating}</span>
+                            <span className="fw-semibold" style={{color: '#ffffff'}}>{typeof selectedProduct.rating === 'object' ? selectedProduct.rating.average : selectedProduct.rating || 0}</span>
                           </div>
-                          <small className="text-muted">({selectedProduct.reviewCount} reviews)</small>
+                          <small className="text-muted">({typeof selectedProduct.rating === 'object' ? selectedProduct.rating.count : selectedProduct.reviewCount || 0} reviews)</small>
                         </div>
                       </div>
 
@@ -1207,11 +1207,11 @@ export default function ClientPage() {
                                     <p className="fw-semibold mb-2" style={{color: '#ffffff', fontSize: '1rem'}}>LKR {product.price}</p>
                                     <div className="d-flex align-items-center">
                                       <div className="text-warning me-1">
-                                        {getStars(product.rating || 0).map((star, index) => (
+                                        {getStars(typeof product.rating === 'object' ? product.rating.average : product.rating || 0).map((star, index) => (
                                           <i key={index} className={`bi ${star}`} style={{fontSize: '8px'}}></i>
                                         ))}
                                       </div>
-                                      <small className="text-muted">{product.rating}</small>
+                                      <small className="text-muted">{typeof product.rating === 'object' ? product.rating.average : product.rating || 0}</small>
                                     </div>
                                   </div>
                                 </div>
