@@ -85,7 +85,7 @@ export default function DashboardPage() {
   const [addressFormData, setAddressFormData] = useState({
     name: '',
     type: 'country',
-    parentId: null
+    parentId: null as number | null
   });
   const [parentAddresses, setParentAddresses] = useState<any[]>([]);
   const [savingAddress, setSavingAddress] = useState(false);
@@ -256,7 +256,7 @@ export default function DashboardPage() {
     } catch (error) {
       console.error('Error loading addresses:', error);
       setAddresses([]);
-      setToast({message: `Failed to load addresses: ${error.message}`, type: 'error'});
+      setToast({message: `Failed to load addresses: ${(error as Error).message}`, type: 'error'});
       setTimeout(() => setToast(null), 5000);
     } finally {
       setLoadingAddresses(false);
@@ -378,7 +378,7 @@ export default function DashboardPage() {
       }
     } catch (error) {
       console.error('Error seeding addresses:', error);
-      setToast({message: `Failed to create dummy addresses: ${error.message}`, type: 'error'});
+      setToast({message: `Failed to create dummy addresses: ${(error as Error).message}`, type: 'error'});
     } finally {
       setTimeout(() => setToast(null), 5000);
     }
@@ -3141,7 +3141,7 @@ export default function DashboardPage() {
                           <select 
                             className="form-select" 
                             value={addressFormData.parentId || ''}
-                            onChange={(e) => setAddressFormData({...addressFormData, parentId: parseInt(e.target.value) || null})}
+                            onChange={(e) => setAddressFormData({...addressFormData, parentId: e.target.value ? parseInt(e.target.value) : null})}
                             required
                           >
                             <option value="">Select Parent</option>

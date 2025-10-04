@@ -114,7 +114,7 @@ export default function ProfilePage() {
           const ordersData = await ordersResponse.json();
           setOrders(Array.isArray(ordersData) ? ordersData : []);
           
-          const returnsResponse = await fetch(`/api/returns/customer?email=${encodeURIComponent(user.email)}`);
+          const returnsResponse = await fetch(`/api/returns/customer?email=${encodeURIComponent(userData[0].email)}`);
           const returnsData = await returnsResponse.json();
           setReturns(Array.isArray(returnsData) ? returnsData : []);
           
@@ -651,7 +651,7 @@ export default function ProfilePage() {
                                 style={{borderRadius: '10px', border: '2px solid #e9ecef', padding: '0.75rem'}}
                               >
                                 <option value="">Select City</option>
-                                {cities.map(city => (
+                                {cities.map((city: any) => (
                                   <option key={city.id} value={city.id}>{city.name}</option>
                                 ))}
                               </select>
@@ -992,7 +992,7 @@ export default function ProfilePage() {
                         style={{borderRadius: '12px', border: '2px solid #e9ecef', padding: '0.75rem'}}
                       >
                         <option value="">Select City</option>
-                        {cities.map(city => (
+                        {cities.map((city: any) => (
                           <option key={city.id} value={city.id}>{city.name}</option>
                         ))}
                       </select>
