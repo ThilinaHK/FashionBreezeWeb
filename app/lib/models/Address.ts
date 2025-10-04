@@ -1,10 +1,5 @@
 import mongoose from 'mongoose';
 
-// Delete the old model to avoid conflicts
-if (mongoose.models.Address) {
-  delete mongoose.models.Address;
-}
-
 const AddressSchema = new mongoose.Schema({
   id: { type: Number, required: true, unique: true },
   name: { type: String, required: true, trim: true },
@@ -21,4 +16,5 @@ AddressSchema.index({ type: 1 });
 AddressSchema.index({ parentId: 1 });
 AddressSchema.index({ isActive: 1 });
 
-export default mongoose.model('Address', AddressSchema);
+const Address = mongoose.models.Address || mongoose.model('Address', AddressSchema);
+export default Address;
