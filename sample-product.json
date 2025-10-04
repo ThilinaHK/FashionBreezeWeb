@@ -1,0 +1,130 @@
+{
+  "name": "Premium Cotton T-Shirt",
+  "code": "PCT001",
+  "cost": 800,
+  "vat": 120,
+  "price": 1500,
+  "category": "Clothing",
+  "image": "https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=500",
+  "status": "instock",
+  "sizes": [
+    {
+      "size": "S",
+      "colors": [
+        {
+          "name": "Black",
+          "code": "#000000",
+          "stock": 25,
+          "price": 1500
+        },
+        {
+          "name": "White",
+          "code": "#FFFFFF",
+          "stock": 30,
+          "price": 1500
+        },
+        {
+          "name": "Navy Blue",
+          "code": "#001f3f",
+          "stock": 20,
+          "price": 1500
+        }
+      ],
+      "stock": 75,
+      "price": 1500
+    },
+    {
+      "size": "M",
+      "colors": [
+        {
+          "name": "Black",
+          "code": "#000000",
+          "stock": 35,
+          "price": 1500
+        },
+        {
+          "name": "White",
+          "code": "#FFFFFF",
+          "stock": 40,
+          "price": 1500
+        },
+        {
+          "name": "Navy Blue",
+          "code": "#001f3f",
+          "stock": 30,
+          "price": 1500
+        },
+        {
+          "name": "Gray",
+          "code": "#808080",
+          "stock": 25,
+          "price": 1500
+        }
+      ],
+      "stock": 130,
+      "price": 1500
+    },
+    {
+      "size": "L",
+      "colors": [
+        {
+          "name": "Black",
+          "code": "#000000",
+          "stock": 30,
+          "price": 1600
+        },
+        {
+          "name": "White",
+          "code": "#FFFFFF",
+          "stock": 35,
+          "price": 1600
+        },
+        {
+          "name": "Navy Blue",
+          "code": "#001f3f",
+          "stock": 25,
+          "price": 1600
+        },
+        {
+          "name": "Gray",
+          "code": "#808080",
+          "stock": 20,
+          "price": 1600
+        },
+        {
+          "name": "Maroon",
+          "code": "#800000",
+          "stock": 15,
+          "price": 1600
+        }
+      ],
+      "stock": 125,
+      "price": 1600
+    },
+    {
+      "size": "XL",
+      "colors": [
+        {
+          "name": "Black",
+          "code": "#000000",
+          "stock": 20,
+          "price": 1700
+        },
+        {
+          "name": "White",
+          "code": "#FFFFFF",
+          "stock": 25,
+          "price": 1700
+        },
+        {
+          "name": "Navy Blue",
+          "code": "#001f3f",
+          "stock": 15,
+          "price": 1700
+        }
+      ],
+      "stock": 60,
+      "price": 1700
+    }
+  ]
+}
