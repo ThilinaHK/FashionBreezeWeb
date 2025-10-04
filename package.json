@@ -11,6 +11,7 @@
     "seed-categories": "node scripts/seedCategories.js"
   },
   "dependencies": {
+    "bcryptjs": "^3.0.2",
     "bootstrap": "^5.3.8",
     "bootstrap-icons": "^1.11.0",
     "dotenv": "^16.6.1",

@@ -22,6 +22,12 @@ export interface Product {
   }> | string[];
   sizes?: Array<{
     size: string;
+    colors?: Array<{
+      name: string;
+      code: string;
+      stock: number;
+      price: number;
+    }>;
     stock: number;
     price: number;
   }> | { [key: string]: number };

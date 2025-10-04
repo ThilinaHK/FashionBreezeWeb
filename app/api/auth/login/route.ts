@@ -5,10 +5,14 @@ import Customer from '../../../lib/models/Customer';
 export async function POST(request: NextRequest) {
   try {
     await dbConnect();
-    const { email, phone } = await request.json();
+    const { email, password, phone } = await request.json();
     
     if (!email && !phone) {
       return NextResponse.json({ success: false, error: 'Email or phone required' }, { status: 400 });
+    }
+    
+    if (email && !password) {
+      return NextResponse.json({ success: false, error: 'Password required' }, { status: 400 });
     }
     
     // Find customer by email or phone
@@ -16,7 +20,12 @@ export async function POST(request: NextRequest) {
     const customer = await Customer.findOne(query);
     
     if (!customer) {
-      return NextResponse.json({ success: false, error: 'Customer not found' }, { status: 404 });
+      return NextResponse.json({ success: false, error: 'Invalid email or password' }, { status: 401 });
+    }
+    
+    // Validate password if logging in with email
+    if (email && customer.password !== password) {
+      return NextResponse.json({ success: false, error: 'Invalid email or password' }, { status: 401 });
     }
     
     if (customer.status !== 'active') {
@@ -25,7 +34,7 @@ export async function POST(request: NextRequest) {
     
     return NextResponse.json({ 
       success: true, 
-      user: customer, 
+      user: { ...customer.toObject(), password: undefined }, // Don't send password back
       userId: customer._id.toString() 
     });
   } catch (error: any) {

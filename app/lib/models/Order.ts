@@ -38,9 +38,29 @@ const OrderSchema = new mongoose.Schema({
   },
   status: {
     type: String,
-    enum: ['pending', 'confirmed', 'shipped', 'delivered', 'cancelled'],
+    enum: ['pending', 'confirmed', 'shipped', 'delivered', 'customer_verified', 'cancelled'],
     default: 'pending',
   },
+  isActive: {
+    type: Boolean,
+    default: true,
+  },
+  paymentMethod: {
+    type: String,
+    enum: ['cash_on_delivery', 'bank_transfer', 'card_payment', 'mobile_payment'],
+    default: 'cash_on_delivery',
+  },
+  paymentStatus: {
+    type: String,
+    enum: ['pending', 'paid', 'failed'],
+    default: 'pending',
+  },
+  deliveryVerified: {
+    type: Boolean,
+    default: false,
+  },
+  customerNotes: String,
+  verifiedAt: Date,
 }, {
   timestamps: true,
 });

@@ -32,12 +32,20 @@ export async function GET() {
 export async function PUT(request: NextRequest) {
   try {
     await dbConnect();
-    const { customerId, status } = await request.json();
+    const { customerId, status, name, email, phone, country, address } = await request.json();
     
-    let customer = await Customer.findByIdAndUpdate(customerId, { status }, { new: true });
+    const updateData: any = {};
+    if (status !== undefined) updateData.status = status;
+    if (name !== undefined) updateData.name = name;
+    if (email !== undefined) updateData.email = email;
+    if (phone !== undefined) updateData.phone = phone;
+    if (country !== undefined) updateData.country = country;
+    if (address !== undefined) updateData.address = address;
+    
+    let customer = await Customer.findByIdAndUpdate(customerId, updateData, { new: true });
     
     if (!customer) {
-      customer = await Customer.findOneAndUpdate({ id: parseInt(customerId) }, { status }, { new: true });
+      customer = await Customer.findOneAndUpdate({ id: parseInt(customerId) }, updateData, { new: true });
     }
     
     if (!customer) {

@@ -5,6 +5,25 @@ const SizeSchema = new mongoose.Schema({
     type: String,
     required: true,
   },
+  colors: [{
+    name: {
+      type: String,
+      required: true,
+    },
+    code: {
+      type: String,
+      required: true,
+    },
+    stock: {
+      type: Number,
+      required: true,
+      default: 0,
+    },
+    price: {
+      type: Number,
+      required: true,
+    },
+  }],
   stock: {
     type: Number,
     required: true,

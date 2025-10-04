@@ -19,7 +19,7 @@ export async function POST(request: NextRequest) {
     
     return NextResponse.json({ 
       success: true, 
-      user: customer, 
+      user: { ...customer.toObject(), password: undefined }, // Don't send password back
       userId: customer._id.toString() 
     });
   } catch (error: any) {

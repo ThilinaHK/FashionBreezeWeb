@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 export default function LoginPage() {
   const router = useRouter();
   const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -45,19 +46,32 @@ export default function LoginPage() {
     setLoading(true);
     setError('');
     
-    // Check for admin credentials
-    if (email === 'admin@fashionbreeze.com') {
-      localStorage.setItem('adminLoggedIn', 'true');
-      router.push('/dashboard');
-      setLoading(false);
-      return;
+    // Try admin login first
+    try {
+      const adminResponse = await fetch('/api/auth/admin-login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password })
+      });
+      
+      const adminData = await adminResponse.json();
+      
+      if (adminData.success && adminData.isAdmin) {
+        localStorage.setItem('adminLoggedIn', 'true');
+        localStorage.setItem('adminUser', JSON.stringify(adminData.user));
+        router.push('/dashboard');
+        setLoading(false);
+        return;
+      }
+    } catch (error) {
+      // Continue to customer login if admin login fails
     }
     
     try {
       const response = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email })
+        body: JSON.stringify({ email, password })
       });
       
       const data = await response.json();
@@ -110,7 +124,7 @@ export default function LoginPage() {
                   </div>
                 )}
                 <form onSubmit={handleSubmit}>
-                  <div className="mb-4">
+                  <div className="mb-3">
                     <label className="form-label fw-bold">Email Address</label>
                     <input 
                       type="email" 
@@ -119,6 +133,17 @@ export default function LoginPage() {
                       onChange={(e) => setEmail(e.target.value)}
                       required 
                       placeholder="Enter your email" 
+                    />
+                  </div>
+                  <div className="mb-4">
+                    <label className="form-label fw-bold">Password</label>
+                    <input 
+                      type="password" 
+                      className="form-control" 
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      required 
+                      placeholder="Enter your password" 
                     />
                   </div>
                   <button type="submit" className="btn btn-primary btn-lg w-100 mb-3" disabled={loading}>

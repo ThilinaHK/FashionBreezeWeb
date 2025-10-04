@@ -5,6 +5,7 @@ import { Product } from './types';
 
 interface CartItem extends Product {
   size?: string;
+  color?: string;
   quantity: number;
   selectedSizeData?: {
     size: string;
@@ -38,6 +39,7 @@ export default function ClientPage() {
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [zoomLevel, setZoomLevel] = useState(1);
   const [selectedSize, setSelectedSize] = useState('M');
+  const [selectedColor, setSelectedColor] = useState('');
   const [modalQuantity, setModalQuantity] = useState(1);
   const [currentSlide, setCurrentSlide] = useState(0);
   const [showChatbot, setShowChatbot] = useState(false);
@@ -52,6 +54,7 @@ export default function ClientPage() {
   const [orderLoading, setOrderLoading] = useState(false);
   const [error, setError] = useState('');
   const [mounted, setMounted] = useState(false);
+  const [paymentMethod, setPaymentMethod] = useState('cash_on_delivery');
 
   const availableSizes = ['XS', 'S', 'M', 'L', 'XL', 'XXL'];
 
@@ -209,6 +212,21 @@ export default function ClientPage() {
         status: "instock" as const,
         rating: 4.2,
         reviewCount: 89
+      },
+      {
+        id: 3,
+        name: "T-Shirt",
+        code: "FB01159664",
+        price: 500019,
+        category: "XXX CCCzzz",
+        image: "https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=400&h=400&fit=crop",
+        images: [
+          "https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=400&h=400&fit=crop"
+        ],
+        sizes: { "XS": 10, "S": 15, "M": 20, "L": 18, "XL": 12, "XXL": 8 },
+        status: "instock" as const,
+        rating: 4.8,
+        reviewCount: 256
       }
     ];
     setProducts(fallbackProducts);
@@ -342,7 +360,9 @@ export default function ClientPage() {
             email: localStorage.getItem('userEmail') || '',
             phone: localStorage.getItem('userPhone') || '',
             address: localStorage.getItem('userAddress') || ''
-          }
+          },
+          paymentMethod: paymentMethod,
+          paymentStatus: 'pending'
         })
       });
       
@@ -424,7 +444,21 @@ export default function ClientPage() {
     setZoomLevel(1);
     setModalQuantity(1);
     setSelectedSize('M');
+    setSelectedColor('');
     setCurrentSlide(0);
+  };
+
+  const onSizeSelect = (size: string) => {
+    if (!isSizeInStock(size)) return;
+    setSelectedSize(size);
+    setSelectedColor(''); // Reset color when size changes
+    setModalQuantity(1); // Reset quantity when size changes
+  };
+
+  const onColorSelect = (colorName: string) => {
+    setSelectedColor(colorName);
+    setSelectedSize(''); // Reset size when color changes
+    setModalQuantity(1); // Reset quantity when color changes
   };
 
   const closeProductModal = () => {
@@ -560,8 +594,97 @@ export default function ClientPage() {
   const getSizeStock = (size: string) => {
     const product = selectedProduct;
     if (!product?.sizes) return 0;
+    
+    // Handle new array structure with colors
+    if (Array.isArray(product.sizes)) {
+      const sizeData = product.sizes.find(s => s.size === size);
+      if (!sizeData) return 0;
+      
+      // If size has colors, sum up all color stocks
+      if (sizeData.colors && sizeData.colors.length > 0) {
+        return sizeData.colors.reduce((total: number, color: any) => total + (color.stock || 0), 0);
+      }
+      
+      // Otherwise use base stock
+      return sizeData.stock || 0;
+    }
+    
+    // Handle old object structure
     const sizeData = (product.sizes as any)[size];
     return typeof sizeData === 'object' ? sizeData.stock : sizeData || 0;
+  };
+
+  const getAvailableColors = (size: string) => {
+    const product = selectedProduct;
+    if (!product?.sizes || !Array.isArray(product.sizes)) return [];
+    
+    const sizeData = product.sizes.find(s => s.size === size);
+    if (!sizeData || !sizeData.colors) return [];
+    
+    return sizeData.colors.filter((color: any) => color.stock > 0) || [];
+  };
+
+  const getColorStock = (size: string, colorName: string) => {
+    const colors = getAvailableColors(size);
+    const color = colors.find((c: any) => c.name === colorName);
+    return color?.stock || 0;
+  };
+
+  const getColorPrice = (size: string, colorName: string) => {
+    const colors = getAvailableColors(size);
+    const color = colors.find((c: any) => c.name === colorName);
+    return color?.price || getSizePrice(size);
+  };
+
+  const getAllAvailableColors = () => {
+    const product = selectedProduct;
+    if (!product?.sizes || !Array.isArray(product.sizes)) return [];
+    
+    const colorMap = new Map();
+    product.sizes.forEach(size => {
+      if (size.colors) {
+        size.colors.forEach((color: any) => {
+          if (color.stock > 0) {
+            const key = color.name;
+            if (!colorMap.has(key)) {
+              colorMap.set(key, {
+                name: color.name,
+                code: color.code,
+                sizes: [size.size]
+              });
+            } else {
+              const existing = colorMap.get(key);
+              if (!existing.sizes.includes(size.size)) {
+                existing.sizes.push(size.size);
+              }
+            }
+          }
+        });
+      }
+    });
+    
+    return Array.from(colorMap.values());
+  };
+
+  const getSizesForColor = (colorName: string) => {
+    const product = selectedProduct;
+    if (!product?.sizes || !Array.isArray(product.sizes)) return [];
+    
+    const availableSizes: any[] = [];
+    product.sizes.forEach(size => {
+      if (size.colors) {
+        const colorInSize = size.colors.find((c: any) => c.name === colorName && c.stock > 0);
+        if (colorInSize) {
+          availableSizes.push({
+            size: size.size,
+            stock: colorInSize.stock,
+            price: colorInSize.price
+          });
+        }
+      }
+    });
+    
+    return availableSizes;
   };
 
   const isSizeInStock = (size: string) => {
@@ -571,12 +694,23 @@ export default function ClientPage() {
   const getSizePrice = (size: string) => {
     const product = selectedProduct;
     if (!product?.sizes) return product?.price || 0;
+    
+    // Handle new array structure
+    if (Array.isArray(product.sizes)) {
+      const sizeData = product.sizes.find(s => s.size === size);
+      return sizeData?.price || product?.price || 0;
+    }
+    
+    // Handle old object structure
     const sizeData = (product.sizes as any)[size];
     return typeof sizeData === 'object' ? sizeData.price : product?.price || 0;
   };
 
   const increaseQuantity = () => {
-    setModalQuantity(modalQuantity + 1);
+    const maxStock = selectedColor ? getColorStock(selectedSize, selectedColor) : getSizeStock(selectedSize);
+    if (modalQuantity < maxStock) {
+      setModalQuantity(modalQuantity + 1);
+    }
   };
 
   const decreaseQuantity = () => {
@@ -585,31 +719,58 @@ export default function ClientPage() {
     }
   };
 
-  const onSizeSelect = (size: string) => {
-    if (!isSizeInStock(size)) return;
-    setSelectedSize(size);
-  };
-
   const addToCartFromModal = async () => {
     const product = selectedProduct;
-    if (!product || !isSizeInStock(selectedSize)) return;
+    
+    if (!product) return;
+    
+    // Check if we need color selection
+    const allColors = getAllAvailableColors();
+    if (allColors.length > 0 && !selectedColor) {
+      alert('Please select a color before adding to cart');
+      return;
+    }
+    
+    // Check if we need size selection
+    if (selectedColor && !selectedSize) {
+      alert('Please select a size before adding to cart');
+      return;
+    }
+    
+    // For products without colors, ensure size is selected and in stock
+    if (allColors.length === 0) {
+      if (!selectedSize || !isSizeInStock(selectedSize)) {
+        alert('Please select an available size');
+        return;
+      }
+    }
+    
+    // For products with colors, check color-size combination stock
+    if (selectedColor && selectedSize) {
+      const colorStock = getColorStock(selectedSize, selectedColor);
+      if (colorStock <= 0) {
+        alert('Selected color and size combination is out of stock');
+        return;
+      }
+    }
     
     setCartLoading(product.id);
-    const sizePrice = getSizePrice(selectedSize);
+    const finalPrice = selectedColor ? getColorPrice(selectedSize, selectedColor) : getSizePrice(selectedSize);
     const cartItem: CartItem = {
       ...product,
       size: selectedSize,
+      color: selectedColor,
       quantity: modalQuantity,
-      price: sizePrice,
+      price: finalPrice,
       category: product.category,
       selectedSizeData: {
         size: selectedSize,
-        stock: getSizeStock(selectedSize),
-        price: sizePrice
+        stock: selectedColor ? getColorStock(selectedSize, selectedColor) : getSizeStock(selectedSize),
+        price: finalPrice
       }
     };
     
-    const existing = cart.find(item => item.id === product.id && item.size === selectedSize);
+    const existing = cart.find(item => item.id === product.id && item.size === selectedSize && (item as any).color === selectedColor);
     let newCart;
     if (existing) {
       existing.quantity += modalQuantity;
@@ -620,7 +781,6 @@ export default function ClientPage() {
       setCart(newCart);
     }
     
-    // Save cart to MongoDB with size info
     await saveCartToMongoDB(newCart);
     setCartLoading(null);
     closeProductModal();
@@ -688,11 +848,13 @@ export default function ClientPage() {
                   </a>
                 </div>
               )}
-              <button className="btn position-relative btn-outline-dark" onClick={() => setShowCart(!showCart)}>
-                <i className="bi bi-cart3"></i> Cart
-                <span className="position-absolute top-0 start-100 translate-middle badge rounded-pill" style={{background: 'var(--accent-color)'}}>
-                  {cart.length}
-                </span>
+              <button className="btn position-relative" onClick={() => setShowCart(!showCart)} style={{background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', border: 'none', borderRadius: '12px', color: 'white', fontWeight: '600', padding: '0.5rem 1.2rem', boxShadow: '0 4px 15px rgba(102, 126, 234, 0.3)'}}>
+                <i className="bi bi-bag-check me-2"></i>Cart
+                {cart.length > 0 && (
+                  <span className="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-warning text-dark" style={{fontSize: '0.7rem', fontWeight: '700'}}>
+                    {cart.length}
+                  </span>
+                )}
               </button>
             </div>
           </div>
@@ -907,9 +1069,33 @@ export default function ClientPage() {
             
             <div className="col-lg-9">
               <div className="text-center mb-5">
-                <h2 className="fw-bold mb-3" style={{color: 'var(--dark-color)', fontSize: '3rem'}}>Our Collection</h2>
-                <div style={{width: '100px', height: '4px', background: 'var(--gradient-primary)', margin: '0 auto', borderRadius: '2px'}}></div>
-                <p className="mt-3 fs-5" style={{color: 'var(--gray-600)'}}>Discover our premium selection of fashion items</p>
+                <h2 className="fw-bold mb-3" style={{color: 'var(--dark-color)', fontSize: '3rem'}}>Our Premium Collection</h2>
+                <div style={{width: '120px', height: '4px', background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', margin: '0 auto', borderRadius: '2px'}}></div>
+                <p className="mt-3 fs-5" style={{color: 'var(--gray-600)'}}>Discover our curated selection of premium fashion items</p>
+                <div className="mt-4 p-4 rounded" style={{background: 'linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%)', border: '1px solid rgba(102, 126, 234, 0.2)'}}>
+                  <div className="row g-3 text-center">
+                    <div className="col-md-3">
+                      <i className="bi bi-truck text-primary mb-2" style={{fontSize: '1.5rem'}}></i>
+                      <p className="small mb-0 fw-semibold">Free Shipping</p>
+                      <small className="text-muted">On orders over LKR 5000</small>
+                    </div>
+                    <div className="col-md-3">
+                      <i className="bi bi-shield-check text-success mb-2" style={{fontSize: '1.5rem'}}></i>
+                      <p className="small mb-0 fw-semibold">Quality Guarantee</p>
+                      <small className="text-muted">Premium materials only</small>
+                    </div>
+                    <div className="col-md-3">
+                      <i className="bi bi-arrow-clockwise text-info mb-2" style={{fontSize: '1.5rem'}}></i>
+                      <p className="small mb-0 fw-semibold">Easy Returns</p>
+                      <small className="text-muted">30-day return policy</small>
+                    </div>
+                    <div className="col-md-3">
+                      <i className="bi bi-headset text-warning mb-2" style={{fontSize: '1.5rem'}}></i>
+                      <p className="small mb-0 fw-semibold">24/7 Support</p>
+                      <small className="text-muted">Always here to help</small>
+                    </div>
+                  </div>
+                </div>
               </div>
 
               <div className="text-center mb-3">
@@ -927,34 +1113,98 @@ export default function ClientPage() {
                 <div className="row g-4">
                   {getFilteredProducts().map(product => (
                   <div key={product.id} className="col-lg-3 col-md-6">
-                    <div className={`card h-100 shadow-sm border-0 product-card ${product.status === 'outofstock' ? 'out-of-stock' : ''}`}>
-                      <div className="position-relative">
-                        <img src={product.image} alt={product.name} className="card-img-top" />
+                    <div className={`card h-100 border-0 product-card-enhanced ${product.status === 'outofstock' ? 'out-of-stock' : ''}`} style={{boxShadow: '0 8px 25px rgba(0,0,0,0.1)', borderRadius: '16px', overflow: 'hidden', transition: 'all 0.3s ease'}}>
+                      <div className="position-relative" style={{overflow: 'hidden'}}>
+                        <img 
+                          src={product.image} 
+                          alt={product.name} 
+                          className="card-img-top" 
+                          style={{
+                            height: '280px',
+                            objectFit: 'cover',
+                            transition: 'transform 0.3s ease'
+                          }}
+                          onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.05)'}
+                          onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
+                        />
                         {(product as any).discount && (
-                          <span className="position-absolute top-0 end-0 m-2 badge bg-danger fs-6">-{(product as any).discount}%</span>
+                          <span className="position-absolute top-0 end-0 m-3 badge bg-danger px-3 py-2" style={{fontSize: '0.8rem', borderRadius: '20px'}}>-{(product as any).discount}%</span>
                         )}
-                      </div>
-                      <div className="card-body d-flex flex-column">
-                        <h5 className="card-title fw-bold">{product.name}</h5>
-                        <div className="d-flex gap-2 mb-2">
-                          <span className="badge bg-secondary">{product.category}</span>
-                          <span className="badge bg-primary">{product.code}</span>
+                        <div className="position-absolute top-0 start-0 m-3">
+                          <span className="badge bg-white text-dark px-3 py-2" style={{fontSize: '0.75rem', borderRadius: '20px', fontWeight: 600}}>
+                            {product.code}
+                          </span>
                         </div>
-                        <p className="card-text text-success fs-4 fw-bold mb-3">LKR {product.price}</p>
+                      </div>
+                      <div className="card-body d-flex flex-column p-4">
+                        <div className="mb-3">
+                          <h5 className="card-title fw-bold mb-2" style={{fontSize: '1.1rem', lineHeight: 1.3}}>{product.name}</h5>
+                          <div className="d-flex align-items-center justify-content-between mb-2">
+                            <span className="badge" style={{background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', color: 'white', fontSize: '0.75rem', padding: '6px 12px', borderRadius: '12px'}}>
+                              {product.category}
+                            </span>
+                            <div className="d-flex align-items-center">
+                              <div className="text-warning me-1">
+                                {getStars(typeof product.rating === 'object' ? (product.rating as any).average : product.rating || 0).slice(0, 5).map((star, index) => (
+                                  <i key={index} className={`bi ${star}`} style={{fontSize: '0.8rem'}}></i>
+                                ))}
+                              </div>
+                              <small className="text-muted">({product.reviewCount || 0})</small>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="mb-3">
+                          <div className="d-flex align-items-center justify-content-between">
+                            <div>
+                              <p className="card-text text-success fw-bold mb-0" style={{fontSize: '1.4rem'}}>LKR {product.price.toLocaleString()}</p>
+                              <small className="text-muted">Inclusive of all taxes</small>
+                            </div>
+                            <div className="text-end">
+                              <small className="text-muted d-block">Stock Available</small>
+                              <span className="badge bg-success" style={{fontSize: '0.7rem'}}>In Stock</span>
+                            </div>
+                          </div>
+                        </div>
                         {product.status === 'outofstock' ? (
                           <>
-                            <span className="badge bg-danger mb-2">Out of Stock</span>
-                            <button className="btn btn-secondary mt-auto" disabled>
-                              <i className="bi bi-x-circle me-2"></i>Out of Stock
+                            <div className="text-center p-3 rounded mb-3" style={{background: 'rgba(220, 53, 69, 0.1)', border: '1px solid rgba(220, 53, 69, 0.2)'}}>
+                              <i className="bi bi-x-circle text-danger mb-2" style={{fontSize: '1.5rem'}}></i>
+                              <p className="text-danger mb-0 fw-semibold">Out of Stock</p>
+                            </div>
+                            <button className="btn btn-secondary w-100 py-3" disabled style={{borderRadius: '12px', fontWeight: 600}}>
+                              <i className="bi bi-x-circle me-2"></i>Currently Unavailable
                             </button>
                           </>
                         ) : (
-                          <div className="d-flex gap-2 mt-auto">
-                            <button onClick={() => openProductModal(product)} className="btn btn-outline-primary flex-fill">
-                              <i className="bi bi-eye me-1"></i>Details
+                          <div className="d-grid gap-2 mt-auto">
+                            <button 
+                              onClick={(e) => { e.preventDefault(); e.stopPropagation(); openProductModal(product); }} 
+                              className="btn btn-primary py-3" 
+                              style={{
+                                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                                border: 'none',
+                                borderRadius: '12px',
+                                fontWeight: 600,
+                                fontSize: '0.95rem',
+                                transition: 'all 0.3s ease',
+                                boxShadow: '0 4px 15px rgba(102, 126, 234, 0.3)'
+                              }}
+                              onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-2px)'}
+                              onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}
+                            >
+                              <i className="bi bi-cart-plus me-2"></i>Add to Cart
                             </button>
-                            <button onClick={() => addToCart(product)} className="btn btn-primary flex-fill" disabled={cartLoading === product.id}>
-                              {cartLoading === product.id ? <i className="bi bi-hourglass-split me-1"></i> : <i className="bi bi-cart-plus me-1"></i>}Add
+                            <button 
+                              onClick={(e) => { e.preventDefault(); e.stopPropagation(); openProductModal(product); }} 
+                              className="btn btn-outline-secondary py-2" 
+                              style={{
+                                borderRadius: '12px',
+                                fontWeight: 500,
+                                fontSize: '0.9rem',
+                                transition: 'all 0.3s ease'
+                              }}
+                            >
+                              <i className="bi bi-eye me-2"></i>View Details
                             </button>
                           </div>
                         )}
@@ -971,54 +1221,137 @@ export default function ClientPage() {
 
       {/* Cart Modal */}
       {showCart && (
-        <div className="modal d-block" tabIndex={-1} style={{background: 'rgba(0,0,0,0.5)'}}>
-          <div className="modal-dialog modal-lg">
-            <div className="modal-content">
-              <div className="modal-header bg-primary text-white">
-                <h5 className="modal-title"><i className="bi bi-cart3 me-2"></i>Your Cart</h5>
-                <button type="button" className="btn" onClick={() => setShowCart(false)} style={{background: '#ffffff', color: 'black', border: '1px solid #000000', width: '35px', height: '35px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1rem', transition: 'all 0.3s ease'}}>
-                  <i className="bi bi-x"></i>
+        <div className="modal d-block" tabIndex={-1} style={{background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(8px)'}}>
+          <div className="modal-dialog modal-lg" style={{maxWidth: '600px'}}>
+            <div className="modal-content" style={{borderRadius: '20px', border: 'none', boxShadow: '0 20px 60px rgba(0,0,0,0.3)'}}>
+              <div className="modal-header" style={{background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', color: 'white', borderRadius: '20px 20px 0 0', padding: '1.5rem 2rem', border: 'none'}}>
+                <div className="d-flex align-items-center">
+                  <div className="bg-white bg-opacity-20 rounded-circle p-2 me-3">
+                    <i className="bi bi-bag-check" style={{fontSize: '1.2rem'}}></i>
+                  </div>
+                  <div>
+                    <h4 className="modal-title mb-0 fw-bold">Shopping Cart</h4>
+                    <small className="opacity-75">{cart.length} {cart.length === 1 ? 'item' : 'items'}</small>
+                  </div>
+                </div>
+                <button type="button" className="btn btn-light rounded-circle" onClick={() => setShowCart(false)} style={{width: '40px', height: '40px', display: 'flex', alignItems: 'center', justifyContent: 'center'}}>
+                  <i className="bi bi-x" style={{fontSize: '1.2rem'}}></i>
                 </button>
               </div>
-              <div className="modal-body">
+              <div className="modal-body" style={{padding: '2rem', maxHeight: '60vh', overflowY: 'auto'}}>
                 {cart.length === 0 ? (
-                  <div className="text-center py-4">
-                    <i className="bi bi-cart-x display-1 text-muted"></i>
-                    <p className="mt-3 text-muted">Your cart is empty</p>
+                  <div className="text-center py-5">
+                    <div className="mb-4">
+                      <i className="bi bi-cart-x" style={{fontSize: '4rem', color: '#e9ecef'}}></i>
+                    </div>
+                    <h5 className="text-muted mb-2">Your cart is empty</h5>
+                    <p className="text-muted small">Add some items to get started</p>
                   </div>
                 ) : (
                   <>
-                    {cart.map((item, index) => (
-                      <div key={`${item.id}-${item.size}-${index}`} className="d-flex align-items-center border-bottom py-3">
-                        <img src={item.image} alt={item.name} className="rounded me-3" style={{width: '60px', height: '60px', objectFit: 'cover'}} />
-                        <div className="flex-grow-1">
-                          <h6 className="mb-1">{item.name}</h6>
-                          <small className="text-muted">Quantity: {item.quantity}</small>
-                          {item.size && (
-                            <><br /><small className="text-muted">Size: {item.size}</small></>
-                          )}
+                    <div className="cart-items mb-4">
+                      {cart.map((item, index) => (
+                        <div key={`${item.id}-${item.size}-${index}`} className="cart-item d-flex align-items-center p-3 mb-3" style={{background: '#f8f9fa', borderRadius: '15px', border: '1px solid #e9ecef'}}>
+                          <div className="position-relative me-3">
+                            <img src={item.image} alt={item.name} className="rounded-3" style={{width: '70px', height: '70px', objectFit: 'cover'}} />
+                            <span className="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-primary" style={{fontSize: '0.7rem'}}>
+                              {item.quantity}
+                            </span>
+                          </div>
+                          <div className="flex-grow-1">
+                            <h6 className="mb-1 fw-bold" style={{color: '#2c3e50'}}>{item.name}</h6>
+                            <div className="d-flex flex-wrap gap-2 mb-2">
+                              {item.size && (
+                                <span className="badge bg-light text-dark" style={{fontSize: '0.7rem'}}>Size: {item.size}</span>
+                              )}
+                              {(item as any).color && (
+                                <span className="badge bg-light text-dark" style={{fontSize: '0.7rem'}}>Color: {(item as any).color}</span>
+                              )}
+                            </div>
+                            <div className="d-flex justify-content-between align-items-center">
+                              <span className="fw-bold" style={{color: '#27ae60', fontSize: '1.1rem'}}>LKR {(item.price * item.quantity).toLocaleString()}</span>
+                              <button onClick={() => removeFromCart(item.id, item.size)} className="btn btn-outline-danger btn-sm rounded-circle" style={{width: '32px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center'}}>
+                                <i className="bi bi-trash" style={{fontSize: '0.8rem'}}></i>
+                              </button>
+                            </div>
+                          </div>
                         </div>
-                        <div className="d-flex align-items-center gap-3">
-                          <span className="fw-bold text-success">LKR {(item.price * item.quantity).toFixed(2)}</span>
-                          <button onClick={() => removeFromCart(item.id, item.size)} className="btn btn-outline-danger btn-sm">
-                            <i className="bi bi-trash"></i>
-                          </button>
+                      ))}
+                    </div>
+                    
+                    <div className="payment-section mb-4">
+                      <h6 className="fw-bold mb-3" style={{color: '#2c3e50'}}>Payment Method</h6>
+                      <div className="row g-3">
+                        <div className="col-6">
+                          <label className="payment-option w-100" style={{cursor: 'pointer'}}>
+                            <input 
+                              className="form-check-input d-none" 
+                              type="radio" 
+                              name="paymentMethod" 
+                              value="cash_on_delivery"
+                              checked={paymentMethod === 'cash_on_delivery'}
+                              onChange={(e) => setPaymentMethod(e.target.value)}
+                            />
+                            <div className={`p-3 rounded-3 text-center border-2 ${paymentMethod === 'cash_on_delivery' ? 'border-primary bg-primary bg-opacity-10' : 'border-light bg-light'}`} style={{transition: 'all 0.3s ease'}}>
+                              <i className="bi bi-cash" style={{fontSize: '1.5rem', color: paymentMethod === 'cash_on_delivery' ? '#0d6efd' : '#6c757d'}}></i>
+                              <div className="mt-2">
+                                <small className={`fw-bold ${paymentMethod === 'cash_on_delivery' ? 'text-primary' : 'text-muted'}`}>Cash on Delivery</small>
+                              </div>
+                            </div>
+                          </label>
+                        </div>
+                        <div className="col-6">
+                          <label className="payment-option w-100" style={{cursor: 'pointer'}}>
+                            <input 
+                              className="form-check-input d-none" 
+                              type="radio" 
+                              name="paymentMethod" 
+                              value="bank_transfer"
+                              checked={paymentMethod === 'bank_transfer'}
+                              onChange={(e) => setPaymentMethod(e.target.value)}
+                            />
+                            <div className={`p-3 rounded-3 text-center border-2 ${paymentMethod === 'bank_transfer' ? 'border-success bg-success bg-opacity-10' : 'border-light bg-light'}`} style={{transition: 'all 0.3s ease'}}>
+                              <i className="bi bi-bank" style={{fontSize: '1.5rem', color: paymentMethod === 'bank_transfer' ? '#198754' : '#6c757d'}}></i>
+                              <div className="mt-2">
+                                <small className={`fw-bold ${paymentMethod === 'bank_transfer' ? 'text-success' : 'text-muted'}`}>Bank Deposit</small>
+                              </div>
+                            </div>
+                          </label>
                         </div>
                       </div>
-                    ))}
-                    <div className="text-end mt-4">
-                      <h4 className="fw-bold">Total: <span className="text-success">LKR {getTotal().toFixed(2)}</span></h4>
+                    </div>
+                    
+                    <div className="order-summary p-3 rounded-3" style={{background: 'linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%)', border: '1px solid #dee2e6'}}>
+                      <div className="d-flex justify-content-between align-items-center mb-2">
+                        <span className="text-muted">Subtotal ({cart.length} items)</span>
+                        <span className="fw-bold">LKR {getTotal().toLocaleString()}</span>
+                      </div>
+                      <div className="d-flex justify-content-between align-items-center mb-2">
+                        <span className="text-muted">Delivery</span>
+                        <span className="text-success fw-bold">FREE</span>
+                      </div>
+                      <hr className="my-2" />
+                      <div className="d-flex justify-content-between align-items-center">
+                        <span className="fw-bold" style={{fontSize: '1.1rem'}}>Total</span>
+                        <span className="fw-bold" style={{fontSize: '1.3rem', color: '#27ae60'}}>LKR {getTotal().toLocaleString()}</span>
+                      </div>
                     </div>
                   </>
                 )}
               </div>
               {cart.length > 0 && (
-                <div className="modal-footer">
-                  <button onClick={placeOrder} className="btn btn-success btn-lg w-100" disabled={orderLoading}>
+                <div className="modal-footer" style={{padding: '1.5rem 2rem', border: 'none', borderRadius: '0 0 20px 20px'}}>
+                  <button onClick={placeOrder} className="btn btn-lg w-100" disabled={orderLoading} style={{background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', border: 'none', borderRadius: '15px', padding: '1rem', fontWeight: '600', fontSize: '1.1rem', color: 'white', boxShadow: '0 8px 25px rgba(102, 126, 234, 0.3)'}}>
                     {orderLoading ? (
-                      <><i className="bi bi-hourglass-split me-2"></i>Processing Order...</>
+                      <>
+                        <div className="spinner-border spinner-border-sm me-2" role="status"></div>
+                        Processing Order...
+                      </>
                     ) : (
-                      <><i className="bi bi-check-circle me-2"></i>Place Order</>
+                      <>
+                        <i className="bi bi-check-circle me-2"></i>
+                        Place Order • LKR {getTotal().toLocaleString()}
+                      </>
                     )}
                   </button>
                 </div>
@@ -1102,7 +1435,14 @@ export default function ClientPage() {
                     <div className="sticky-top" style={{top: '20px'}}>
                       <div className="mb-4">
                         <h1 className="fw-light mb-2" style={{color: '#ffffff', fontSize: '2rem', letterSpacing: '0.5px'}}>{selectedProduct.name}</h1>
-                        <p className="text-muted mb-0" style={{fontSize: '0.9rem', letterSpacing: '0.3px'}}>{selectedProduct.code}</p>
+                        <div className="d-flex gap-3 mb-2">
+                          <span className="badge bg-primary px-3 py-2" style={{fontSize: '0.9rem'}}>
+                            <i className="bi bi-upc-scan me-1"></i>Code: {selectedProduct.code}
+                          </span>
+                          <span className="badge bg-info px-3 py-2" style={{fontSize: '0.9rem'}}>
+                            <i className="bi bi-tag me-1"></i>Category: {selectedProduct.category}
+                          </span>
+                        </div>
                       </div>
                       <div className="d-flex justify-content-between align-items-center mb-4 p-3 rounded" style={{background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.1)'}}>
                         <div>
@@ -1112,75 +1452,222 @@ export default function ClientPage() {
                         <div className="text-end">
                           <div className="d-flex align-items-center mb-1">
                             <div className="text-warning me-2">
-                              {getStars(typeof selectedProduct.rating === 'object' ? selectedProduct.rating.average : selectedProduct.rating || 0).map((star, index) => (
+                              {getStars(typeof selectedProduct.rating === 'object' ? (selectedProduct.rating as any).average : selectedProduct.rating || 0).map((star, index) => (
                                 <i key={index} className={`bi ${star}`} style={{fontSize: '0.9rem'}}></i>
                               ))}
                             </div>
-                            <span className="fw-semibold" style={{color: '#ffffff'}}>{typeof selectedProduct.rating === 'object' ? selectedProduct.rating.average : selectedProduct.rating || 0}</span>
+                            <span className="fw-semibold" style={{color: '#ffffff'}}>{typeof selectedProduct.rating === 'object' ? (selectedProduct.rating as any).average : selectedProduct.rating || 0}</span>
                           </div>
-                          <small className="text-muted">({typeof selectedProduct.rating === 'object' ? selectedProduct.rating.count : selectedProduct.reviewCount || 0} reviews)</small>
+                          <small className="text-muted">({typeof selectedProduct.rating === 'object' ? (selectedProduct.rating as any).count : selectedProduct.reviewCount || 0} reviews)</small>
                         </div>
                       </div>
 
                       <div className="mb-4">
                         <h6 className="fw-semibold mb-3" style={{color: '#ffffff', fontSize: '1rem', letterSpacing: '0.3px'}}>Product Details</h6>
                         <p style={{color: '#b0b0b0', lineHeight: 1.7, fontSize: '0.95rem'}}>{getProductDescription()}</p>
-                      </div>
-
-                      <div className="mb-4">
-                        <h6 className="fw-semibold mb-3" style={{color: '#ffffff', fontSize: '1rem', letterSpacing: '0.3px'}}>Select Size</h6>
-                        <div className="d-flex flex-wrap gap-2">
-                          {availableSizes.map(size => (
-                            <div key={size} className="text-center">
-                              <button 
-                                className="btn d-flex flex-column"
-                                style={{
-                                  minWidth: '60px',
-                                  height: '60px',
-                                  border: '1px solid',
-                                  transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                                  fontWeight: 500,
-                                  padding: '0.25rem',
-                                  background: selectedSize === size ? 'rgba(0,0,0,0.8)' : (isSizeInStock(size) ? 'rgba(255,255,255,0.05)' : 'rgba(128,128,128,0.1)'),
-                                  borderColor: selectedSize === size ? '#000000' : (isSizeInStock(size) ? 'rgba(255,255,255,0.2)' : 'rgba(128,128,128,0.3)'),
-                                  color: isSizeInStock(size) ? '#ffffff' : '#666'
-                                }}
-                                disabled={!isSizeInStock(size)}
-                                onClick={() => onSizeSelect(size)}
-                              >
-                                <span style={{fontSize: '0.9rem'}}>{size}</span>
-                                <small style={{fontSize: '0.7rem', opacity: 0.8}}>LKR {getSizePrice(size)}</small>
-                              </button>
+                        
+                        {/* Available Colors & Sizes Summary */}
+                        <div className="mt-3 p-3 rounded" style={{background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.1)'}}>
+                          <div className="row g-3">
+                            {getAllAvailableColors().length > 0 && (
+                              <div className="col-md-6">
+                                <h6 className="small fw-bold mb-2" style={{color: '#ffffff'}}>Available Colors ({getAllAvailableColors().length})</h6>
+                                <div className="d-flex flex-wrap gap-1">
+                                  {getAllAvailableColors().map(color => (
+                                    <div key={color.name} className="d-flex align-items-center gap-1 badge bg-secondary">
+                                      <div 
+                                        className="rounded-circle"
+                                        style={{
+                                          width: '12px',
+                                          height: '12px',
+                                          backgroundColor: color.code,
+                                          border: '1px solid rgba(255,255,255,0.3)'
+                                        }}
+                                      ></div>
+                                      <span style={{fontSize: '0.7rem'}}>{color.name}</span>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                            <div className="col-md-6">
+                              <h6 className="small fw-bold mb-2" style={{color: '#ffffff'}}>Available Sizes</h6>
+                              <div className="d-flex flex-wrap gap-1">
+                                {availableSizes.filter(size => isSizeInStock(size)).map(size => (
+                                  <span key={size} className="badge bg-success" style={{fontSize: '0.7rem'}}>
+                                    {size} ({getSizeStock(size)} in stock)
+                                  </span>
+                                ))}
+                              </div>
                             </div>
-                          ))}
+                          </div>
                         </div>
                       </div>
 
+                      {getAllAvailableColors().length > 0 && (
+                        <div className="mb-4">
+                          <div className="d-flex align-items-center justify-content-between mb-3">
+                            <h6 className="fw-semibold mb-0" style={{color: '#ffffff', fontSize: '1rem', letterSpacing: '0.3px'}}>Select Color</h6>
+                            <small className="text-muted">{getAllAvailableColors().length} colors available</small>
+                          </div>
+                          <div className="row g-2">
+                            {getAllAvailableColors().map(color => (
+                              <div key={color.name} className="col-6 col-sm-4">
+                                <button 
+                                  className="btn w-100 d-flex align-items-center justify-content-start p-3"
+                                  style={{
+                                    height: '60px',
+                                    border: '2px solid',
+                                    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                                    fontWeight: 500,
+                                    borderRadius: '12px',
+                                    background: selectedColor === color.name ? 'linear-gradient(135deg, #000000, #333333)' : 'rgba(255,255,255,0.05)',
+                                    borderColor: selectedColor === color.name ? '#000000' : 'rgba(255,255,255,0.3)',
+                                    color: '#ffffff',
+                                    transform: selectedColor === color.name ? 'scale(1.02)' : 'scale(1)',
+                                    boxShadow: selectedColor === color.name ? '0 4px 15px rgba(0,0,0,0.2)' : 'none'
+                                  }}
+                                  onClick={() => onColorSelect(color.name)}
+                                >
+                                  <div 
+                                    className="rounded-circle me-2 flex-shrink-0"
+                                    style={{
+                                      width: '24px',
+                                      height: '24px',
+                                      backgroundColor: color.code,
+                                      border: '2px solid rgba(255,255,255,0.3)'
+                                    }}
+                                  ></div>
+                                  <div className="text-start flex-grow-1">
+                                    <div style={{fontSize: '0.85rem', lineHeight: 1.2}}>{color.name}</div>
+                                    <small style={{fontSize: '0.7rem', opacity: 0.8}}>Available in {color.sizes.join(', ')}</small>
+                                  </div>
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {selectedColor && getSizesForColor(selectedColor).length > 0 && (
+                        <div className="mb-4">
+                          <div className="d-flex align-items-center justify-content-between mb-3">
+                            <h6 className="fw-semibold mb-0" style={{color: '#ffffff', fontSize: '1rem', letterSpacing: '0.3px'}}>Select Size for {selectedColor}</h6>
+                            <small className="text-muted">{getSizesForColor(selectedColor).length} sizes available</small>
+                          </div>
+                          <div className="row g-2">
+                            {getSizesForColor(selectedColor).map(sizeData => (
+                              <div key={sizeData.size} className="col-4 col-sm-3">
+                                <button 
+                                  className="btn w-100 d-flex flex-column align-items-center justify-content-center"
+                                  style={{
+                                    height: '70px',
+                                    border: '2px solid',
+                                    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                                    fontWeight: 600,
+                                    borderRadius: '12px',
+                                    background: selectedSize === sizeData.size ? 'linear-gradient(135deg, #000000, #333333)' : 'rgba(255,255,255,0.05)',
+                                    borderColor: selectedSize === sizeData.size ? '#000000' : 'rgba(255,255,255,0.3)',
+                                    color: '#ffffff',
+                                    transform: selectedSize === sizeData.size ? 'scale(1.05)' : 'scale(1)',
+                                    boxShadow: selectedSize === sizeData.size ? '0 8px 25px rgba(0,0,0,0.3)' : 'none'
+                                  }}
+                                  onClick={() => setSelectedSize(sizeData.size)}
+                                >
+                                  <span style={{fontSize: '1.1rem', marginBottom: '2px'}}>{sizeData.size}</span>
+                                  <small style={{fontSize: '0.7rem', opacity: 0.8}}>LKR {sizeData.price}</small>
+                                  <small style={{fontSize: '0.6rem', opacity: 0.6}}>Stock: {sizeData.stock}</small>
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
                       <div className="mb-4">
-                        <h6 className="fw-semibold mb-3" style={{color: '#ffffff', fontSize: '1rem', letterSpacing: '0.3px'}}>Quantity</h6>
-                        <div className="d-flex align-items-center gap-3">
-                          <button className="btn btn-outline-light" onClick={decreaseQuantity} disabled={modalQuantity <= 1}>
+                        <div className="d-flex align-items-center justify-content-between mb-3">
+                          <h6 className="fw-semibold mb-0" style={{color: '#ffffff', fontSize: '1rem', letterSpacing: '0.3px'}}>Quantity</h6>
+                          <small className="text-muted">Available: {selectedColor ? getColorStock(selectedSize, selectedColor) : getSizeStock(selectedSize)}</small>
+                        </div>
+                        <div className="d-flex align-items-center justify-content-center gap-4 p-3 rounded" style={{background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)'}}>
+                          <button 
+                            className="btn btn-outline-light rounded-circle d-flex align-items-center justify-content-center" 
+                            onClick={decreaseQuantity} 
+                            disabled={modalQuantity <= 1}
+                            style={{width: '45px', height: '45px', fontSize: '1.2rem'}}
+                          >
                             <i className="bi bi-dash"></i>
                           </button>
-                          <span className="fw-bold" style={{fontSize: '1.2rem', minWidth: '40px', textAlign: 'center'}}>{modalQuantity}</span>
-                          <button className="btn btn-outline-light" onClick={increaseQuantity}>
+                          <div className="text-center">
+                            <div className="fw-bold" style={{fontSize: '1.8rem', lineHeight: 1}}>{modalQuantity}</div>
+                            <small className="text-muted">pieces</small>
+                            {modalQuantity >= (selectedColor ? getColorStock(selectedSize, selectedColor) : getSizeStock(selectedSize)) && (
+                              <div><small className="text-warning" style={{fontSize: '0.7rem'}}>Max stock reached</small></div>
+                            )}
+                          </div>
+                          <button 
+                            className="btn btn-outline-light rounded-circle d-flex align-items-center justify-content-center" 
+                            onClick={increaseQuantity}
+                            disabled={modalQuantity >= (selectedColor ? getColorStock(selectedSize, selectedColor) : getSizeStock(selectedSize))}
+                            style={{width: '45px', height: '45px', fontSize: '1.2rem'}}
+                          >
                             <i className="bi bi-plus"></i>
                           </button>
                         </div>
                       </div>
 
                       {selectedProduct.status === 'outofstock' ? (
-                        <button className="btn btn-secondary btn-lg w-100" disabled>
-                          <i className="bi bi-x-circle me-2"></i>Out of Stock
-                        </button>
+                        <div className="text-center p-4 rounded" style={{background: 'rgba(255,0,0,0.1)', border: '1px solid rgba(255,0,0,0.3)'}}>
+                          <i className="bi bi-x-circle display-6 text-danger mb-2"></i>
+                          <h6 className="text-danger mb-0">Out of Stock</h6>
+                        </div>
                       ) : (
-                        <button className="btn btn-primary btn-lg w-100 mb-4" onClick={addToCartFromModal} disabled={!isSizeInStock(selectedSize) || cartLoading === selectedProduct?.id}>
-                          {cartLoading === selectedProduct?.id ? (
-                            <><i className="bi bi-hourglass-split me-2"></i>Adding to Cart...</>
-                          ) : (
-                            <><i className="bi bi-cart-plus me-2"></i>Add to Cart - LKR {(getSizePrice(selectedSize) * modalQuantity).toFixed(2)}</>
+                        <>
+                          {getAllAvailableColors().length > 0 && !selectedColor && (
+                            <div className="alert alert-warning mb-3" style={{background: 'rgba(255,193,7,0.1)', border: '1px solid rgba(255,193,7,0.3)', color: '#ffc107'}}>
+                              <i className="bi bi-exclamation-triangle me-2"></i>
+                              Please select a color to continue
+                            </div>
                           )}
-                        </button>
+                          {selectedColor && !selectedSize && (
+                            <div className="alert alert-warning mb-3" style={{background: 'rgba(255,193,7,0.1)', border: '1px solid rgba(255,193,7,0.3)', color: '#ffc107'}}>
+                              <i className="bi bi-exclamation-triangle me-2"></i>
+                              Please select a size to continue
+                            </div>
+                          )}
+                          <button 
+                            className="btn btn-lg w-100 mb-4 d-flex align-items-center justify-content-center" 
+                            onClick={addToCartFromModal} 
+                            disabled={Boolean(cartLoading === selectedProduct?.id || 
+                              (getAllAvailableColors().length > 0 && !selectedColor) || 
+                              (selectedColor && !selectedSize) || 
+                              (getAllAvailableColors().length === 0 && (!selectedSize || !isSizeInStock(selectedSize))) ||
+                              (selectedColor && selectedSize && getColorStock(selectedSize, selectedColor) <= 0))}
+                            style={{
+                              background: 'linear-gradient(135deg, #000000, #333333)',
+                              border: '2px solid #000000',
+                              color: 'white',
+                              fontWeight: 600,
+                              fontSize: '1.1rem',
+                              padding: '1rem',
+                              borderRadius: '12px',
+                              transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                              boxShadow: '0 8px 25px rgba(0,0,0,0.3)'
+                            }}
+                          >
+                            {cartLoading === selectedProduct?.id ? (
+                              <>
+                                <div className="spinner-border spinner-border-sm me-2" role="status"></div>
+                                Adding to Cart...
+                              </>
+                            ) : (
+                              <>
+                                <i className="bi bi-cart-plus me-2"></i>
+                                Add to Cart - LKR {((selectedColor ? getColorPrice(selectedSize, selectedColor) : getSizePrice(selectedSize)) * modalQuantity).toFixed(2)}
+                              </>
+                            )}
+                          </button>
+                        </>
                       )}
 
                       {/* Similar Products Slideshow */}
@@ -1207,11 +1694,11 @@ export default function ClientPage() {
                                     <p className="fw-semibold mb-2" style={{color: '#ffffff', fontSize: '1rem'}}>LKR {product.price}</p>
                                     <div className="d-flex align-items-center">
                                       <div className="text-warning me-1">
-                                        {getStars(typeof product.rating === 'object' ? product.rating.average : product.rating || 0).map((star, index) => (
+                                        {getStars(typeof product.rating === 'object' ? (product.rating as any).average : product.rating || 0).map((star, index) => (
                                           <i key={index} className={`bi ${star}`} style={{fontSize: '8px'}}></i>
                                         ))}
                                       </div>
-                                      <small className="text-muted">{typeof product.rating === 'object' ? product.rating.average : product.rating || 0}</small>
+                                      <small className="text-muted">{typeof product.rating === 'object' ? (product.rating as any).average : product.rating || 0}</small>
                                     </div>
                                   </div>
                                 </div>

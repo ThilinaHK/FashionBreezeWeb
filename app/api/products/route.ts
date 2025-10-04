@@ -33,12 +33,20 @@ export async function POST(request: NextRequest) {
   try {
     await dbConnect();
     const body = await request.json();
+    const userId = request.headers.get('x-user-id');
+    const userName = request.headers.get('x-user-name');
     
     // Auto-generate ID
     if (!body.id) {
       const lastProduct = await Product.findOne().sort({ id: -1 }).select('id');
       body.id = lastProduct ? lastProduct.id + 1 : 1;
     }
+    
+    // Add audit fields
+    body.createdBy = userId || 'system';
+    body.createdByName = userName || 'System';
+    body.updatedBy = userId || 'system';
+    body.updatedByName = userName || 'System';
     
     // Auto-generate missing required fields
     if (!body.slug) {
