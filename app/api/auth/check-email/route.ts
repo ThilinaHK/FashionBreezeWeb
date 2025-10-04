@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import dbConnect from '../../../lib/mongodb';
+import { connectDB } from '../../../lib/mongodb';
 import Customer from '../../../lib/models/Customer';
 
 export async function POST(request: NextRequest) {
   try {
-    await dbConnect();
+    await connectDB();
     const { email } = await request.json();
     
     const existingCustomer = await Customer.findOne({ email });
