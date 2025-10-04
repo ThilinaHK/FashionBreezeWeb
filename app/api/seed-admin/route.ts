@@ -1,24 +1,29 @@
 import { NextResponse } from 'next/server';
 import dbConnect from '../../lib/mongodb';
 import User from '../../lib/models/User';
+import bcrypt from 'bcryptjs';
 
 export async function POST() {
   try {
     await dbConnect();
     
     // Check if admin already exists
-    const existingAdmin = await User.findOne({ role: 'admin' });
+    const existingAdmin = await User.findOne({ email: 'admin@fashionbreeze.com' });
     if (existingAdmin) {
-      return NextResponse.json({ message: 'Admin user already exists' });
+      return NextResponse.json({ message: 'Admin already exists' });
     }
     
-    // Create default admin user
-    const adminUser = await User.create({
+    // Hash password
+    const hashedPassword = await bcrypt.hash('123', 12);
+    
+    // Create admin user
+    const admin = new User({
       id: 1,
-      username: 'admin',
+      name: 'Admin User',
       email: 'admin@fashionbreeze.com',
-      password: 'admin123',
+      password: hashedPassword,
       role: 'admin',
+      status: 'active',
       privileges: {
         products: true,
         categories: true,
@@ -26,22 +31,19 @@ export async function POST() {
         customers: true,
         users: true,
         analytics: true
-      },
-      status: 'active'
+      }
     });
     
-    const { password, ...userWithoutPassword } = adminUser.toObject();
+    await admin.save();
     
     return NextResponse.json({ 
       success: true, 
-      message: 'Admin user created successfully!',
-      user: userWithoutPassword
+      message: 'Admin user created successfully',
+      email: 'admin@fashionbreeze.com',
+      password: '123'
     });
-  } catch (error: any) {
-    console.error('Admin seed error:', error);
-    return NextResponse.json({ 
-      success: false, 
-      error: error.message || 'Failed to create admin user' 
-    }, { status: 500 });
+  } catch (error) {
+    console.error('Seed admin error:', error);
+    return NextResponse.json({ error: 'Failed to create admin' }, { status: 500 });
   }
 }

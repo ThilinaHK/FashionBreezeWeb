@@ -2,7 +2,7 @@ const { MongoClient } = require('mongodb');
 const bcrypt = require('bcryptjs');
 
 async function checkAdmin() {
-  const client = new MongoClient('mongodb://localhost:27017');
+  const client = new MongoClient('mongodb+srv://thilina2u_db_user:6v7m2Z0MnALRKFdS@cluster0.nbnxnst.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0');
   
   try {
     await client.connect();
