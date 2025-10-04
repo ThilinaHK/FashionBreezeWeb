@@ -61,21 +61,27 @@ export async function PUT(request: NextRequest) {
     const body = await request.json();
     const { id, ...updateData } = body;
     
+    if (!id) {
+      return NextResponse.json({ error: 'User ID is required' }, { status: 400 });
+    }
+    
     updateData.updatedAt = new Date();
     
-    const user = await User.findOneAndUpdate(
-      { id },
-      updateData,
-      { new: true, select: '-password' }
-    );
+    // Try to find by _id first, then by id field
+    let user = await User.findByIdAndUpdate(id, updateData, { new: true, select: '-password' });
+    
+    if (!user) {
+      user = await User.findOneAndUpdate({ id: parseInt(id) }, updateData, { new: true, select: '-password' });
+    }
     
     if (!user) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
     
-    return NextResponse.json(user);
-  } catch (error) {
-    return NextResponse.json({ error: 'Failed to update user' }, { status: 500 });
+    return NextResponse.json({ success: true, user });
+  } catch (error: any) {
+    console.error('User update error:', error);
+    return NextResponse.json({ error: error.message || 'Failed to update user' }, { status: 500 });
   }
 }
 
@@ -85,14 +91,24 @@ export async function DELETE(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
     
-    const user = await User.findOneAndDelete({ id: parseInt(id!) });
+    if (!id) {
+      return NextResponse.json({ error: 'User ID is required' }, { status: 400 });
+    }
+    
+    // Try to delete by _id first, then by id field
+    let user = await User.findByIdAndDelete(id);
+    
+    if (!user) {
+      user = await User.findOneAndDelete({ id: parseInt(id) });
+    }
     
     if (!user) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
     
     return NextResponse.json({ success: true });
-  } catch (error) {
-    return NextResponse.json({ error: 'Failed to delete user' }, { status: 500 });
+  } catch (error: any) {
+    console.error('User delete error:', error);
+    return NextResponse.json({ error: error.message || 'Failed to delete user' }, { status: 500 });
   }
 }

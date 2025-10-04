@@ -95,16 +95,33 @@ export async function PUT(request: NextRequest) {
     
     // Track status change in history
     if (status !== undefined && status !== existingOrder.status) {
-      await OrderHistory.create({
-        orderId: existingOrder._id,
-        previousStatus: existingOrder.status,
-        newStatus: status,
-        changedBy: {
-          userId: userId || 'system',
-          username: username || 'System'
-        },
-        timestamp: new Date()
-      });
+      try {
+        console.log('Creating order history:', {
+          orderId: existingOrder._id,
+          previousStatus: existingOrder.status,
+          newStatus: status,
+          changedBy: {
+            userId: userId || 'system',
+            username: username || 'System'
+          }
+        });
+        
+        const historyRecord = await OrderHistory.create({
+          orderId: existingOrder._id,
+          previousStatus: existingOrder.status,
+          newStatus: status,
+          changedBy: {
+            userId: userId || 'system',
+            username: username || 'System'
+          },
+          timestamp: new Date()
+        });
+        
+        console.log('Order history created successfully:', historyRecord._id);
+      } catch (historyError) {
+        console.error('Failed to create order history:', historyError);
+        // Don't fail the entire request if history creation fails
+      }
     }
     
     const order = await Order.findByIdAndUpdate(existingOrder._id, updateData, { new: true });

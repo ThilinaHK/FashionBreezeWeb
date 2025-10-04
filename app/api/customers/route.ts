@@ -82,7 +82,12 @@ export async function POST(request: NextRequest) {
 export async function DELETE(request: NextRequest) {
   try {
     await dbConnect();
-    const { customerId } = await request.json();
+    const body = await request.json();
+    const { customerId } = body;
+    
+    if (!customerId) {
+      return NextResponse.json({ error: 'Customer ID is required' }, { status: 400 });
+    }
     
     let result = await Customer.findByIdAndDelete(customerId);
     
@@ -96,6 +101,7 @@ export async function DELETE(request: NextRequest) {
     
     return NextResponse.json({ success: true });
   } catch (error: any) {
-    return NextResponse.json({ error: 'Failed to delete customer' }, { status: 500 });
+    console.error('Customer delete error:', error);
+    return NextResponse.json({ error: error.message || 'Failed to delete customer' }, { status: 500 });
   }
 }
