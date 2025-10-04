@@ -20,6 +20,11 @@ const SubCategorySchema = new mongoose.Schema({
 });
 
 const CategorySchema = new mongoose.Schema({
+  id: {
+    type: Number,
+    unique: true,
+    sparse: true,
+  },
   name: {
     type: String,
     required: true,
