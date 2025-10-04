@@ -1085,6 +1085,22 @@ export default function DashboardPage() {
             </div>
           </div>
           
+          <div class="bank-details" style="margin-top: 30px; padding: 20px; background: #f8f9fa; border-radius: 8px;">
+            <div class="section-title">Bank Details for Payments</div>
+            <div style="display: flex; justify-content: space-between;">
+              <div>
+                <div class="detail-item"><span class="detail-label">Bank:</span> Commercial Bank of Ceylon</div>
+                <div class="detail-item"><span class="detail-label">Account Name:</span> Fashion Breeze (Pvt) Ltd</div>
+                <div class="detail-item"><span class="detail-label">Account No:</span> 8001234567890</div>
+              </div>
+              <div>
+                <div class="detail-item"><span class="detail-label">Branch:</span> Colombo Main Branch</div>
+                <div class="detail-item"><span class="detail-label">Swift Code:</span> CCEYLKLX</div>
+                <div class="detail-item"><span class="detail-label">Branch Code:</span> 001</div>
+              </div>
+            </div>
+          </div>
+          
           <div style="text-align: center; margin-top: 40px; color: #666; font-size: 14px;">
             <p>Thank you for shopping with Fashion Breeze!</p>
             <p>For support: +94 70 700 3722 | info@fashionbreeze.lk</p>
