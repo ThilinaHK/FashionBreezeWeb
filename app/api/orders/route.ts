@@ -45,6 +45,34 @@ export async function POST(request: NextRequest) {
     const orderId = lastOrder ? lastOrder.id + 1 : 1;
     const orderNumber = `FB${orderId.toString().padStart(6, '0')}`;
     
+    // Reduce inventory for each item
+    const Product = require('../../lib/models/Product').default;
+    
+    for (const item of cart.items) {
+      const product = await Product.findById(item.productId);
+      if (product) {
+        // Reduce total stock
+        if (product.inventory?.totalStock >= item.quantity) {
+          product.inventory.totalStock -= item.quantity;
+        }
+        
+        // Reduce size-specific stock if size is selected
+        if (item.size && product.sizes) {
+          const sizeIndex = product.sizes.findIndex(s => s.size === item.size);
+          if (sizeIndex !== -1 && product.sizes[sizeIndex].stock >= item.quantity) {
+            product.sizes[sizeIndex].stock -= item.quantity;
+          }
+        }
+        
+        // Update product status if out of stock
+        if (product.inventory.totalStock <= 0) {
+          product.status = 'outofstock';
+        }
+        
+        await product.save();
+      }
+    }
+    
     const order = await Order.create({
       id: orderId,
       orderNumber,
@@ -56,6 +84,9 @@ export async function POST(request: NextRequest) {
       paymentMethod: paymentMethod || 'cash_on_delivery',
       paymentStatus: paymentStatus || 'pending'
     });
+    
+    // Clear cart after successful order
+    await Cart.findOneAndDelete({ userId });
     
     return NextResponse.json({ success: true, orderId: order._id, order });
   } catch (error: any) {
@@ -92,6 +123,34 @@ export async function PUT(request: NextRequest) {
     if (isActive !== undefined) updateData.isActive = isActive;
     if (paymentStatus !== undefined) updateData.paymentStatus = paymentStatus;
     if (paymentMethod !== undefined) updateData.paymentMethod = paymentMethod;
+    
+    // Handle inventory restoration for cancelled orders
+    if (status === 'cancelled' && existingOrder.status !== 'cancelled') {
+      const Product = require('../../lib/models/Product').default;
+      
+      for (const item of existingOrder.items) {
+        const product = await Product.findById(item.productId);
+        if (product) {
+          // Restore total stock
+          product.inventory.totalStock += item.quantity;
+          
+          // Restore size-specific stock if size was selected
+          if (item.size && product.sizes) {
+            const sizeIndex = product.sizes.findIndex(s => s.size === item.size);
+            if (sizeIndex !== -1) {
+              product.sizes[sizeIndex].stock += item.quantity;
+            }
+          }
+          
+          // Update product status if back in stock
+          if (product.status === 'outofstock' && product.inventory.totalStock > 0) {
+            product.status = 'active';
+          }
+          
+          await product.save();
+        }
+      }
+    }
     
     // Track status change in history
     if (status !== undefined && status !== existingOrder.status) {
