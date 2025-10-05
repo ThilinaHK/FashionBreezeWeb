@@ -19,7 +19,7 @@ export async function POST(request: NextRequest) {
     
     // Check size-specific stock if size is provided
     if (size && product.sizes) {
-      const sizeStock = product.sizes.find(s => s.size === size)?.stock || 0;
+      const sizeStock = product.sizes.find((s: any) => s.size === size)?.stock || 0;
       availableStock = Math.min(availableStock, sizeStock);
     }
     
