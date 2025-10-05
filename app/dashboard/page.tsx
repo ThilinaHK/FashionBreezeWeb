@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { Product } from '../types';
+import ImageWithFallback from '../components/ImageWithFallback';
 
 export default function DashboardPage() {
   const [products, setProducts] = useState<Product[]>([]);
@@ -130,7 +131,17 @@ export default function DashboardPage() {
     setLoadingProducts(true);
     try {
       const response = await fetch('/api/products?' + new Date().getTime());
-      const products = await response.json();
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+      const text = await response.text();
+      let products;
+      try {
+        products = JSON.parse(text);
+      } catch (parseError) {
+        console.error('JSON parse error:', parseError, 'Response text:', text);
+        products = [];
+      }
       // Remove duplicates based on code or _id
       const uniqueProducts = Array.isArray(products) ? products.filter((product, index, self) => 
         index === self.findIndex(p => p.code === product.code || p._id === product._id)
@@ -148,7 +159,17 @@ export default function DashboardPage() {
     setLoadingCategories(true);
     try {
       const response = await fetch('/api/categories');
-      const categories = await response.json();
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+      const text = await response.text();
+      let categories;
+      try {
+        categories = JSON.parse(text);
+      } catch (parseError) {
+        console.error('JSON parse error:', parseError, 'Response text:', text);
+        categories = [];
+      }
       setCategories(Array.isArray(categories) ? categories : []);
     } catch (error) {
       console.error('Error loading categories:', error);
@@ -833,33 +854,15 @@ export default function DashboardPage() {
       });
       
       if (response.ok) {
-        const result = await response.json();
-        
-        if (editingCategory) {
-          setCategories(categories.map(cat => {
-            const catId = cat._id || cat.id;
-            const editId = editingCategory._id || editingCategory.id;
-            return catId === editId ? { ...cat, name: categoryName } : cat;
-          }));
-        } else {
-          const newCategory = { 
-            _id: result._id || result.id || Date.now().toString(), 
-            id: result.id || result._id || Date.now(), 
-            name: categoryName, 
-            productCount: 0 
-          };
-          setCategories([...categories, newCategory]);
-        }
-        
         await loadCategories();
-        
         setShowCategoryModal(false);
         setCategoryName('');
         setEditingCategory(null);
         setToast({message: editingCategory ? 'Category updated successfully!' : 'Category created successfully!', type: 'success'});
         setTimeout(() => setToast(null), 3000);
       } else {
-        setToast({message: 'Failed to save category', type: 'error'});
+        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+        setToast({message: errorData.error || 'Failed to save category', type: 'error'});
         setTimeout(() => setToast(null), 3000);
       }
     } catch (error) {
@@ -886,13 +889,19 @@ export default function DashboardPage() {
           return;
         }
         
-        await fetch('/api/categories', {
+        const response = await fetch('/api/categories', {
           method: 'DELETE',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ id })
         });
-        loadCategories();
-        setToast({message: 'Category deleted successfully!', type: 'success'});
+        
+        if (response.ok) {
+          await loadCategories();
+          setToast({message: 'Category deleted successfully!', type: 'success'});
+        } else {
+          const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+          setToast({message: errorData.error || 'Failed to delete category', type: 'error'});
+        }
         setTimeout(() => setToast(null), 3000);
       } catch (error) {
         console.error('Error deleting category:', error);
@@ -1467,7 +1476,7 @@ export default function DashboardPage() {
                     ).map(product => (
                       <tr key={product._id || product.id || product.code}>
                         <td>
-                          <img src={product.image} alt={product.name} style={{width: '50px', height: '50px', objectFit: 'cover'}} className="rounded" />
+                          <ImageWithFallback src={product.image} alt={product.name} style={{width: '50px', height: '50px', objectFit: 'cover'}} className="rounded" />
                         </td>
                         <td className="fw-bold">{product.name}</td>
                         <td><span className="badge bg-secondary">{product.code}</span></td>
@@ -2384,14 +2393,28 @@ export default function DashboardPage() {
                                 <input type="file" className="form-control" accept="image/*" required={!formData.image} onChange={async (e) => {
                                   const file = e.target.files?.[0];
                                   if (file) {
-                                    const uploadData = new FormData();
-                                    uploadData.append('file', file);
-                                    const response = await fetch('/api/upload', { method: 'POST', body: uploadData });
-                                    const result = await response.json();
-                                    if (result.url) setFormData(prev => ({...prev, image: result.url}));
+                                    try {
+                                      const uploadData = new FormData();
+                                      uploadData.append('file', file);
+                                      const response = await fetch('/api/upload', { method: 'POST', body: uploadData });
+                                      if (!response.ok) {
+                                        throw new Error(`Upload failed: ${response.status}`);
+                                      }
+                                      const result = await response.json();
+                                      if (result.url) {
+                                        setFormData(prev => ({...prev, image: result.url}));
+                                      } else if (result.error) {
+                                        setToast({message: result.error, type: 'error'});
+                                        setTimeout(() => setToast(null), 3000);
+                                      }
+                                    } catch (error) {
+                                      console.error('Upload error:', error);
+                                      setToast({message: 'Failed to upload image', type: 'error'});
+                                      setTimeout(() => setToast(null), 3000);
+                                    }
                                   }
                                 }} />
-                                {formData.image && <small className="text-success">✓ Image uploaded: {formData.image}</small>}
+                                {formData.image && <small className="text-success">✓ Image uploaded successfully</small>}
                               </div>
                               <div className="col-12">
                                 <label className="form-label fw-bold"><i className="bi bi-images me-1"></i>Additional Images (Optional)</label>
@@ -2407,21 +2430,33 @@ export default function DashboardPage() {
                                           onChange={async (e) => {
                                             const file = e.target.files?.[0];
                                             if (file) {
-                                              const uploadData = new FormData();
-                                              uploadData.append('file', file);
-                                              const response = await fetch('/api/upload', { method: 'POST', body: uploadData });
-                                              const result = await response.json();
-                                              if (result.url) {
-                                                const newImages = [...formData.images];
-                                                newImages[index] = result.url;
-                                                setFormData({...formData, images: newImages});
+                                              try {
+                                                const uploadData = new FormData();
+                                                uploadData.append('file', file);
+                                                const response = await fetch('/api/upload', { method: 'POST', body: uploadData });
+                                                if (!response.ok) {
+                                                  throw new Error(`Upload failed: ${response.status}`);
+                                                }
+                                                const result = await response.json();
+                                                if (result.url) {
+                                                  const newImages = [...formData.images];
+                                                  newImages[index] = result.url;
+                                                  setFormData({...formData, images: newImages});
+                                                } else if (result.error) {
+                                                  setToast({message: result.error, type: 'error'});
+                                                  setTimeout(() => setToast(null), 3000);
+                                                }
+                                              } catch (error) {
+                                                console.error('Upload error:', error);
+                                                setToast({message: 'Failed to upload image', type: 'error'});
+                                                setTimeout(() => setToast(null), 3000);
                                               }
                                             }
                                           }} 
                                         />
                                         {img && (
                                           <div className="mt-1">
-                                            <small className="text-success">✓ Current: {img.split('/').pop()}</small>
+                                            <small className="text-success">✓ Image uploaded</small>
                                             <button 
                                               type="button" 
                                               className="btn btn-sm btn-outline-danger ms-2"

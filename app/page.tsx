@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { Product } from './types';
+import ImageWithFallback from './components/ImageWithFallback';
 
 interface CartItem extends Product {
   size?: string;
@@ -561,11 +562,13 @@ export default function ClientPage() {
 
   const getProductDescription = () => {
     const descriptions: { [key: number]: string } = {
-      1: 'Premium quality cotton t-shirt with comfortable fit. Perfect for casual wear.',
-      2: 'Classic denim jeans with modern cut. Durable and stylish for everyday use.',
+      1: 'Crafted from premium 100% organic cotton, this classic white t-shirt offers unparalleled comfort and breathability. Features a modern slim-fit design with reinforced seams for durability. Perfect for layering or wearing solo, this versatile piece is a wardrobe essential that combines style with sustainability.',
+      2: 'These premium blue denim jeans are expertly crafted from high-quality stretch denim fabric, offering the perfect balance of comfort and style. Featuring a contemporary slim-fit cut with classic five-pocket styling, these jeans are designed to move with you while maintaining their shape. The rich indigo wash and subtle fading details add authentic character to this timeless piece.',
+      3: 'Experience luxury comfort with this premium fashion t-shirt, meticulously designed for the modern individual. Made from superior quality materials with attention to every detail, this piece represents the perfect fusion of contemporary style and classic elegance. The sophisticated cut and premium finish make it suitable for both casual and semi-formal occasions.'
     };
     const productId = selectedProduct?.id;
-    return productId ? descriptions[productId] || 'High-quality fashion item.' : 'High-quality fashion item.';
+    const defaultDescription = 'Discover exceptional quality and style with this premium fashion piece. Carefully crafted using superior materials and modern techniques, this item represents the perfect blend of comfort, durability, and contemporary design. Each piece is thoughtfully designed to enhance your wardrobe with timeless elegance and versatile styling options.';
+    return productId ? descriptions[productId] || defaultDescription : defaultDescription;
   };
 
   const getCustomerComments = (): Comment[] => {
@@ -787,12 +790,9 @@ export default function ClientPage() {
       return;
     }
     
-    // For products without colors, ensure size is selected and in stock
-    if (allColors.length === 0) {
-      if (!selectedSize || !isSizeInStock(selectedSize)) {
-        alert('Please select an available size');
-        return;
-      }
+    // For products without colors, use default size if none selected
+    if (allColors.length === 0 && !selectedSize) {
+      setSelectedSize('M'); // Set default size
     }
     
     // For products with colors, check color-size combination stock
@@ -1165,7 +1165,7 @@ export default function ClientPage() {
                   <div key={product.id} className="col-lg-3 col-md-6">
                     <div className={`card h-100 border-0 product-card-enhanced ${product.status === 'outofstock' ? 'out-of-stock' : ''}`} style={{boxShadow: '0 8px 25px rgba(0,0,0,0.1)', borderRadius: '16px', overflow: 'hidden', transition: 'all 0.3s ease'}}>
                       <div className="position-relative" style={{overflow: 'hidden'}}>
-                        <img 
+                        <ImageWithFallback 
                           src={product.image} 
                           alt={product.name} 
                           className="card-img-top" 
@@ -1174,8 +1174,6 @@ export default function ClientPage() {
                             objectFit: 'cover',
                             transition: 'transform 0.3s ease'
                           }}
-                          onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.05)'}
-                          onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
                         />
                         {(product as any).discount && (
                           <span className="position-absolute top-0 end-0 m-3 badge bg-danger px-3 py-2" style={{fontSize: '0.8rem', borderRadius: '20px'}}>-{(product as any).discount}%</span>
@@ -1430,7 +1428,7 @@ export default function ClientPage() {
                   <div className="col-lg-7">
                     <div className="d-flex flex-column h-100">
                       <div className="position-relative flex-grow-1 d-flex align-items-center justify-content-center" style={{minHeight: '500px', background: 'rgba(255,255,255,0.02)', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.1)'}}>
-                        <img 
+                        <ImageWithFallback 
                           src={selectedProduct.image} 
                           alt={selectedProduct.name}
                           className="img-fluid product-zoom"
@@ -1442,7 +1440,6 @@ export default function ClientPage() {
                             objectFit: 'contain',
                             borderRadius: '8px'
                           }}
-                          onClick={toggleZoom}
                         />
                         
                         {/* Image Navigation Arrows */}
@@ -1561,41 +1558,234 @@ export default function ClientPage() {
                       </div>
 
                       <div className="mb-4">
-                        <h6 className="fw-semibold mb-3" style={{color: '#ffffff', fontSize: '1rem', letterSpacing: '0.3px'}}>Product Details</h6>
-                        <p style={{color: '#b0b0b0', lineHeight: 1.7, fontSize: '0.95rem'}}>{getProductDescription()}</p>
-                        
-                        {/* Available Colors & Sizes Summary */}
-                        <div className="mt-3 p-3 rounded" style={{background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.1)'}}>
-                          <div className="row g-3">
-                            {getAllAvailableColors().length > 0 && (
-                              <div className="col-md-6">
-                                <h6 className="small fw-bold mb-2" style={{color: '#ffffff'}}>Available Colors ({getAllAvailableColors().length})</h6>
-                                <div className="d-flex flex-wrap gap-1">
-                                  {getAllAvailableColors().map(color => (
-                                    <div key={color.name} className="d-flex align-items-center gap-1 badge bg-secondary">
-                                      <div 
-                                        className="rounded-circle"
-                                        style={{
-                                          width: '12px',
-                                          height: '12px',
-                                          backgroundColor: color.code,
-                                          border: '1px solid rgba(255,255,255,0.3)'
-                                        }}
-                                      ></div>
-                                      <span style={{fontSize: '0.7rem'}}>{color.name}</span>
+                        <div className="product-details-card p-4 rounded-3" style={{
+                          background: 'linear-gradient(135deg, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0.04) 100%)',
+                          border: '1px solid rgba(255,255,255,0.15)',
+                          backdropFilter: 'blur(10px)',
+                          boxShadow: '0 8px 32px rgba(0,0,0,0.3)'
+                        }}>
+                          <div className="d-flex align-items-center mb-4">
+                            <div className="me-3" style={{
+                              width: '4px',
+                              height: '24px',
+                              background: 'linear-gradient(to bottom, #667eea, #764ba2)',
+                              borderRadius: '2px'
+                            }}></div>
+                            <h5 className="mb-0 fw-bold" style={{
+                              color: '#ffffff',
+                              fontSize: '1.2rem',
+                              letterSpacing: '0.5px'
+                            }}>Product Details</h5>
+                          </div>
+                          
+                          <div className="product-description mb-4 p-3 rounded-2" style={{
+                            background: 'rgba(255,255,255,0.05)',
+                            border: '1px solid rgba(255,255,255,0.1)'
+                          }}>
+                            <div className="description-content">
+                              <p className="mb-3" style={{
+                                color: '#e0e0e0',
+                                lineHeight: 1.8,
+                                fontSize: '1rem',
+                                fontWeight: '400',
+                                textAlign: 'justify'
+                              }}>{getProductDescription()}</p>
+                              
+                              <div className="product-specs mt-3 pt-3" style={{
+                                borderTop: '1px solid rgba(255,255,255,0.1)'
+                              }}>
+                                <h6 className="mb-3" style={{color: '#ffffff', fontSize: '0.9rem', fontWeight: '600'}}>Product Specifications</h6>
+                                <div className="row g-2">
+                                  <div className="col-6">
+                                    <div className="spec-item d-flex justify-content-between align-items-center py-2 px-3 rounded" style={{
+                                      background: 'rgba(255,255,255,0.03)',
+                                      border: '1px solid rgba(255,255,255,0.08)'
+                                    }}>
+                                      <span style={{color: '#b0b0b0', fontSize: '0.8rem'}}>Material:</span>
+                                      <span style={{color: '#ffffff', fontSize: '0.8rem', fontWeight: '500'}}>Premium Cotton</span>
                                     </div>
-                                  ))}
+                                  </div>
+                                  <div className="col-6">
+                                    <div className="spec-item d-flex justify-content-between align-items-center py-2 px-3 rounded" style={{
+                                      background: 'rgba(255,255,255,0.03)',
+                                      border: '1px solid rgba(255,255,255,0.08)'
+                                    }}>
+                                      <span style={{color: '#b0b0b0', fontSize: '0.8rem'}}>Care:</span>
+                                      <span style={{color: '#ffffff', fontSize: '0.8rem', fontWeight: '500'}}>Machine Wash</span>
+                                    </div>
+                                  </div>
+                                  <div className="col-6">
+                                    <div className="spec-item d-flex justify-content-between align-items-center py-2 px-3 rounded" style={{
+                                      background: 'rgba(255,255,255,0.03)',
+                                      border: '1px solid rgba(255,255,255,0.08)'
+                                    }}>
+                                      <span style={{color: '#b0b0b0', fontSize: '0.8rem'}}>Fit:</span>
+                                      <span style={{color: '#ffffff', fontSize: '0.8rem', fontWeight: '500'}}>Regular Fit</span>
+                                    </div>
+                                  </div>
+                                  <div className="col-6">
+                                    <div className="spec-item d-flex justify-content-between align-items-center py-2 px-3 rounded" style={{
+                                      background: 'rgba(255,255,255,0.03)',
+                                      border: '1px solid rgba(255,255,255,0.08)'
+                                    }}>
+                                      <span style={{color: '#b0b0b0', fontSize: '0.8rem'}}>Origin:</span>
+                                      <span style={{color: '#ffffff', fontSize: '0.8rem', fontWeight: '500'}}>Sri Lanka</span>
+                                    </div>
+                                  </div>
                                 </div>
                               </div>
-                            )}
-                            <div className="col-md-6">
-                              <h6 className="small fw-bold mb-2" style={{color: '#ffffff'}}>Available Sizes</h6>
-                              <div className="d-flex flex-wrap gap-1">
-                                {availableSizes.filter(size => isSizeInStock(size)).map(size => (
-                                  <span key={size} className="badge bg-success" style={{fontSize: '0.7rem'}}>
-                                    {size} ({getSizeStock(size)} in stock)
-                                  </span>
-                                ))}
+                            </div>
+                          </div>
+                          
+                          {/* Product Features */}
+                          <div className="product-features mb-4">
+                            <div className="row g-3">
+                              <div className="col-6">
+                                <div className="feature-item d-flex align-items-center p-3 rounded-2" style={{
+                                  background: 'linear-gradient(135deg, rgba(34, 197, 94, 0.15) 0%, rgba(34, 197, 94, 0.05) 100%)',
+                                  border: '1px solid rgba(34, 197, 94, 0.2)'
+                                }}>
+                                  <div className="feature-icon me-3 d-flex align-items-center justify-content-center" style={{
+                                    width: '40px',
+                                    height: '40px',
+                                    background: 'rgba(34, 197, 94, 0.2)',
+                                    borderRadius: '50%'
+                                  }}>
+                                    <i className="bi bi-shield-check" style={{color: '#22c55e', fontSize: '1.2rem'}}></i>
+                                  </div>
+                                  <div>
+                                    <h6 className="mb-1" style={{color: '#ffffff', fontSize: '0.9rem', fontWeight: '600'}}>Quality Assured</h6>
+                                    <small style={{color: '#b0b0b0', fontSize: '0.75rem'}}>Premium materials</small>
+                                  </div>
+                                </div>
+                              </div>
+                              <div className="col-6">
+                                <div className="feature-item d-flex align-items-center p-3 rounded-2" style={{
+                                  background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.15) 0%, rgba(59, 130, 246, 0.05) 100%)',
+                                  border: '1px solid rgba(59, 130, 246, 0.2)'
+                                }}>
+                                  <div className="feature-icon me-3 d-flex align-items-center justify-content-center" style={{
+                                    width: '40px',
+                                    height: '40px',
+                                    background: 'rgba(59, 130, 246, 0.2)',
+                                    borderRadius: '50%'
+                                  }}>
+                                    <i className="bi bi-truck" style={{color: '#3b82f6', fontSize: '1.2rem'}}></i>
+                                  </div>
+                                  <div>
+                                    <h6 className="mb-1" style={{color: '#ffffff', fontSize: '0.9rem', fontWeight: '600'}}>Fast Delivery</h6>
+                                    <small style={{color: '#b0b0b0', fontSize: '0.75rem'}}>2-3 business days</small>
+                                  </div>
+                                </div>
+                              </div>
+                              <div className="col-6">
+                                <div className="feature-item d-flex align-items-center p-3 rounded-2" style={{
+                                  background: 'linear-gradient(135deg, rgba(168, 85, 247, 0.15) 0%, rgba(168, 85, 247, 0.05) 100%)',
+                                  border: '1px solid rgba(168, 85, 247, 0.2)'
+                                }}>
+                                  <div className="feature-icon me-3 d-flex align-items-center justify-content-center" style={{
+                                    width: '40px',
+                                    height: '40px',
+                                    background: 'rgba(168, 85, 247, 0.2)',
+                                    borderRadius: '50%'
+                                  }}>
+                                    <i className="bi bi-arrow-clockwise" style={{color: '#a855f7', fontSize: '1.2rem'}}></i>
+                                  </div>
+                                  <div>
+                                    <h6 className="mb-1" style={{color: '#ffffff', fontSize: '0.9rem', fontWeight: '600'}}>Easy Returns</h6>
+                                    <small style={{color: '#b0b0b0', fontSize: '0.75rem'}}>30-day policy</small>
+                                  </div>
+                                </div>
+                              </div>
+                              <div className="col-6">
+                                <div className="feature-item d-flex align-items-center p-3 rounded-2" style={{
+                                  background: 'linear-gradient(135deg, rgba(245, 158, 11, 0.15) 0%, rgba(245, 158, 11, 0.05) 100%)',
+                                  border: '1px solid rgba(245, 158, 11, 0.2)'
+                                }}>
+                                  <div className="feature-icon me-3 d-flex align-items-center justify-content-center" style={{
+                                    width: '40px',
+                                    height: '40px',
+                                    background: 'rgba(245, 158, 11, 0.2)',
+                                    borderRadius: '50%'
+                                  }}>
+                                    <i className="bi bi-headset" style={{color: '#f59e0b', fontSize: '1.2rem'}}></i>
+                                  </div>
+                                  <div>
+                                    <h6 className="mb-1" style={{color: '#ffffff', fontSize: '0.9rem', fontWeight: '600'}}>24/7 Support</h6>
+                                    <small style={{color: '#b0b0b0', fontSize: '0.75rem'}}>Always available</small>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                          
+                          {/* Available Colors & Sizes Summary */}
+                          <div className="availability-summary">
+                            <div className="row g-3">
+                              {getAllAvailableColors().length > 0 && (
+                                <div className="col-md-6">
+                                  <div className="availability-card p-3 rounded-2" style={{
+                                    background: 'rgba(255,255,255,0.05)',
+                                    border: '1px solid rgba(255,255,255,0.1)'
+                                  }}>
+                                    <div className="d-flex align-items-center mb-3">
+                                      <i className="bi bi-palette me-2" style={{color: '#667eea', fontSize: '1.1rem'}}></i>
+                                      <h6 className="mb-0 fw-bold" style={{color: '#ffffff', fontSize: '0.95rem'}}>Available Colors</h6>
+                                      <span className="badge ms-auto" style={{
+                                        background: 'linear-gradient(135deg, #667eea, #764ba2)',
+                                        fontSize: '0.7rem'
+                                      }}>{getAllAvailableColors().length}</span>
+                                    </div>
+                                    <div className="d-flex flex-wrap gap-2">
+                                      {getAllAvailableColors().map(color => (
+                                        <div key={color.name} className="color-preview d-flex align-items-center gap-2 px-3 py-2 rounded-pill" style={{
+                                          background: 'rgba(255,255,255,0.08)',
+                                          border: '1px solid rgba(255,255,255,0.15)'
+                                        }}>
+                                          <div 
+                                            className="color-dot"
+                                            style={{
+                                              width: '16px',
+                                              height: '16px',
+                                              backgroundColor: color.code,
+                                              borderRadius: '50%',
+                                              border: '2px solid rgba(255,255,255,0.3)',
+                                              boxShadow: '0 2px 8px rgba(0,0,0,0.2)'
+                                            }}
+                                          ></div>
+                                          <span style={{fontSize: '0.8rem', color: '#e0e0e0', fontWeight: '500'}}>{color.name}</span>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  </div>
+                                </div>
+                              )}
+                              <div className={getAllAvailableColors().length > 0 ? "col-md-6" : "col-12"}>
+                                <div className="availability-card p-3 rounded-2" style={{
+                                  background: 'rgba(255,255,255,0.05)',
+                                  border: '1px solid rgba(255,255,255,0.1)'
+                                }}>
+                                  <div className="d-flex align-items-center mb-3">
+                                    <i className="bi bi-rulers me-2" style={{color: '#22c55e', fontSize: '1.1rem'}}></i>
+                                    <h6 className="mb-0 fw-bold" style={{color: '#ffffff', fontSize: '0.95rem'}}>Available Sizes</h6>
+                                    <span className="badge ms-auto" style={{
+                                      background: 'linear-gradient(135deg, #22c55e, #16a34a)',
+                                      fontSize: '0.7rem'
+                                    }}>{availableSizes.filter(size => isSizeInStock(size)).length}</span>
+                                  </div>
+                                  <div className="d-flex flex-wrap gap-2">
+                                    {availableSizes.filter(size => isSizeInStock(size)).map(size => (
+                                      <div key={size} className="size-preview px-3 py-2 rounded-2 text-center" style={{
+                                        background: 'linear-gradient(135deg, rgba(34, 197, 94, 0.15), rgba(34, 197, 94, 0.05))',
+                                        border: '1px solid rgba(34, 197, 94, 0.2)',
+                                        minWidth: '50px'
+                                      }}>
+                                        <div style={{fontSize: '0.9rem', color: '#ffffff', fontWeight: '600'}}>{size}</div>
+                                        <small style={{fontSize: '0.7rem', color: '#22c55e'}}>{getSizeStock(size)} left</small>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
                               </div>
                             </div>
                           </div>
@@ -1738,9 +1928,8 @@ export default function ClientPage() {
                             onClick={addToCartFromModal} 
                             disabled={Boolean(cartLoading === selectedProduct?.id || 
                               (getAllAvailableColors().length > 0 && !selectedColor) || 
-                              (selectedColor && !selectedSize) || 
-                              (getAllAvailableColors().length === 0 && (!selectedSize || !isSizeInStock(selectedSize))) ||
-                              (selectedColor && selectedSize && getColorStock(selectedSize, selectedColor) <= 0))}
+                              (selectedColor && !selectedSize) ||
+                              (selectedColor && selectedSize && getColorStock(selectedSize, selectedColor) <= 0))
                             style={{
                               background: 'linear-gradient(135deg, #000000, #333333)',
                               border: '2px solid #000000',
