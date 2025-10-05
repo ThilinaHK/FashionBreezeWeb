@@ -51,7 +51,7 @@ export async function POST(request: NextRequest) {
       
       // Check size-specific stock if size is selected
       if (item.size) {
-        const sizeStock = product.sizes?.find(s => s.size === item.size)?.stock || 0;
+        const sizeStock = product.sizes?.find((s: any) => s.size === item.size)?.stock || 0;
         if (item.quantity > sizeStock) {
           return NextResponse.json({ 
             success: false, 
