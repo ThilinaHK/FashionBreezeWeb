@@ -1929,7 +1929,7 @@ export default function ClientPage() {
                             disabled={Boolean(cartLoading === selectedProduct?.id || 
                               (getAllAvailableColors().length > 0 && !selectedColor) || 
                               (selectedColor && !selectedSize) ||
-                              (selectedColor && selectedSize && getColorStock(selectedSize, selectedColor) <= 0))
+                              (selectedColor && selectedSize && getColorStock(selectedSize, selectedColor) <= 0))}
                             style={{
                               background: 'linear-gradient(135deg, #000000, #333333)',
                               border: '2px solid #000000',
