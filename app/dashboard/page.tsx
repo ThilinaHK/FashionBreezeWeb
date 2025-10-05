@@ -24,6 +24,7 @@ export default function DashboardPage() {
     price: 0,
     category: '',
     image: '',
+    images: ['', '', '', ''] as string[],
     status: 'instock' as 'instock' | 'outofstock',
     sizes: [] as Array<{size: string, colors: Array<{name: string, code: string, stock: number, price: number}>, stock: number, price: number}>,
     colors: [] as Array<{name: string, code: string, image: string}>
@@ -128,7 +129,7 @@ export default function DashboardPage() {
   const loadProducts = async () => {
     setLoadingProducts(true);
     try {
-      const response = await fetch('/api/products');
+      const response = await fetch('/api/products?' + new Date().getTime());
       const products = await response.json();
       // Remove duplicates based on code or _id
       const uniqueProducts = Array.isArray(products) ? products.filter((product, index, self) => 
@@ -675,6 +676,9 @@ export default function DashboardPage() {
         price: product.price,
         category: product.category,
         image: product.image,
+        images: Array.isArray((product as any).additionalImages) ? 
+          (product as any).additionalImages.concat(['', '', '', '']).slice(0, 4) : 
+          ['', '', '', ''],
         status: product.status === 'active' ? 'instock' : product.status,
         sizes: Array.isArray(product.sizes) ? product.sizes.map(size => ({
           size: size.size,
@@ -686,7 +690,7 @@ export default function DashboardPage() {
       });
     } else {
       setEditingProduct(null);
-      setFormData({ name: '', code: generateProductCode(), cost: 0, vat: 0, price: 0, category: '', image: '', status: 'instock', sizes: [], colors: [] });
+      setFormData({ name: '', code: generateProductCode(), cost: 0, vat: 0, price: 0, category: '', image: '', images: ['', '', '', ''], status: 'instock', sizes: [], colors: [] });
     }
     setShowModal(true);
   };
@@ -728,7 +732,19 @@ export default function DashboardPage() {
           'x-user-id': currentUser.id || '',
           'x-user-name': currentUser.username || ''
         },
-        body: JSON.stringify(formData)
+        body: JSON.stringify({
+          name: formData.name,
+          code: formData.code,
+          cost: formData.cost,
+          vat: formData.vat,
+          price: formData.price,
+          category: formData.category,
+          image: formData.image,
+          additionalImages: formData.images.filter(img => img && img.trim()),
+          status: formData.status,
+          sizes: formData.sizes,
+          colors: formData.colors
+        })
       });
       
       if (response.ok) {
@@ -2364,8 +2380,65 @@ export default function DashboardPage() {
                                 </select>
                               </div>
                               <div className="col-12">
-                                <label className="form-label fw-bold"><i className="bi bi-image me-1"></i>Product Image URL *</label>
-                                <input type="url" className="form-control" value={formData.image} onChange={(e) => setFormData({...formData, image: e.target.value})} required placeholder="https://example.com/image.jpg" />
+                                <label className="form-label fw-bold"><i className="bi bi-image me-1"></i>Main Product Image *</label>
+                                <input type="file" className="form-control" accept="image/*" required={!formData.image} onChange={async (e) => {
+                                  const file = e.target.files?.[0];
+                                  if (file) {
+                                    const uploadData = new FormData();
+                                    uploadData.append('file', file);
+                                    const response = await fetch('/api/upload', { method: 'POST', body: uploadData });
+                                    const result = await response.json();
+                                    if (result.url) setFormData(prev => ({...prev, image: result.url}));
+                                  }
+                                }} />
+                                {formData.image && <small className="text-success">✓ Image uploaded: {formData.image}</small>}
+                              </div>
+                              <div className="col-12">
+                                <label className="form-label fw-bold"><i className="bi bi-images me-1"></i>Additional Images (Optional)</label>
+                                <div className="row g-2">
+                                  {formData.images.map((img, index) => (
+                                    <div key={index} className="col-md-6">
+                                      <div className="mb-2">
+                                        <label className="form-label small">Image {index + 1}</label>
+                                        <input 
+                                          type="file" 
+                                          className="form-control" 
+                                          accept="image/*" 
+                                          onChange={async (e) => {
+                                            const file = e.target.files?.[0];
+                                            if (file) {
+                                              const uploadData = new FormData();
+                                              uploadData.append('file', file);
+                                              const response = await fetch('/api/upload', { method: 'POST', body: uploadData });
+                                              const result = await response.json();
+                                              if (result.url) {
+                                                const newImages = [...formData.images];
+                                                newImages[index] = result.url;
+                                                setFormData({...formData, images: newImages});
+                                              }
+                                            }
+                                          }} 
+                                        />
+                                        {img && (
+                                          <div className="mt-1">
+                                            <small className="text-success">✓ Current: {img.split('/').pop()}</small>
+                                            <button 
+                                              type="button" 
+                                              className="btn btn-sm btn-outline-danger ms-2"
+                                              onClick={() => {
+                                                const newImages = [...formData.images];
+                                                newImages[index] = '';
+                                                setFormData({...formData, images: newImages});
+                                              }}
+                                            >
+                                              Remove
+                                            </button>
+                                          </div>
+                                        )}
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
                               </div>
                             </div>
                           </div>
@@ -2663,16 +2736,27 @@ export default function DashboardPage() {
                           </div>
                         </div>
                         
-                        {formData.image && (
-                          <div className="card border-0 shadow-sm sticky-top mt-3" style={{top: '20px'}}>
-                            <div className="card-header bg-info text-white">
-                              <h6 className="mb-0"><i className="bi bi-image me-2"></i>Image Preview</h6>
-                            </div>
-                            <div className="card-body p-2">
-                              <img src={formData.image} alt="Preview" className="img-fluid rounded" style={{width: '100%', objectFit: 'cover'}} onError={(e) => {(e.target as HTMLImageElement).style.display = 'none'}} />
+                        <div className="card border-0 shadow-sm sticky-top mt-3" style={{top: '20px'}}>
+                          <div className="card-header bg-info text-white">
+                            <h6 className="mb-0"><i className="bi bi-images me-2"></i>Image Previews</h6>
+                          </div>
+                          <div className="card-body p-2">
+                            {formData.image && (
+                              <div className="mb-2">
+                                <small className="text-muted">Main Image:</small>
+                                <img src={formData.image} alt="Main" className="img-fluid rounded" style={{width: '100%', objectFit: 'cover', maxHeight: '120px'}} onError={(e) => {(e.target as HTMLImageElement).style.display = 'none'}} />
+                              </div>
+                            )}
+                            <div className="row g-1">
+                              {formData.images.map((img, index) => img && (
+                                <div key={index} className="col-6">
+                                  <small className="text-muted">Image {index + 1}:</small>
+                                  <img src={img} alt={`Preview ${index + 1}`} className="img-fluid rounded" style={{width: '100%', objectFit: 'cover', maxHeight: '60px'}} onError={(e) => {(e.target as HTMLImageElement).style.display = 'none'}} />
+                                </div>
+                              ))}
                             </div>
                           </div>
-                        )}
+                        </div>
                       </div>
                     </div>
                   </div>

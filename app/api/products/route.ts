@@ -9,7 +9,7 @@ export async function GET() {
     // Use lean() for faster queries and select only needed fields
     const products = await Product.find(
       {},
-      'name code price image category subcategory status featured rating discount originalPrice sizes cost vat'
+      'name code price image additionalImages category subcategory status featured rating discount originalPrice sizes cost vat'
     )
       .sort({ featured: -1, sortOrder: 1 })
       .lean()
@@ -84,6 +84,15 @@ export async function POST(request: NextRequest) {
       body.colors = body.colors.filter((color: any) => color.name && color.name.trim());
     }
     
+    // Handle additional images array
+    if (body.additionalImages && Array.isArray(body.additionalImages)) {
+      body.additionalImages = body.additionalImages.filter((img: string) => img && img.trim());
+    } else if (body.images && Array.isArray(body.images)) {
+      body.additionalImages = body.images.filter((img: string) => img && img.trim());
+      delete body.images;
+    }
+    
+    console.log('Creating product with data:', JSON.stringify(body, null, 2));
     const product = await Product.create(body);
     
     return NextResponse.json(product, { 
@@ -94,9 +103,10 @@ export async function POST(request: NextRequest) {
     });
   } catch (error: any) {
     console.error('Product creation error:', error);
+    console.error('Error details:', error.message);
     if (error.code === 11000) {
       return NextResponse.json({ error: 'Product code or slug already exists' }, { status: 400 });
     }
-    return NextResponse.json({ error: 'Failed to create product' }, { status: 500 });
+    return NextResponse.json({ error: `Failed to create product: ${error.message}` }, { status: 500 });
   }
 }

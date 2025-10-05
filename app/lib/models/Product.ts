@@ -84,14 +84,7 @@ const ProductSchema = new mongoose.Schema({
     type: String,
     required: true,
   },
-  images: [{
-    url: String,
-    alt: String,
-    isPrimary: {
-      type: Boolean,
-      default: false,
-    },
-  }],
+  additionalImages: [String],
   sizes: [SizeSchema],
   colors: [{
     name: String,

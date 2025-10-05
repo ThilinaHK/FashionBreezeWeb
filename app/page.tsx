@@ -448,6 +448,47 @@ export default function ClientPage() {
     setCurrentSlide(0);
   };
 
+  const navigateImage = (direction: 'prev' | 'next') => {
+    if (!selectedProduct) return;
+    const images = getProductImages();
+    if (images.length <= 1) return;
+    
+    const currentIndex = images.indexOf(selectedProduct.image);
+    let newIndex;
+    
+    if (direction === 'prev') {
+      newIndex = currentIndex > 0 ? currentIndex - 1 : images.length - 1;
+    } else {
+      newIndex = currentIndex < images.length - 1 ? currentIndex + 1 : 0;
+    }
+    
+    changeMainImage(images[newIndex]);
+  };
+
+  // Add keyboard navigation
+  useEffect(() => {
+    const handleKeyPress = (e: KeyboardEvent) => {
+      if (!showProductModal) return;
+      
+      switch (e.key) {
+        case 'ArrowLeft':
+          navigateImage('prev');
+          break;
+        case 'ArrowRight':
+          navigateImage('next');
+          break;
+        case 'Escape':
+          closeProductModal();
+          break;
+      }
+    };
+
+    if (showProductModal) {
+      document.addEventListener('keydown', handleKeyPress);
+      return () => document.removeEventListener('keydown', handleKeyPress);
+    }
+  }, [showProductModal, selectedProduct]);
+
   const onSizeSelect = (size: string) => {
     if (!isSizeInStock(size)) return;
     setSelectedSize(size);
@@ -579,10 +620,19 @@ export default function ClientPage() {
     const product = selectedProduct;
     if (!product) return [];
     const productAny = product as any;
-    if (Array.isArray(productAny.images)) {
-      return typeof productAny.images[0] === 'string' ? productAny.images as string[] : (productAny.images as any[]).map((img: any) => img.url || img);
+    
+    // Get all images: main image + additional images
+    const allImages = [product.image];
+    
+    // Check multiple possible field names for additional images
+    const additionalImages = productAny.additionalImages || productAny.images || [];
+    
+    if (Array.isArray(additionalImages)) {
+      const validAdditionalImages = additionalImages.filter((img: string) => img && img.trim());
+      allImages.push(...validAdditionalImages);
     }
-    return [product.image];
+    
+    return allImages.filter((img, index, self) => img && self.indexOf(img) === index); // Remove duplicates
   };
 
   const changeMainImage = (imageUrl: string) => {
@@ -1394,6 +1444,54 @@ export default function ClientPage() {
                           }}
                           onClick={toggleZoom}
                         />
+                        
+                        {/* Image Navigation Arrows */}
+                        {getProductImages().length > 1 && (
+                          <>
+                            <button 
+                              className="btn position-absolute start-0 top-50 translate-middle-y ms-3"
+                              onClick={() => navigateImage('prev')}
+                              style={{
+                                background: 'rgba(0,0,0,0.7)',
+                                border: 'none',
+                                color: 'white',
+                                width: '45px',
+                                height: '45px',
+                                borderRadius: '50%',
+                                backdropFilter: 'blur(10px)',
+                                zIndex: 10
+                              }}
+                            >
+                              <i className="bi bi-chevron-left"></i>
+                            </button>
+                            <button 
+                              className="btn position-absolute end-0 top-50 translate-middle-y me-3"
+                              onClick={() => navigateImage('next')}
+                              style={{
+                                background: 'rgba(0,0,0,0.7)',
+                                border: 'none',
+                                color: 'white',
+                                width: '45px',
+                                height: '45px',
+                                borderRadius: '50%',
+                                backdropFilter: 'blur(10px)',
+                                zIndex: 10
+                              }}
+                            >
+                              <i className="bi bi-chevron-right"></i>
+                            </button>
+                          </>
+                        )}
+                        
+                        {/* Image Counter */}
+                        {getProductImages().length > 1 && (
+                          <div className="position-absolute bottom-0 start-50 translate-middle-x mb-3">
+                            <span className="badge" style={{background: 'rgba(0,0,0,0.7)', color: 'white', padding: '8px 12px', borderRadius: '20px', backdropFilter: 'blur(10px)'}}>
+                              {getProductImages().indexOf(selectedProduct.image) + 1} / {getProductImages().length}
+                            </span>
+                          </div>
+                        )}
+                        
                         <div className="zoom-controls position-absolute" style={{top: '1rem', right: '1rem'}}>
                           <div className="btn-group" style={{background: 'rgba(0,0,0,0.7)', borderRadius: '8px', backdropFilter: 'blur(10px)'}}>
                             <button className="btn btn-sm" onClick={zoomOut} style={{background: 'transparent', color: 'white', border: 'none', padding: '0.5rem'}}>

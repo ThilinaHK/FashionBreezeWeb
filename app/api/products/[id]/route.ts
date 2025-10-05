@@ -31,6 +31,16 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
       body.colors = body.colors.filter((color: any) => color.name && color.name.trim());
     }
     
+    // Handle additional images array
+    if (body.additionalImages && Array.isArray(body.additionalImages)) {
+      body.additionalImages = body.additionalImages.filter((img: string) => img && img.trim());
+    } else if (body.images && Array.isArray(body.images)) {
+      body.additionalImages = body.images.filter((img: string) => img && img.trim());
+      delete body.images;
+    }
+    
+    console.log('Updating product with data:', JSON.stringify(body, null, 2));
+    
     // Try to find by _id first, then by id field
     let product = await Product.findByIdAndUpdate(id, body, { new: true, runValidators: true });
     
@@ -46,7 +56,8 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
     return NextResponse.json({ success: true, product });
   } catch (error: any) {
     console.error('Product update error:', error);
-    return NextResponse.json({ error: 'Failed to update product' }, { status: 500 });
+    console.error('Error details:', error.message);
+    return NextResponse.json({ error: `Failed to update product: ${error.message}` }, { status: 500 });
   }
 }
 
