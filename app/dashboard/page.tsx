@@ -41,7 +41,7 @@ export default function DashboardPage() {
   const [loadingCategories, setLoadingCategories] = useState(true);
   const [loadingCustomers, setLoadingCustomers] = useState(true);
   const [loadingOrders, setLoadingOrders] = useState(true);
-  const [deletingProduct, setDeletingProduct] = useState<number | null>(null);
+  const [deletingProduct, setDeletingProduct] = useState<string | number | null>(null);
   const [toast, setToast] = useState<{message: string, type: 'success' | 'error'} | null>(null);
   const [updatingCustomer, setUpdatingCustomer] = useState<string | null>(null);
   const [updatingReturn, setUpdatingReturn] = useState<string | null>(null);
