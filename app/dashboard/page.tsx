@@ -679,7 +679,7 @@ export default function DashboardPage() {
         images: Array.isArray((product as any).additionalImages) ? 
           (product as any).additionalImages.concat(['', '', '', '']).slice(0, 4) : 
           ['', '', '', ''],
-        status: product.status === 'active' ? 'instock' : product.status,
+        status: product.status === 'active' ? 'instock' : product.status as 'instock' | 'outofstock',
         sizes: Array.isArray(product.sizes) ? product.sizes.map(size => ({
           size: size.size,
           colors: Array.isArray((size as any).colors) ? (size as any).colors : [],
