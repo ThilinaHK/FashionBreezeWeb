@@ -9,7 +9,7 @@ export interface Product {
   category: string;
   image: string;
   sizes?: { [key: string]: number };
-  status: 'instock' | 'outofstock';
+  status: 'instock' | 'outofstock' | 'active';
   rating?: number;
   reviewCount?: number;
 }
