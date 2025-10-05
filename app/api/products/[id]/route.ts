@@ -15,6 +15,12 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
       body.status = 'outofstock';
     }
     
+    // Add audit fields
+    const userId = request.headers.get('x-user-id');
+    const userName = request.headers.get('x-user-name');
+    body.updatedBy = userId || 'system';
+    body.updatedByName = userName || 'System';
+    
     // Validate and clean sizes
     if (body.sizes && Array.isArray(body.sizes)) {
       body.sizes = body.sizes.filter((size: any) => size.size && size.size.trim());

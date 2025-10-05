@@ -130,7 +130,11 @@ export default function DashboardPage() {
     try {
       const response = await fetch('/api/products');
       const products = await response.json();
-      setProducts(Array.isArray(products) ? products : []);
+      // Remove duplicates based on code or _id
+      const uniqueProducts = Array.isArray(products) ? products.filter((product, index, self) => 
+        index === self.findIndex(p => p.code === product.code || p._id === product._id)
+      ) : [];
+      setProducts(uniqueProducts);
     } catch (error) {
       console.error('Error loading products:', error);
       setProducts([]);
@@ -671,7 +675,7 @@ export default function DashboardPage() {
         price: product.price,
         category: product.category,
         image: product.image,
-        status: product.status,
+        status: product.status === 'active' ? 'instock' : product.status,
         sizes: Array.isArray(product.sizes) ? product.sizes.map(size => ({
           size: size.size,
           colors: Array.isArray((size as any).colors) ? (size as any).colors : [],
@@ -699,7 +703,9 @@ export default function DashboardPage() {
       // Check for duplicate product code
       const isDuplicate = products.some(p => 
         p.code === formData.code && 
-        (!editingProduct || (p.id !== editingProduct.id && p._id !== editingProduct._id))
+        (!editingProduct || (
+          (p._id || p.id) !== (editingProduct._id || editingProduct.id)
+        ))
       );
       
       if (isDuplicate) {
@@ -727,13 +733,8 @@ export default function DashboardPage() {
       
       if (response.ok) {
         const result = await response.json();
-        if (editingProduct) {
-          setProducts(products.map(p => 
-            (p.id === editingProduct.id || p._id === editingProduct._id) ? { ...p, ...formData } as unknown as Product : p
-          ));
-        } else {
-          setProducts([...products, { id: result.id || result._id || Date.now(), ...formData } as unknown as Product]);
-        }
+        // Always reload products after insert/update
+        await loadProducts();
         closeModal();
         setToast({message: editingProduct ? 'Product updated successfully!' : 'Product created successfully!', type: 'success'});
         setTimeout(() => setToast(null), 3000);
@@ -752,15 +753,20 @@ export default function DashboardPage() {
   };
 
   const deleteProduct = async (product: Product) => {
-    const productId = product.id || product._id;
+    const productId = product._id || product.id;
+    const productKey = product._id || product.id || product.code;
     if (confirm('Are you sure you want to delete this product?')) {
-      setDeletingProduct(product.id);
+      setDeletingProduct(productKey);
       try {
         // Check if product is in any orders
         const ordersResponse = await fetch('/api/orders');
         const allOrders = await ordersResponse.json();
         const productInOrders = allOrders.some((order: any) => 
-          order.items?.some((item: any) => item.id === product.id || item._id === String(product.id))
+          order.items?.some((item: any) => 
+            item.id === product.id || 
+            item._id === String(product.id) || 
+            item.code === product.code
+          )
         );
         
         if (productInOrders) {
@@ -772,7 +778,7 @@ export default function DashboardPage() {
         
         const response = await fetch(`/api/products/${productId}`, { method: 'DELETE' });
         if (response.ok) {
-          setProducts(products.filter(p => (p.id || p._id) !== productId));
+          await loadProducts();
           setToast({message: 'Product deleted successfully!', type: 'success'});
         }
       } catch (error) {
@@ -1443,7 +1449,7 @@ export default function DashboardPage() {
                       product.code.toLowerCase().includes(productFilter.toLowerCase()) ||
                       product.category.toLowerCase().includes(productFilter.toLowerCase())
                     ).map(product => (
-                      <tr key={product.id}>
+                      <tr key={product._id || product.id || product.code}>
                         <td>
                           <img src={product.image} alt={product.name} style={{width: '50px', height: '50px', objectFit: 'cover'}} className="rounded" />
                         </td>
@@ -1454,8 +1460,8 @@ export default function DashboardPage() {
                         <td className="fw-bold text-success">LKR {product.price}</td>
                         <td className="fw-bold text-primary">LKR {((product.price || 0) - (product.cost || 0) - (product.vat || 0)).toFixed(2)}</td>
                         <td>
-                          <span className={`badge ${product.status === 'instock' ? 'bg-success' : 'bg-danger'}`}>
-                            {product.status === 'instock' ? 'In Stock' : 'Out of Stock'}
+                          <span className={`badge ${(product.status === 'instock' || product.status === 'active') ? 'bg-success' : 'bg-danger'}`}>
+                            {(product.status === 'instock' || product.status === 'active') ? 'In Stock' : 'Out of Stock'}
                           </span>
                         </td>
                         <td>
@@ -1463,8 +1469,8 @@ export default function DashboardPage() {
                             <button className="btn btn-sm btn-outline-primary" onClick={() => openModal(product)}>
                               <i className="bi bi-pencil"></i>
                             </button>
-                            <button className="btn btn-sm btn-outline-danger" onClick={() => deleteProduct(product)} disabled={deletingProduct === product.id}>
-                              {deletingProduct === product.id ? (
+                            <button className="btn btn-sm btn-outline-danger" onClick={() => deleteProduct(product)} disabled={deletingProduct === (product._id || product.id || product.code)}>
+                              {deletingProduct === (product._id || product.id || product.code) ? (
                                 <div className="spinner-border spinner-border-sm" role="status">
                                   <span className="visually-hidden">Deleting...</span>
                                 </div>

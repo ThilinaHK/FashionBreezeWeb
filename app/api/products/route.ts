@@ -15,8 +15,13 @@ export async function GET() {
       .lean()
       .limit(100);
     
+    // Remove duplicates based on code (in case there are any)
+    const uniqueProducts = products.filter((product, index, self) => 
+      index === self.findIndex(p => p.code === product.code)
+    );
+    
     // Add cache headers for better performance
-    return NextResponse.json(products, {
+    return NextResponse.json(uniqueProducts, {
       headers: {
         'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=600',
         'CDN-Cache-Control': 'public, s-maxage=300',
