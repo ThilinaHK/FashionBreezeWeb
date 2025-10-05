@@ -58,7 +58,7 @@ export async function POST(request: NextRequest) {
         
         // Reduce size-specific stock if size is selected
         if (item.size && product.sizes) {
-          const sizeIndex = product.sizes.findIndex(s => s.size === item.size);
+          const sizeIndex = product.sizes.findIndex((s: any) => s.size === item.size);
           if (sizeIndex !== -1 && product.sizes[sizeIndex].stock >= item.quantity) {
             product.sizes[sizeIndex].stock -= item.quantity;
           }
@@ -136,7 +136,7 @@ export async function PUT(request: NextRequest) {
           
           // Restore size-specific stock if size was selected
           if (item.size && product.sizes) {
-            const sizeIndex = product.sizes.findIndex(s => s.size === item.size);
+            const sizeIndex = product.sizes.findIndex((s: any) => s.size === item.size);
             if (sizeIndex !== -1) {
               product.sizes[sizeIndex].stock += item.quantity;
             }
