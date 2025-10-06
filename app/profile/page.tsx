@@ -52,6 +52,11 @@ export default function ProfilePage() {
   const [selectedOrderForHistory, setSelectedOrderForHistory] = useState<any>(null);
   const [showVerifyModal, setShowVerifyModal] = useState(false);
   const [verifyData, setVerifyData] = useState({ orderId: '', verified: true, notes: '' });
+  const [showUploadModal, setShowUploadModal] = useState(false);
+  const [uploadOrderId, setUploadOrderId] = useState('');
+  const [uploadLoading, setUploadLoading] = useState(false);
+  const [showSlipModal, setShowSlipModal] = useState(false);
+  const [selectedSlip, setSelectedSlip] = useState<any>(null);
   const [addresses, setAddresses] = useState<any[]>([]);
   const [countries, setCountries] = useState<string[]>([]);
   const [regions, setRegions] = useState<string[]>([]);
@@ -65,6 +70,9 @@ export default function ProfilePage() {
     country: '',
     addressLine: ''
   });
+  const [showReviewModal, setShowReviewModal] = useState(false);
+  const [reviewData, setReviewData] = useState({ productId: '', rating: 5, comment: '' });
+  const [submittingReview, setSubmittingReview] = useState(false);
 
   useEffect(() => {
     loadProfile();
@@ -82,8 +90,14 @@ export default function ProfilePage() {
       if (registered && userId) {
         try {
           const userResponse = await fetch(`/api/customers?id=${userId}`);
+          
+          if (!userResponse.ok) {
+            throw new Error(`Failed to fetch user data: ${userResponse.status}`);
+          }
+          
           const userData = await userResponse.json();
-          if (userData && userData.length > 0) {
+          
+          if (userData && Array.isArray(userData) && userData.length > 0) {
             const user = userData[0];
             setCustomer(user);
             setFormData({
@@ -108,19 +122,39 @@ export default function ProfilePage() {
             if (user.deliveryAddress) {
               setDeliveryAddress(user.deliveryAddress);
             }
+            
+            // Load orders for this specific user
+            const ordersResponse = await fetch(`/api/orders?userId=${userId}`);
+            const ordersData = await ordersResponse.json();
+            console.log('Customer profile - loaded orders:', ordersData.length);
+            const ordersWithSlips = ordersData.filter((order: any) => order.paymentSlip);
+            console.log('Customer profile - orders with payment slips:', ordersWithSlips.length);
+            if (ordersWithSlips.length > 0) {
+              console.log('Sample customer order with slip:', ordersWithSlips[0]);
+            }
+            setOrders(Array.isArray(ordersData) ? ordersData : []);
+            
+            // Load returns for this specific user
+            const returnsResponse = await fetch(`/api/returns/customer?email=${encodeURIComponent(user.email)}`);
+            const returnsData = await returnsResponse.json();
+            setReturns(Array.isArray(returnsData) ? returnsData : []);
+            
+            loadAddresses();
+          } else {
+            console.error('User not found or invalid response:', userData);
+            // Clear invalid session
+            localStorage.removeItem('userRegistered');
+            localStorage.removeItem('userId');
+            localStorage.removeItem('userEmail');
+            setIsRegistered(false);
           }
-          
-          const ordersResponse = await fetch(`/api/orders?userId=${userId}`);
-          const ordersData = await ordersResponse.json();
-          setOrders(Array.isArray(ordersData) ? ordersData : []);
-          
-          const returnsResponse = await fetch(`/api/returns/customer?email=${encodeURIComponent(userData[0].email)}`);
-          const returnsData = await returnsResponse.json();
-          setReturns(Array.isArray(returnsData) ? returnsData : []);
-          
-          loadAddresses();
         } catch (error) {
           console.error('Error loading profile:', error);
+          // On error, clear potentially corrupted session
+          localStorage.removeItem('userRegistered');
+          localStorage.removeItem('userId');
+          localStorage.removeItem('userEmail');
+          setIsRegistered(false);
         }
       }
       setLoading(false);
@@ -382,6 +416,105 @@ export default function ProfilePage() {
     } catch (error) {
       console.error('Error verifying delivery:', error);
       alert('Failed to submit verification');
+    }
+  };
+
+  const submitReview = async () => {
+    setSubmittingReview(true);
+    try {
+      const response = await fetch('/api/reviews', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          orderId: selectedOrder._id,
+          productId: reviewData.productId,
+          rating: reviewData.rating,
+          comment: reviewData.comment,
+          customerName: customer?.name,
+          customerEmail: customer?.email
+        })
+      });
+      
+      if (response.ok) {
+        alert('Review submitted successfully!');
+        setShowReviewModal(false);
+        setReviewData({ productId: '', rating: 5, comment: '' });
+      } else {
+        const error = await response.json();
+        alert(error.error || 'Failed to submit review');
+      }
+    } catch (error) {
+      alert('Failed to submit review');
+    } finally {
+      setSubmittingReview(false);
+    }
+  };
+
+  const uploadPaymentSlip = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setUploadLoading(true);
+    
+    const formData = new FormData(event.currentTarget);
+    const file = formData.get('slip') as File;
+    
+    if (!file) {
+      alert('Please select a file');
+      setUploadLoading(false);
+      return;
+    }
+    
+    try {
+      // Convert to base64 on client side
+      const base64 = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => {
+          console.log('FileReader result:', reader.result);
+          resolve(reader.result as string);
+        };
+        reader.onerror = () => reject(reader.error);
+        reader.readAsDataURL(file);
+      });
+      
+      console.log('Client - File name:', file.name);
+      console.log('Client - File size:', file.size);
+      console.log('Client - File type:', file.type);
+      console.log('Client - Base64 length:', base64.length);
+      console.log('Client - Base64 preview:', base64.substring(0, 50) + '...');
+      
+      const response = await fetch('/api/orders/upload-slip', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          orderId: uploadOrderId,
+          base64Data: base64
+        })
+      });
+      
+      const result = await response.json();
+      
+      if (response.ok && result.success) {
+        alert('Payment slip uploaded successfully!');
+        setShowUploadModal(false);
+        setUploadOrderId('');
+        
+        // Force reload orders to get updated data
+        const ordersResponse = await fetch(`/api/orders?userId=${localStorage.getItem('userId')}`);
+        const ordersData = await ordersResponse.json();
+        setOrders(Array.isArray(ordersData) ? ordersData : []);
+        
+        console.log('=== AFTER UPLOAD DEBUG ===');
+        const updatedOrder = ordersData.find((o: any) => o._id === uploadOrderId);
+        console.log('Updated order:', updatedOrder);
+        console.log('Has paymentSlip:', !!updatedOrder?.paymentSlip);
+        console.log('PaymentSlip data:', updatedOrder?.paymentSlip);
+        console.log('=== END DEBUG ===');
+      } else {
+        alert(result.error || 'Upload failed');
+      }
+    } catch (error) {
+      alert('Upload failed');
+    } finally {
+      setUploadLoading(false);
     }
   };
 
@@ -800,6 +933,17 @@ export default function ProfilePage() {
                                 }`}>
                                   {order.paymentStatus?.toUpperCase() || 'PENDING'}
                                 </span>
+                                {order.paymentSlip && (
+                                  <div className="mt-1">
+                                    <span className={`badge small ${
+                                      order.paymentSlip.status === 'verified' ? 'bg-success' :
+                                      order.paymentSlip.status === 'rejected' ? 'bg-danger' : 'bg-info'
+                                    }`}>
+                                      SLIP {order.paymentSlip.status?.toUpperCase()}
+                                    </span>
+
+                                  </div>
+                                )}
                               </td>
                               <td>
                                 <div className="d-flex flex-column gap-1">
@@ -836,6 +980,53 @@ export default function ProfilePage() {
                                   >
                                     <i className="bi bi-clock-history"></i>
                                   </button>
+                                  {/* Debug info */}
+                                  <button 
+                                    className="btn btn-sm btn-outline-secondary" 
+                                    onClick={() => {
+                                      console.log('=== ORDER DEBUG ===');
+                                      console.log('Order ID:', order._id);
+                                      console.log('Payment Method:', order.paymentMethod);
+                                      console.log('Payment Slip:', order.paymentSlip);
+                                      console.log('Order Status:', order.status);
+                                      console.log('Full Order:', order);
+                                      console.log('==================');
+                                    }}
+                                    title="Debug Order"
+                                  >
+                                    <i className="bi bi-bug"></i>
+                                  </button>
+                                  {order.paymentMethod === 'bank_transfer' && (
+                                    !order.paymentSlip ? (
+                                      <button 
+                                        className="btn btn-sm btn-outline-primary" 
+                                        onClick={() => {
+                                          setUploadOrderId(order._id); 
+                                          setShowUploadModal(true);
+                                        }}
+                                        title="Upload Payment Slip"
+                                      >
+                                        <i className="bi bi-upload"></i>
+                                      </button>
+                                    ) : (
+                                      <button 
+                                        className={`btn btn-sm ${
+                                          order.paymentSlip.status === 'verified' ? 'btn-success' :
+                                          order.paymentSlip.status === 'rejected' ? 'btn-danger' : 'btn-warning'
+                                        }`}
+                                        onClick={() => {
+                                          console.log('Viewing payment slip for order:', order._id);
+                                          console.log('Payment slip data:', order.paymentSlip);
+                                          setSelectedSlip(order); 
+                                          setShowSlipModal(true);
+                                        }}
+                                        title="View Payment Slip"
+                                      >
+                                        <i className="bi bi-file-image"></i>
+                                      </button>
+                                    )
+                                  )}
+
                                   {order.status === 'delivered' && (
                                     <>
                                       <button 
@@ -856,6 +1047,16 @@ export default function ProfilePage() {
                                   )}
                                   {order.status === 'customer_verified' && (
                                     <>
+                                      <button 
+                                        className="btn btn-sm btn-outline-primary" 
+                                        onClick={() => {
+                                          setSelectedOrder(order);
+                                          setShowReviewModal(true);
+                                        }}
+                                        title="Add Review"
+                                      >
+                                        <i className="bi bi-star"></i>
+                                      </button>
                                       <button 
                                         className="btn btn-sm btn-outline-success" 
                                         onClick={() => handleReturn(order._id, 'return')} 
@@ -1446,6 +1647,212 @@ export default function ProfilePage() {
                 <button type="button" className="btn btn-secondary" onClick={() => setShowReturnModal(false)}>Cancel</button>
                 <button type="button" className="btn btn-primary" onClick={submitReturn} disabled={!returnData.reason}>
                   Submit {returnData.type === 'damage' ? 'Damage Claim' : 'Return Request'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Upload Payment Slip Modal */}
+      {showUploadModal && (
+        <div className="modal d-block" tabIndex={-1} style={{background: 'rgba(0,0,0,0.5)'}}>
+          <div className="modal-dialog">
+            <div className="modal-content">
+              <div className="modal-header bg-primary text-white">
+                <h5 className="modal-title">
+                  <i className="bi bi-upload me-2"></i>Upload Payment Slip
+                </h5>
+                <button type="button" className="btn-close btn-close-white" onClick={() => {setShowUploadModal(false); setUploadOrderId('');}}></button>
+              </div>
+              <form onSubmit={uploadPaymentSlip}>
+                <div className="modal-body">
+                  <div className="mb-3">
+                    <div className="alert alert-info">
+                      <i className="bi bi-info-circle me-2"></i>
+                      <strong>Order ID:</strong> {uploadOrderId}<br/>
+                      <strong>Payment Method:</strong> Bank Transfer
+                    </div>
+                  </div>
+                  <div className="mb-3">
+                    <label className="form-label fw-bold">Payment Slip Image/Document *</label>
+                    <input 
+                      type="file" 
+                      className="form-control" 
+                      name="slip"
+                      accept="image/*,.pdf"
+                      required
+                    />
+                    <div className="form-text">Supported formats: JPG, PNG, PDF (Max 10MB)</div>
+                  </div>
+                  <div className="alert alert-warning">
+                    <i className="bi bi-exclamation-triangle me-2"></i>
+                    <strong>Important:</strong> Please ensure the payment slip clearly shows:
+                    <ul className="mb-0 mt-2">
+                      <li>Transaction date and time</li>
+                      <li>Amount transferred</li>
+                      <li>Reference number</li>
+                      <li>Bank details</li>
+                    </ul>
+                  </div>
+                  <div className="alert alert-success">
+                    <i className="bi bi-bank me-2"></i>
+                    <strong>Our Bank Details:</strong><br/>
+                    Bank: Commercial Bank of Ceylon<br/>
+                    Account: Fashion Breeze (Pvt) Ltd<br/>
+                    Account No: 8001234567890
+                  </div>
+                </div>
+                <div className="modal-footer">
+                  <button type="button" className="btn btn-secondary" onClick={() => setShowUploadModal(false)}>Cancel</button>
+                  <button type="submit" className="btn btn-primary" disabled={uploadLoading}>
+                    {uploadLoading ? (
+                      <><i className="bi bi-hourglass-split me-2"></i>Uploading...</>
+                    ) : (
+                      <><i className="bi bi-upload me-2"></i>Upload Slip</>
+                    )}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Payment Slip View Modal */}
+      {showSlipModal && selectedSlip && (
+        <div className="modal d-block" tabIndex={-1} style={{background: 'rgba(0,0,0,0.8)'}}>
+          <div className="modal-dialog modal-lg">
+            <div className="modal-content">
+              <div className="modal-header bg-primary text-white">
+                <h5 className="modal-title">
+                  <i className="bi bi-file-earmark-image me-2"></i>Payment Slip - Order {selectedSlip.orderNumber || selectedSlip._id?.slice(-8)}
+                </h5>
+                <button type="button" className="btn-close btn-close-white" onClick={() => setShowSlipModal(false)}></button>
+              </div>
+              <div className="modal-body text-center">
+                <div className="mb-3">
+                  <span className={`badge fs-6 ${
+                    selectedSlip.paymentSlip?.status === 'verified' ? 'bg-success' :
+                    selectedSlip.paymentSlip?.status === 'rejected' ? 'bg-danger' : 'bg-warning text-dark'
+                  }`}>
+                    {selectedSlip.paymentSlip?.status?.toUpperCase() || 'PENDING'}
+                  </span>
+                </div>
+                <div className="mb-3">
+                  <small className="text-muted">Uploaded: {new Date(selectedSlip.paymentSlip?.uploadedAt).toLocaleString()}</small>
+                </div>
+                <div className="mb-4">
+                  {(selectedSlip.paymentSlip?.imageData || selectedSlip.paymentSlip?.filename) ? (
+                    <div>
+                      <img 
+                        src={selectedSlip.paymentSlip.imageData || selectedSlip.paymentSlip.filename} 
+                        alt="Payment Slip" 
+                        className="img-fluid rounded shadow"
+                        style={{maxHeight: '500px', maxWidth: '100%'}}
+                        onError={(e) => {
+                          console.error('Image load error:', e);
+                          (e.target as HTMLImageElement).style.display = 'none';
+                          (e.target as HTMLImageElement).nextElementSibling?.classList.remove('d-none');
+                        }}
+                      />
+                      <div className="text-center py-5 d-none">
+                        <i className="bi bi-exclamation-triangle display-4 text-warning"></i>
+                        <p className="text-muted mt-2">Failed to load payment slip image</p>
+                        <small className="text-muted">Image data may be corrupted</small>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="text-center py-5">
+                      <i className="bi bi-file-image display-4 text-muted"></i>
+                      <p className="text-muted mt-2">No payment slip available</p>
+                    </div>
+                  )}
+                </div>
+                {selectedSlip.paymentSlip?.status === 'rejected' && (
+                  <div className="alert alert-danger">
+                    <i className="bi bi-exclamation-triangle me-2"></i>
+                    Your payment slip was rejected. Please contact support or upload a new slip.
+                  </div>
+                )}
+                {selectedSlip.paymentSlip?.status === 'verified' && (
+                  <div className="alert alert-success">
+                    <i className="bi bi-check-circle me-2"></i>
+                    Your payment has been verified successfully!
+                  </div>
+                )}
+              </div>
+              <div className="modal-footer">
+                <button type="button" className="btn btn-secondary" onClick={() => setShowSlipModal(false)}>Close</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Review Modal */}
+      {showReviewModal && selectedOrder && (
+        <div className="modal d-block" tabIndex={-1} style={{background: 'rgba(0,0,0,0.5)'}}>
+          <div className="modal-dialog">
+            <div className="modal-content">
+              <div className="modal-header bg-warning text-dark">
+                <h5 className="modal-title">
+                  <i className="bi bi-star me-2"></i>Add Product Review
+                </h5>
+                <button type="button" className="btn-close" onClick={() => setShowReviewModal(false)}></button>
+              </div>
+              <div className="modal-body">
+                <div className="mb-3">
+                  <label className="form-label">Select Product</label>
+                  <select 
+                    className="form-select" 
+                    value={reviewData.productId}
+                    onChange={(e) => setReviewData({...reviewData, productId: e.target.value})}
+                  >
+                    <option value="">Choose a product to review</option>
+                    {selectedOrder.items?.map((item: any, index: number) => (
+                      <option key={index} value={item.id || item._id}>
+                        {item.name} - {item.code}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="mb-3">
+                  <label className="form-label">Rating</label>
+                  <div className="d-flex gap-2">
+                    {[1, 2, 3, 4, 5].map(star => (
+                      <button
+                        key={star}
+                        type="button"
+                        className={`btn ${star <= reviewData.rating ? 'btn-warning' : 'btn-outline-warning'}`}
+                        onClick={() => setReviewData({...reviewData, rating: star})}
+                      >
+                        <i className="bi bi-star-fill"></i>
+                      </button>
+                    ))}
+                    <span className="ms-2 align-self-center">{reviewData.rating} star{reviewData.rating !== 1 ? 's' : ''}</span>
+                  </div>
+                </div>
+                <div className="mb-3">
+                  <label className="form-label">Review Comment</label>
+                  <textarea 
+                    className="form-control" 
+                    rows={4}
+                    value={reviewData.comment}
+                    onChange={(e) => setReviewData({...reviewData, comment: e.target.value})}
+                    placeholder="Share your experience with this product..."
+                  ></textarea>
+                </div>
+              </div>
+              <div className="modal-footer">
+                <button type="button" className="btn btn-secondary" onClick={() => setShowReviewModal(false)}>Cancel</button>
+                <button 
+                  type="button" 
+                  className="btn btn-warning" 
+                  onClick={submitReview}
+                  disabled={!reviewData.productId || submittingReview}
+                >
+                  {submittingReview ? 'Submitting...' : 'Submit Review'}
                 </button>
               </div>
             </div>

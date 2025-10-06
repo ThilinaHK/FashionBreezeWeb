@@ -9,7 +9,7 @@ export async function GET() {
     // Use lean() for faster queries and select only needed fields
     const products = await Product.find(
       {},
-      'name code price image additionalImages category subcategory status featured rating discount originalPrice sizes cost vat'
+      'name code price image additionalImages category subcategory status featured rating discount originalPrice sizes cost vat description specifications brand'
     )
       .sort({ featured: -1, sortOrder: 1 })
       .lean()
@@ -62,6 +62,16 @@ export async function POST(request: NextRequest) {
     }
     if (!body.subcategory) {
       body.subcategory = 'General';
+    }
+    
+    // Handle specifications
+    if (!body.specifications) {
+      body.specifications = {
+        material: 'Premium Cotton',
+        careInstructions: 'Machine Wash',
+        weight: 'Regular Fit',
+        origin: 'Sri Lanka'
+      };
     }
     
     // Handle category - for now, store as string since dashboard sends string

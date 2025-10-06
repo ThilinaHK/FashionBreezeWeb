@@ -24,11 +24,19 @@ export default function DashboardPage() {
     vat: 0,
     price: 0,
     category: '',
+    brand: '',
     image: '',
     images: ['', '', '', ''] as string[],
     status: 'instock' as 'instock' | 'outofstock',
     sizes: [] as Array<{size: string, colors: Array<{name: string, code: string, stock: number, price: number}>, stock: number, price: number}>,
-    colors: [] as Array<{name: string, code: string, image: string}>
+    colors: [] as Array<{name: string, code: string, image: string}>,
+    description: '',
+    specifications: {
+      material: '',
+      careInstructions: '',
+      weight: '',
+      origin: ''
+    }
   });
   const [saving, setSaving] = useState(false);
   const [updatingOrder, setUpdatingOrder] = useState<string | null>(null);
@@ -38,6 +46,8 @@ export default function DashboardPage() {
   const [categoryFilter, setCategoryFilter] = useState('');
   const [customerFilter, setCustomerFilter] = useState('');
   const [orderFilter, setOrderFilter] = useState('');
+  const [orderStatusFilter, setOrderStatusFilter] = useState<string | null>(null);
+  const [paymentStatusFilter, setPaymentStatusFilter] = useState<string | null>(null);
   const [loadingProducts, setLoadingProducts] = useState(true);
   const [loadingCategories, setLoadingCategories] = useState(true);
   const [loadingCustomers, setLoadingCustomers] = useState(true);
@@ -84,6 +94,8 @@ export default function DashboardPage() {
   const [loadingAddresses, setLoadingAddresses] = useState(false);
   const [showAddressModal, setShowAddressModal] = useState(false);
   const [editingAddress, setEditingAddress] = useState<any>(null);
+  const [showSlipModal, setShowSlipModal] = useState(false);
+  const [selectedSlip, setSelectedSlip] = useState<any>(null);
   const [addressFormData, setAddressFormData] = useState({
     name: '',
     type: 'country',
@@ -198,6 +210,12 @@ export default function DashboardPage() {
     try {
       const response = await fetch('/api/orders');
       const orders = await response.json();
+      console.log('Admin dashboard - loaded orders:', orders.length);
+      const ordersWithSlips = orders.filter((order: any) => order.paymentSlip);
+      console.log('Admin dashboard - orders with payment slips:', ordersWithSlips.length);
+      if (ordersWithSlips.length > 0) {
+        console.log('Sample order with slip:', ordersWithSlips[0].paymentSlip);
+      }
       setOrders(Array.isArray(orders) ? orders : []);
     } catch (error) {
       console.error('Error loading orders:', error);
@@ -696,6 +714,7 @@ export default function DashboardPage() {
         vat: product.vat || 0,
         price: product.price,
         category: product.category,
+        brand: (product as any).brand || '',
         image: product.image,
         images: Array.isArray((product as any).additionalImages) ? 
           (product as any).additionalImages.concat(['', '', '', '']).slice(0, 4) : 
@@ -707,11 +726,18 @@ export default function DashboardPage() {
           stock: size.stock,
           price: size.price
         })) : [],
-        colors: Array.isArray((product as any).colors) ? (product as any).colors : []
+        colors: Array.isArray((product as any).colors) ? (product as any).colors : [],
+        description: (product as any).description || '',
+        specifications: {
+          material: (product as any).specifications?.material || '',
+          careInstructions: (product as any).specifications?.careInstructions || '',
+          weight: (product as any).specifications?.weight || '',
+          origin: (product as any).specifications?.origin || ''
+        }
       });
     } else {
       setEditingProduct(null);
-      setFormData({ name: '', code: generateProductCode(), cost: 0, vat: 0, price: 0, category: '', image: '', images: ['', '', '', ''], status: 'instock', sizes: [], colors: [] });
+      setFormData({ name: '', code: generateProductCode(), cost: 0, vat: 0, price: 0, category: '', brand: '', image: '', images: ['', '', '', ''], status: 'instock', sizes: [], colors: [], description: '', specifications: { material: '', careInstructions: '', weight: '', origin: '' } });
     }
     setShowModal(true);
   };
@@ -760,11 +786,14 @@ export default function DashboardPage() {
           vat: formData.vat,
           price: formData.price,
           category: formData.category,
+          brand: formData.brand,
           image: formData.image,
           additionalImages: formData.images.filter(img => img && img.trim()),
           status: formData.status,
           sizes: formData.sizes,
-          colors: formData.colors
+          colors: formData.colors,
+          description: formData.description,
+          specifications: formData.specifications
         })
       });
       
@@ -1179,6 +1208,26 @@ export default function DashboardPage() {
     }
   };
 
+  const updateSlipStatus = async (orderId: string, status: string) => {
+    try {
+      const response = await fetch('/api/orders/update-slip-status', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ orderId, status })
+      });
+      
+      if (response.ok) {
+        await loadOrders();
+        setToast({message: `Payment slip ${status}!`, type: 'success'});
+        setTimeout(() => setToast(null), 3000);
+      }
+    } catch (error) {
+      console.error('Error updating slip status:', error);
+      setToast({message: 'Failed to update slip status', type: 'error'});
+      setTimeout(() => setToast(null), 3000);
+    }
+  };
+
   if (!isLoggedIn) {
     return (
       <div className="dashboard-page">
@@ -1426,22 +1475,43 @@ export default function DashboardPage() {
               </button>
             </div>
             <div className="card-body">
-              <div className="mb-3">
-                <input 
-                  type="text" 
-                  className="form-control" 
-                  placeholder="Search products by name, code, or category..."
-                  value={productFilter}
-                  onChange={(e) => setProductFilter(e.target.value)}
-                />
-                {productFilter && (
-                  <small className="text-muted mt-1">
-                    {products.filter(p => 
-                      p.name.toLowerCase().includes(productFilter.toLowerCase()) ||
-                      p.code.toLowerCase().includes(productFilter.toLowerCase()) ||
-                      p.category.toLowerCase().includes(productFilter.toLowerCase())
-                    ).length} results found
-                  </small>
+              <div className="row g-3 mb-3">
+                <div className="col-md-8">
+                  <input 
+                    type="text" 
+                    className="form-control" 
+                    placeholder="Search products by name, code, or category..."
+                    value={productFilter}
+                    onChange={(e) => setProductFilter(e.target.value)}
+                  />
+                </div>
+                <div className="col-md-4">
+                  <select 
+                    className="form-select" 
+                    value={categoryFilter}
+                    onChange={(e) => setCategoryFilter(e.target.value)}
+                  >
+                    <option value="">All Categories</option>
+                    {categories.map(category => (
+                      <option key={category.id || category._id} value={category.name}>
+                        {category.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                {(productFilter || categoryFilter) && (
+                  <div className="col-12">
+                    <small className="text-muted">
+                      {products.filter(p => {
+                        const matchesSearch = !productFilter || 
+                          p.name.toLowerCase().includes(productFilter.toLowerCase()) ||
+                          p.code.toLowerCase().includes(productFilter.toLowerCase()) ||
+                          p.category.toLowerCase().includes(productFilter.toLowerCase());
+                        const matchesCategory = !categoryFilter || p.category === categoryFilter;
+                        return matchesSearch && matchesCategory;
+                      }).length} results found
+                    </small>
+                  </div>
                 )}
               </div>
               <div className="table-responsive">
@@ -1451,6 +1521,7 @@ export default function DashboardPage() {
                       <th>Image</th>
                       <th>Name</th>
                       <th>Code</th>
+                      <th>Brand</th>
                       <th>Category</th>
                       <th>Cost</th>
                       <th>Price</th>
@@ -1469,17 +1540,21 @@ export default function DashboardPage() {
                         </td>
                       </tr>
                     ) : (
-                      products.filter(product => 
-                      product.name.toLowerCase().includes(productFilter.toLowerCase()) ||
-                      product.code.toLowerCase().includes(productFilter.toLowerCase()) ||
-                      product.category.toLowerCase().includes(productFilter.toLowerCase())
-                    ).map(product => (
+                      products.filter(product => {
+                        const matchesSearch = !productFilter || 
+                          product.name.toLowerCase().includes(productFilter.toLowerCase()) ||
+                          product.code.toLowerCase().includes(productFilter.toLowerCase()) ||
+                          product.category.toLowerCase().includes(productFilter.toLowerCase());
+                        const matchesCategory = !categoryFilter || product.category === categoryFilter;
+                        return matchesSearch && matchesCategory;
+                      }).map(product => (
                       <tr key={product._id || product.id || product.code}>
                         <td>
                           <ImageWithFallback src={product.image} alt={product.name} style={{width: '50px', height: '50px', objectFit: 'cover'}} className="rounded" />
                         </td>
                         <td className="fw-bold">{product.name}</td>
                         <td><span className="badge bg-secondary">{product.code}</span></td>
+                        <td><span className="badge bg-primary">{(product as any).brand || 'N/A'}</span></td>
                         <td><span className="badge bg-info">{product.category}</span></td>
                         <td className="text-danger">LKR {product.cost || 0}</td>
                         <td className="fw-bold text-success">LKR {product.price}</td>
@@ -1681,18 +1756,50 @@ export default function DashboardPage() {
 
         {activeTab === 'orders' && hasPrivilege('orders') && (
           <div className="card border-0 shadow-sm">
-            <div className="card-header bg-warning text-dark">
+            <div className="card-header bg-warning text-dark d-flex justify-content-between align-items-center">
               <h5 className="mb-0"><i className="bi bi-cart-check me-2"></i>Order Management</h5>
+              <button className="btn btn-light btn-sm" onClick={loadOrders} title="Refresh Orders">
+                <i className="bi bi-arrow-clockwise me-1"></i>Refresh
+              </button>
             </div>
             <div className="card-body">
-              <div className="mb-3">
-                <input 
-                  type="text" 
-                  className="form-control" 
-                  placeholder="Search orders by customer name or order ID..."
-                  value={orderFilter}
-                  onChange={(e) => setOrderFilter(e.target.value)}
-                />
+              <div className="row g-3 mb-3">
+                <div className="col-md-6">
+                  <input 
+                    type="text" 
+                    className="form-control" 
+                    placeholder="Search orders by customer name or order ID..."
+                    value={orderFilter}
+                    onChange={(e) => setOrderFilter(e.target.value)}
+                  />
+                </div>
+                <div className="col-md-3">
+                  <select 
+                    className="form-select" 
+                    value={orderStatusFilter || ''}
+                    onChange={(e) => setOrderStatusFilter(e.target.value || null)}
+                  >
+                    <option value="">All Status</option>
+                    <option value="pending">Pending</option>
+                    <option value="confirmed">Confirmed</option>
+                    <option value="shipped">Shipped</option>
+                    <option value="delivered">Delivered</option>
+                    <option value="customer_verified">Customer Verified</option>
+                    <option value="cancelled">Cancelled</option>
+                  </select>
+                </div>
+                <div className="col-md-3">
+                  <select 
+                    className="form-select" 
+                    value={paymentStatusFilter || ''}
+                    onChange={(e) => setPaymentStatusFilter(e.target.value || null)}
+                  >
+                    <option value="">All Payment</option>
+                    <option value="pending">Pending</option>
+                    <option value="paid">Paid</option>
+                    <option value="failed">Failed</option>
+                  </select>
+                </div>
               </div>
               <div className="table-responsive">
                 <table className="table table-hover">
@@ -1703,6 +1810,7 @@ export default function DashboardPage() {
                       <th>Items</th>
                       <th>Total</th>
                       <th>Payment</th>
+                      <th>Payment Slip</th>
                       <th>Status</th>
                       <th>Active</th>
                       <th>Date</th>
@@ -1712,17 +1820,21 @@ export default function DashboardPage() {
                   <tbody>
                     {loadingOrders ? (
                       <tr>
-                        <td colSpan={8} className="text-center py-4">
+                        <td colSpan={10} className="text-center py-4">
                           <div className="spinner-border text-warning" role="status">
                             <span className="visually-hidden">Loading...</span>
                           </div>
                         </td>
                       </tr>
                     ) : (
-                      orders.filter(order => 
-                        (order.customerInfo?.name || '').toLowerCase().includes(orderFilter.toLowerCase()) ||
-                        (order._id || '').toLowerCase().includes(orderFilter.toLowerCase())
-                      ).map((order, index) => (
+                      orders.filter(order => {
+                        const matchesSearch = !orderFilter || 
+                          (order.customerInfo?.name || '').toLowerCase().includes(orderFilter.toLowerCase()) ||
+                          (order._id || '').toLowerCase().includes(orderFilter.toLowerCase());
+                        const matchesStatus = !orderStatusFilter || order.status === orderStatusFilter;
+                        const matchesPayment = !paymentStatusFilter || order.paymentStatus === paymentStatusFilter;
+                        return matchesSearch && matchesStatus && matchesPayment;
+                      }).map((order, index) => (
                       <tr key={order._id || index} className={order.status === 'cancelled' ? 'table-secondary text-muted' : ''} style={order.status === 'cancelled' ? {opacity: 0.6} : {}}>
                         <td><span className="badge bg-secondary">{order.orderNumber || order._id?.slice(-8) || `FB${index + 1}`}</span></td>
                         <td>{order.customerInfo?.name || 'N/A'}</td>
@@ -1768,6 +1880,34 @@ export default function DashboardPage() {
                               </div>
                             )}
                           </div>
+                        </td>
+                        <td className="text-center">
+                          {order.paymentSlip ? (
+                            <div className="d-flex flex-column align-items-center gap-1">
+                              <button 
+                                className={`btn btn-sm ${
+                                  order.paymentSlip.status === 'verified' ? 'btn-success' :
+                                  order.paymentSlip.status === 'rejected' ? 'btn-danger' : 'btn-warning'
+                                }`}
+                                onClick={() => {setSelectedSlip(order); setShowSlipModal(true);}}
+                                title={`Payment Slip - ${order.paymentSlip.status?.toUpperCase() || 'PENDING'}`}
+                              >
+                                <i className="bi bi-file-earmark-image"></i>
+                              </button>
+                              <small className={`badge ${
+                                order.paymentSlip.status === 'verified' ? 'bg-success' :
+                                order.paymentSlip.status === 'rejected' ? 'bg-danger' : 'bg-warning text-dark'
+                              }`}>
+                                {order.paymentSlip.status?.toUpperCase() || 'PENDING'}
+                              </small>
+                            </div>
+                          ) : (
+                            <div className="text-muted text-center">
+                              <i className="bi bi-file-earmark-x fs-4" title="No payment slip uploaded"></i>
+                              <br />
+                              <small>No Slip</small>
+                            </div>
+                          )}
                         </td>
                         <td>
                           <div className="d-flex flex-column gap-1">
@@ -2382,11 +2522,25 @@ export default function DashboardPage() {
                                 </select>
                               </div>
                               <div className="col-md-6">
+                                <label className="form-label fw-bold"><i className="bi bi-award me-1"></i>Brand</label>
+                                <input type="text" className="form-control" value={(formData as any).brand || ''} onChange={(e) => setFormData({...formData, brand: e.target.value})} placeholder="e.g., Nike, Adidas" />
+                              </div>
+                              <div className="col-md-6">
                                 <label className="form-label fw-bold"><i className="bi bi-check-circle me-1"></i>Status</label>
                                 <select className="form-select" value={formData.status} onChange={(e) => setFormData({...formData, status: e.target.value as 'instock' | 'outofstock'})}>
                                   <option value="instock">In Stock</option>
                                   <option value="outofstock">Out of Stock</option>
                                 </select>
+                              </div>
+                              <div className="col-12">
+                                <label className="form-label fw-bold"><i className="bi bi-file-text me-1"></i>Product Description</label>
+                                <textarea 
+                                  className="form-control" 
+                                  rows={4}
+                                  value={formData.description}
+                                  onChange={(e) => setFormData({...formData, description: e.target.value})}
+                                  placeholder="Enter detailed product description..."
+                                />
                               </div>
                               <div className="col-12">
                                 <label className="form-label fw-bold"><i className="bi bi-image me-1"></i>Main Product Image *</label>
@@ -2496,6 +2650,55 @@ export default function DashboardPage() {
                               <div className="col-md-4">
                                 <label className="form-label fw-bold text-success">Selling Price (LKR) *</label>
                                 <input type="number" className="form-control" value={formData.price} onChange={(e) => setFormData({...formData, price: +e.target.value})} required min="0" step="0.01" />
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="card border-0 shadow-sm mb-4">
+                          <div className="card-header bg-light">
+                            <h6 className="mb-0"><i className="bi bi-list-ul me-2"></i>Product Specifications</h6>
+                          </div>
+                          <div className="card-body">
+                            <div className="row g-3">
+                              <div className="col-md-6">
+                                <label className="form-label fw-bold">Material</label>
+                                <input 
+                                  type="text" 
+                                  className="form-control" 
+                                  value={formData.specifications.material}
+                                  onChange={(e) => setFormData({...formData, specifications: {...formData.specifications, material: e.target.value}})}
+                                  placeholder="e.g., Premium Cotton"
+                                />
+                              </div>
+                              <div className="col-md-6">
+                                <label className="form-label fw-bold">Care Instructions</label>
+                                <input 
+                                  type="text" 
+                                  className="form-control" 
+                                  value={formData.specifications.careInstructions}
+                                  onChange={(e) => setFormData({...formData, specifications: {...formData.specifications, careInstructions: e.target.value}})}
+                                  placeholder="e.g., Machine Wash"
+                                />
+                              </div>
+                              <div className="col-md-6">
+                                <label className="form-label fw-bold">Weight/Fit</label>
+                                <input 
+                                  type="text" 
+                                  className="form-control" 
+                                  value={formData.specifications.weight}
+                                  onChange={(e) => setFormData({...formData, specifications: {...formData.specifications, weight: e.target.value}})}
+                                  placeholder="e.g., Regular Fit"
+                                />
+                              </div>
+                              <div className="col-md-6">
+                                <label className="form-label fw-bold">Origin</label>
+                                <input 
+                                  type="text" 
+                                  className="form-control" 
+                                  value={formData.specifications.origin}
+                                  onChange={(e) => setFormData({...formData, specifications: {...formData.specifications, origin: e.target.value}})}
+                                  placeholder="e.g., Sri Lanka"
+                                />
                               </div>
                             </div>
                           </div>
@@ -3289,6 +3492,81 @@ export default function DashboardPage() {
                     </button>
                   </div>
                 </form>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {showSlipModal && selectedSlip && (
+          <div className="modal d-block" tabIndex={-1} style={{background: 'rgba(0,0,0,0.8)'}}>
+            <div className="modal-dialog modal-lg">
+              <div className="modal-content">
+                <div className="modal-header bg-success text-white">
+                  <h5 className="modal-title">
+                    <i className="bi bi-receipt me-2"></i>Payment Slip - Order {selectedSlip.orderNumber || selectedSlip._id?.slice(-8)}
+                  </h5>
+                  <button type="button" className="btn-close btn-close-white" onClick={() => setShowSlipModal(false)}></button>
+                </div>
+                <div className="modal-body text-center">
+                  <div className="mb-3">
+                    <span className={`badge fs-6 ${
+                      selectedSlip.paymentSlip?.status === 'verified' ? 'bg-success' :
+                      selectedSlip.paymentSlip?.status === 'rejected' ? 'bg-danger' : 'bg-warning text-dark'
+                    }`}>
+                      {selectedSlip.paymentSlip?.status?.toUpperCase() || 'PENDING'}
+                    </span>
+                  </div>
+                  <div className="mb-3">
+                    <small className="text-muted">Uploaded: {new Date(selectedSlip.paymentSlip?.uploadedAt).toLocaleString()}</small>
+                  </div>
+                  <div className="mb-4">
+                    {selectedSlip.paymentSlip?.imageData ? (
+                      <img 
+                        src={selectedSlip.paymentSlip.imageData} 
+                        alt="Payment Slip" 
+                        className="img-fluid rounded shadow"
+                        style={{maxHeight: '500px', maxWidth: '100%'}}
+                      />
+                    ) : (
+                      <div className="text-center py-5">
+                        <i className="bi bi-file-image display-4 text-muted"></i>
+                        <p className="text-muted mt-2">No payment slip available</p>
+                      </div>
+                    )}
+                  </div>
+                  <div className="d-flex justify-content-center gap-2">
+                    <button 
+                      className="btn btn-success" 
+                      onClick={() => {
+                        updateSlipStatus(selectedSlip._id, 'verified');
+                        setShowSlipModal(false);
+                      }}
+                      disabled={selectedSlip.paymentSlip?.status === 'verified'}
+                    >
+                      <i className="bi bi-check-circle me-2"></i>Verify
+                    </button>
+                    <button 
+                      className="btn btn-danger" 
+                      onClick={() => {
+                        updateSlipStatus(selectedSlip._id, 'rejected');
+                        setShowSlipModal(false);
+                      }}
+                      disabled={selectedSlip.paymentSlip?.status === 'rejected'}
+                    >
+                      <i className="bi bi-x-circle me-2"></i>Reject
+                    </button>
+                    <button 
+                      className="btn btn-warning" 
+                      onClick={() => updateSlipStatus(selectedSlip._id, 'pending')}
+                      disabled={selectedSlip.paymentSlip?.status === 'pending'}
+                    >
+                      <i className="bi bi-clock me-2"></i>Mark Pending
+                    </button>
+                  </div>
+                </div>
+                <div className="modal-footer">
+                  <button type="button" className="btn btn-secondary" onClick={() => setShowSlipModal(false)}>Close</button>
+                </div>
               </div>
             </div>
           </div>

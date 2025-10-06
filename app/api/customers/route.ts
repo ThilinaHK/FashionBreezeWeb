@@ -2,11 +2,27 @@ import { NextRequest, NextResponse } from 'next/server';
 import dbConnect from '../../lib/mongodb';
 import Customer from '../../lib/models/Customer';
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
     await dbConnect();
-    const customers = await Customer.find({}).sort({ createdAt: -1 }).lean();
-    return NextResponse.json(customers);
+    const { searchParams } = new URL(request.url);
+    const id = searchParams.get('id');
+    
+    if (id) {
+      // Get specific customer by ID
+      let customer = await Customer.findById(id).lean();
+      if (!customer) {
+        customer = await Customer.findOne({ id: parseInt(id) }).lean();
+      }
+      if (!customer) {
+        return NextResponse.json({ error: 'Customer not found' }, { status: 404 });
+      }
+      return NextResponse.json([customer]); // Return as array for compatibility
+    } else {
+      // Get all customers
+      const customers = await Customer.find({}).sort({ createdAt: -1 }).lean();
+      return NextResponse.json(customers);
+    }
   } catch (error) {
     console.error('Error loading customers:', error);
     return NextResponse.json([

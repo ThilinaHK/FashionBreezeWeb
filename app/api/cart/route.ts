@@ -24,41 +24,20 @@ export async function POST(request: NextRequest) {
     await dbConnect();
     const { userId, items, total } = await request.json();
     
+    console.log('Cart POST - userId:', userId, 'items:', items?.length);
+    
     if (!userId) {
       return NextResponse.json({ success: false, error: 'User ID required' }, { status: 400 });
     }
     
-    // Check inventory for each item
-    const Product = require('../../lib/models/Product').default;
-    
-    for (const item of items) {
-      const product = await Product.findById(item.productId);
-      if (!product) {
-        return NextResponse.json({ 
-          success: false, 
-          error: `Product ${item.name} not found` 
-        }, { status: 400 });
-      }
-      
-      // Check total stock
-      const availableStock = product.inventory?.totalStock || 0;
-      if (item.quantity > availableStock) {
-        return NextResponse.json({ 
-          success: false, 
-          error: `Only ${availableStock} units available for ${item.name}` 
-        }, { status: 400 });
-      }
-      
-      // Check size-specific stock if size is selected
-      if (item.size) {
-        const sizeStock = product.sizes?.find((s: any) => s.size === item.size)?.stock || 0;
-        if (item.quantity > sizeStock) {
-          return NextResponse.json({ 
-            success: false, 
-            error: `Only ${sizeStock} units available for ${item.name} in size ${item.size}` 
-          }, { status: 400 });
-        }
-      }
+    if (!items || items.length === 0) {
+      // Allow saving empty cart
+      await Cart.findOneAndUpdate(
+        { userId },
+        { items: [], total: 0 },
+        { upsert: true, new: true }
+      );
+      return NextResponse.json({ success: true });
     }
     
     await Cart.findOneAndUpdate(
@@ -67,6 +46,7 @@ export async function POST(request: NextRequest) {
       { upsert: true, new: true }
     );
     
+    console.log('Cart saved successfully for userId:', userId);
     return NextResponse.json({ success: true });
   } catch (error: any) {
     console.error('Cart save error:', error);

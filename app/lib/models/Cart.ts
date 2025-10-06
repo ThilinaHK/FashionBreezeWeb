@@ -2,11 +2,13 @@ import mongoose from 'mongoose';
 
 const CartItemSchema = new mongoose.Schema({
   id: Number,
+  productId: String,
   name: String,
   code: String,
   price: Number,
   quantity: Number,
   size: String,
+  color: String,
   image: String,
   category: String,
 });

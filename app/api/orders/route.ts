@@ -16,6 +16,19 @@ export async function GET(request: NextRequest) {
       orders = await Order.find({}).sort({ createdAt: -1 }).lean();
     }
     
+    // Debug: Check if paymentSlip data exists
+    const ordersWithSlips = orders.filter(order => order.paymentSlip);
+    console.log(`Found ${ordersWithSlips.length} orders with payment slips out of ${orders.length} total orders`);
+    
+    // Debug specific order
+    const debugOrder = orders.find(o => o.orderNumber === 'FB000004');
+    if (debugOrder) {
+      console.log('=== DEBUG ORDER FB000004 ===');
+      console.log('Has paymentSlip:', !!debugOrder.paymentSlip);
+      console.log('PaymentSlip data:', debugOrder.paymentSlip);
+      console.log('=== END DEBUG ===');
+    }
+    
     return NextResponse.json(orders);
   } catch (error) {
     console.error('Error loading orders:', error);
@@ -26,17 +39,29 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     await dbConnect();
-    const { userId, customerInfo, paymentMethod, paymentStatus } = await request.json();
+    const { userId, items: fallbackItems, total: fallbackTotal, customerInfo, paymentMethod, paymentStatus } = await request.json();
     
     if (!userId) {
       return NextResponse.json({ success: false, error: 'User ID required' }, { status: 400 });
     }
     
-    // Get cart items from MongoDB
+    // Get cart items from MongoDB, use fallback if not found
     const Cart = require('../../lib/models/Cart').default;
     const cart = await Cart.findOne({ userId });
     
-    if (!cart || !cart.items || cart.items.length === 0) {
+    console.log('Order API - userId:', userId);
+    console.log('Order API - cart found:', cart);
+    console.log('Order API - cart items:', cart?.items?.length || 0);
+    console.log('Order API - fallback items:', fallbackItems?.length || 0);
+    
+    let orderItems, orderTotal;
+    if (cart && cart.items && cart.items.length > 0) {
+      orderItems = cart.items;
+      orderTotal = cart.total;
+    } else if (fallbackItems && fallbackItems.length > 0) {
+      orderItems = fallbackItems;
+      orderTotal = fallbackTotal;
+    } else {
       return NextResponse.json({ success: false, error: 'Cart is empty' }, { status: 400 });
     }
     
@@ -48,8 +73,8 @@ export async function POST(request: NextRequest) {
     // Reduce inventory for each item
     const Product = require('../../lib/models/Product').default;
     
-    for (const item of cart.items) {
-      const product = await Product.findById(item.productId);
+    for (const item of orderItems) {
+      const product = await Product.findById(item.productId || item._id || item.id);
       if (product) {
         // Reduce total stock
         if (product.inventory?.totalStock >= item.quantity) {
@@ -78,8 +103,8 @@ export async function POST(request: NextRequest) {
       orderNumber,
       userId,
       customerInfo,
-      items: cart.items,
-      total: cart.total,
+      items: orderItems,
+      total: orderTotal,
       status: 'pending',
       paymentMethod: paymentMethod || 'cash_on_delivery',
       paymentStatus: paymentStatus || 'pending'
@@ -98,7 +123,7 @@ export async function POST(request: NextRequest) {
 export async function PUT(request: NextRequest) {
   try {
     await dbConnect();
-    const { orderId, status, isActive, paymentStatus, paymentMethod } = await request.json();
+    const { orderId, status, isActive, paymentStatus, paymentMethod, paymentSlip } = await request.json();
     const userId = request.headers.get('x-user-id');
     const username = request.headers.get('x-user-name');
     
@@ -123,6 +148,9 @@ export async function PUT(request: NextRequest) {
     if (isActive !== undefined) updateData.isActive = isActive;
     if (paymentStatus !== undefined) updateData.paymentStatus = paymentStatus;
     if (paymentMethod !== undefined) updateData.paymentMethod = paymentMethod;
+    if (paymentSlip !== undefined) {
+      updateData['paymentSlip.status'] = paymentSlip.status;
+    }
     
     // Handle inventory restoration for cancelled orders
     if (status === 'cancelled' && existingOrder.status !== 'cancelled') {
@@ -155,16 +183,6 @@ export async function PUT(request: NextRequest) {
     // Track status change in history
     if (status !== undefined && status !== existingOrder.status) {
       try {
-        console.log('Creating order history:', {
-          orderId: existingOrder._id,
-          previousStatus: existingOrder.status,
-          newStatus: status,
-          changedBy: {
-            userId: userId || 'system',
-            username: username || 'System'
-          }
-        });
-        
         const historyRecord = await OrderHistory.create({
           orderId: existingOrder._id,
           previousStatus: existingOrder.status,
@@ -175,11 +193,26 @@ export async function PUT(request: NextRequest) {
           },
           timestamp: new Date()
         });
-        
-        console.log('Order history created successfully:', historyRecord._id);
       } catch (historyError) {
         console.error('Failed to create order history:', historyError);
-        // Don't fail the entire request if history creation fails
+      }
+    }
+    
+    // Track payment slip status change in history
+    if (paymentSlip !== undefined && paymentSlip.status !== existingOrder.paymentSlip?.status) {
+      try {
+        await OrderHistory.create({
+          orderId: existingOrder._id,
+          previousStatus: existingOrder.paymentSlip?.status || 'none',
+          newStatus: `payment_${paymentSlip.status}`,
+          changedBy: {
+            userId: userId || 'system',
+            username: username || 'System'
+          },
+          timestamp: new Date()
+        });
+      } catch (historyError) {
+        console.error('Failed to create payment history:', historyError);
       }
     }
     

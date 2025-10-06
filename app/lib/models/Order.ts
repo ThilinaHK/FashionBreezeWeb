@@ -55,6 +55,16 @@ const OrderSchema = new mongoose.Schema({
     enum: ['pending', 'paid', 'failed'],
     default: 'pending',
   },
+  paymentSlip: {
+    filename: String,
+    imageData: String,
+    uploadedAt: Date,
+    status: {
+      type: String,
+      enum: ['pending', 'verified', 'rejected'],
+      default: 'pending',
+    },
+  },
   deliveryVerified: {
     type: Boolean,
     default: false,
