@@ -71,8 +71,8 @@ export default function ClientPage() {
   };
 
   const getSpecification = (product: Product | null, key: string, fallback: string): string => {
-    if (!product?.specifications) return fallback;
-    const specs = product.specifications as any;
+    if (!(product as any)?.specifications) return fallback;
+    const specs = (product as any).specifications as any;
     return specs[key] || fallback;
   };
 
@@ -1504,7 +1504,7 @@ export default function ClientPage() {
                               </div>
                               
                               {/* Description Preview */}
-                              {product.description && (
+                              {(product as any).description && (
                                 <p className="product-description" style={{
                                   fontSize: '0.85rem',
                                   color: '#6b7280',
@@ -1515,15 +1515,15 @@ export default function ClientPage() {
                                   WebkitBoxOrient: 'vertical',
                                   overflow: 'hidden'
                                 }}>
-                                  {product.description}
+                                  {(product as any).description}
                                 </p>
                               )}
                               
                               {/* Specifications Preview */}
-                              {product.specifications && (
+                              {(product as any).specifications && (
                                 <div className="specifications-preview mb-3">
                                   <div className="d-flex flex-wrap gap-1">
-                                    {product.specifications?.material && (
+                                    {(product as any).specifications?.material && (
                                       <span className="spec-badge" style={{
                                         background: 'rgba(34, 197, 94, 0.1)',
                                         color: '#059669',
@@ -1533,10 +1533,10 @@ export default function ClientPage() {
                                         fontWeight: '500',
                                         border: '1px solid rgba(34, 197, 94, 0.2)'
                                       }}>
-                                        <i className="bi bi-patch-check me-1"></i>{product.specifications.material}
+                                        <i className="bi bi-patch-check me-1"></i>{(product as any).specifications.material}
                                       </span>
                                     )}
-                                    {product.specifications?.origin && (
+                                    {(product as any).specifications?.origin && (
                                       <span className="spec-badge" style={{
                                         background: 'rgba(59, 130, 246, 0.1)',
                                         color: '#2563eb',
@@ -1546,7 +1546,7 @@ export default function ClientPage() {
                                         fontWeight: '500',
                                         border: '1px solid rgba(59, 130, 246, 0.2)'
                                       }}>
-                                        <i className="bi bi-geo me-1"></i>{product.specifications.origin}
+                                        <i className="bi bi-geo me-1"></i>{(product as any).specifications.origin}
                                       </span>
                                     )}
                                   </div>
@@ -2205,7 +2205,7 @@ export default function ClientPage() {
                                 fontSize: '1rem',
                                 fontWeight: '400',
                                 textAlign: 'justify'
-                              }}>{selectedProduct?.description || getProductDescription()}</p>
+                              }}>{(selectedProduct as any)?.description || getProductDescription()}</p>
                               
                               <div className="product-specs mt-3 pt-3" style={{
                                 borderTop: '1px solid rgba(255,255,255,0.1)'
@@ -2218,7 +2218,7 @@ export default function ClientPage() {
                                       border: '1px solid rgba(255,255,255,0.08)'
                                     }}>
                                       <span style={{color: '#b0b0b0', fontSize: '0.8rem'}}>Material:</span>
-                                      <span style={{color: '#ffffff', fontSize: '0.8rem', fontWeight: '500'}}>{selectedProduct?.specifications?.material || 'Premium Cotton'}</span>
+                                      <span style={{color: '#ffffff', fontSize: '0.8rem', fontWeight: '500'}}>{(selectedProduct as any)?.specifications?.material || 'Premium Cotton'}</span>
                                     </div>
                                   </div>
                                   <div className="col-6">
@@ -2227,7 +2227,7 @@ export default function ClientPage() {
                                       border: '1px solid rgba(255,255,255,0.08)'
                                     }}>
                                       <span style={{color: '#b0b0b0', fontSize: '0.8rem'}}>Care:</span>
-                                      <span style={{color: '#ffffff', fontSize: '0.8rem', fontWeight: '500'}}>{selectedProduct?.specifications?.careInstructions || 'Machine Wash'}</span>
+                                      <span style={{color: '#ffffff', fontSize: '0.8rem', fontWeight: '500'}}>{(selectedProduct as any)?.specifications?.careInstructions || 'Machine Wash'}</span>
                                     </div>
                                   </div>
                                   <div className="col-6">
@@ -2236,7 +2236,7 @@ export default function ClientPage() {
                                       border: '1px solid rgba(255,255,255,0.08)'
                                     }}>
                                       <span style={{color: '#b0b0b0', fontSize: '0.8rem'}}>Weight:</span>
-                                      <span style={{color: '#ffffff', fontSize: '0.8rem', fontWeight: '500'}}>{selectedProduct?.specifications?.weight || 'Regular Fit'}</span>
+                                      <span style={{color: '#ffffff', fontSize: '0.8rem', fontWeight: '500'}}>{(selectedProduct as any)?.specifications?.weight || 'Regular Fit'}</span>
                                     </div>
                                   </div>
                                   <div className="col-6">
@@ -2245,7 +2245,7 @@ export default function ClientPage() {
                                       border: '1px solid rgba(255,255,255,0.08)'
                                     }}>
                                       <span style={{color: '#b0b0b0', fontSize: '0.8rem'}}>Origin:</span>
-                                      <span style={{color: '#ffffff', fontSize: '0.8rem', fontWeight: '500'}}>{selectedProduct?.specifications?.origin || 'Sri Lanka'}</span>
+                                      <span style={{color: '#ffffff', fontSize: '0.8rem', fontWeight: '500'}}>{(selectedProduct as any)?.specifications?.origin || 'Sri Lanka'}</span>
                                     </div>
                                   </div>
                                 </div>
