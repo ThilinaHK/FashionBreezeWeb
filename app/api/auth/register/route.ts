@@ -1,52 +1,32 @@
 import { NextRequest, NextResponse } from 'next/server';
+import dbConnect from '../../../lib/mongodb';
+import Customer from '../../../lib/models/Customer';
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
+    await dbConnect();
+    const userData = await request.json();
     
-    console.log('=== CUSTOMER REGISTRATION ===');
-    console.log('Registration data:', body);
+    // Auto-generate ID
+    const lastCustomer = await Customer.findOne().sort({ id: -1 }).select('id');
+    const customerId = lastCustomer ? lastCustomer.id + 1 : 1;
     
-    try {
-      const mongoUri = process.env.MONGODB_URI || 'mongodb://localhost:27017';
-      const { MongoClient } = require('mongodb');
-      const client = new MongoClient(mongoUri);
-      await client.connect();
-      const db = client.db('fashionBreeze');
-      
-      // Check if customer already exists
-      const existingCustomer = await db.collection('customers').findOne({ email: body.email });
-      if (existingCustomer) {
-        await client.close();
-        return NextResponse.json({ error: 'Email already registered' }, { status: 400 });
-      }
-      
-      // Create new customer
-      const customerData = {
-        ...body,
-        createdAt: new Date(),
-        updatedAt: new Date()
-      };
-      
-      const result = await db.collection('customers').insertOne(customerData);
-      console.log('Customer saved to customers collection with ID:', result.insertedId);
-      
-      await client.close();
-      
-      return NextResponse.json({ 
-        success: true, 
-        user: { id: result.insertedId, name: body.name, email: body.email, ...body } 
-      });
-    } catch (dbError) {
-      console.error('MongoDB registration error:', dbError);
-      // Fallback: simulate successful registration
-      const userId = Date.now().toString();
-      return NextResponse.json({ 
-        success: true, 
-        user: { id: userId, name: body.name, email: body.email, ...body } 
-      });
+    const customer = await Customer.create({
+      ...userData,
+      id: customerId,
+      status: 'active'
+    });
+    
+    return NextResponse.json({ 
+      success: true, 
+      user: { ...customer.toObject(), password: undefined }, // Don't send password back
+      userId: customer._id.toString() 
+    });
+  } catch (error: any) {
+    console.error('Registration error:', error);
+    if (error.code === 11000) {
+      return NextResponse.json({ success: false, error: 'Email already exists' }, { status: 400 });
     }
-  } catch (error) {
-    return NextResponse.json({ error: 'Registration failed' }, { status: 500 });
+    return NextResponse.json({ success: false, error: 'Registration failed' }, { status: 500 });
   }
 }

@@ -1,69 +1,86 @@
 import { NextRequest, NextResponse } from 'next/server';
+import dbConnect from '../../../lib/mongodb';
+import Product from '../../../lib/models/Product';
 
 export async function PUT(request: NextRequest, { params }: { params: { id: string } }) {
   try {
+    await dbConnect();
     const body = await request.json();
-    const id = parseInt(params.id);
+    const id = params.id;
     
-    try {
-      const { MongoClient } = require('mongodb');
-      const client = new MongoClient(process.env.MONGODB_URI);
-      await client.connect();
-      const db = client.db('fashionBreeze');
-      
-      const result = await db.collection('products').updateOne(
-        { id },
-        { $set: body }
-      );
-      await client.close();
-      
-      console.log('Update result:', result);
-      return NextResponse.json({ success: true, updated: result.modifiedCount });
-    } catch (dbError) {
-      console.log('MongoDB update failed, using fallback');
-      // Fallback: Update JSON file
-      const fs = require('fs');
-      const path = require('path');
-      const filePath = path.join(process.cwd(), 'public', 'products.json');
-      
-      try {
-        const fileContents = fs.readFileSync(filePath, 'utf8');
-        const products = JSON.parse(fileContents);
-        const productIndex = products.findIndex((p: any) => p.id === id);
-        
-        if (productIndex !== -1) {
-          products[productIndex] = { ...products[productIndex], ...body };
-          fs.writeFileSync(filePath, JSON.stringify(products, null, 2));
-        }
-      } catch (fileError) {
-        console.error('File update failed:', fileError);
-      }
-      
-      return NextResponse.json({ success: true });
+    // Map dashboard status to model status
+    if (body.status === 'instock') {
+      body.status = 'active';
+    } else if (body.status === 'outofstock') {
+      body.status = 'outofstock';
     }
-  } catch (error) {
-    return NextResponse.json({ error: 'Failed to update product' }, { status: 500 });
+    
+    // Add audit fields
+    const userId = request.headers.get('x-user-id');
+    const userName = request.headers.get('x-user-name');
+    body.updatedBy = userId || 'system';
+    body.updatedByName = userName || 'System';
+    
+    // Validate and clean sizes
+    if (body.sizes && Array.isArray(body.sizes)) {
+      body.sizes = body.sizes.filter((size: any) => size.size && size.size.trim());
+    }
+    
+    // Validate and clean colors
+    if (body.colors && Array.isArray(body.colors)) {
+      body.colors = body.colors.filter((color: any) => color.name && color.name.trim());
+    }
+    
+    // Handle additional images array
+    if (body.additionalImages && Array.isArray(body.additionalImages)) {
+      body.additionalImages = body.additionalImages.filter((img: string) => img && img.trim());
+    } else if (body.images && Array.isArray(body.images)) {
+      body.additionalImages = body.images.filter((img: string) => img && img.trim());
+      delete body.images;
+    }
+    
+    console.log('Updating product with data:', JSON.stringify(body, null, 2));
+    
+    // Try to find by _id first, then by id field
+    let product = await Product.findByIdAndUpdate(id, body, { new: true, runValidators: true });
+    
+    if (!product) {
+      // Try finding by id field if _id doesn't work
+      product = await Product.findOneAndUpdate({ id: parseInt(id) }, body, { new: true, runValidators: true });
+    }
+    
+    if (!product) {
+      return NextResponse.json({ error: 'Product not found' }, { status: 404 });
+    }
+    
+    return NextResponse.json({ success: true, product });
+  } catch (error: any) {
+    console.error('Product update error:', error);
+    console.error('Error details:', error.message);
+    return NextResponse.json({ error: `Failed to update product: ${error.message}` }, { status: 500 });
   }
 }
 
 export async function DELETE(request: NextRequest, { params }: { params: { id: string } }) {
   try {
-    const id = parseInt(params.id);
+    await dbConnect();
+    const id = params.id;
     
-    try {
-      const { MongoClient } = require('mongodb');
-      const client = new MongoClient(process.env.MONGODB_URI);
-      await client.connect();
-      const db = client.db('fashionBreeze');
-      
-      await db.collection('products').deleteOne({ id });
-      await client.close();
-      
-      return NextResponse.json({ success: true });
-    } catch (dbError) {
-      return NextResponse.json({ success: true });
+    // Try to delete by _id first, then by id field
+    let result = await Product.findByIdAndDelete(id);
+    
+    if (!result) {
+      // Try finding by id field if _id doesn't work
+      result = await Product.findOneAndDelete({ id: parseInt(id) });
     }
-  } catch (error) {
+    
+    if (!result) {
+      return NextResponse.json({ error: 'Product not found' }, { status: 404 });
+    }
+    
+    return NextResponse.json({ success: true });
+  } catch (error: any) {
+    console.error('Product delete error:', error);
     return NextResponse.json({ error: 'Failed to delete product' }, { status: 500 });
   }
 }
