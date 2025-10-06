@@ -1297,18 +1297,7 @@ export default function ClientPage() {
                   <div className="row g-4">
                     {getFilteredProducts().map(product => (
                       <div key={product.id} className="col-xl-3 col-lg-4 col-md-6">
-                        <div className={`premium-product-card ${product.status === 'outofstock' ? 'out-of-stock' : ''}`} 
-                             style={{
-                               background: 'linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%)',
-                               borderRadius: '24px',
-                               overflow: 'hidden',
-                               border: '1px solid rgba(0,0,0,0.08)',
-                               boxShadow: '0 10px 40px rgba(0,0,0,0.08)',
-                               transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
-                               position: 'relative',
-                               height: '100%',
-                               cursor: 'pointer'
-                             }}
+                        <div className={`premium-product-card ${product.status === 'outofstock' ? 'out-of-stock' : ''}`}
                              onMouseEnter={(e) => {
                                e.currentTarget.style.transform = 'translateY(-8px)';
                                e.currentTarget.style.boxShadow = '0 20px 60px rgba(0,0,0,0.15)';
@@ -1319,6 +1308,15 @@ export default function ClientPage() {
                              }}
                              onClick={() => openProductModal(product)}
                              style={{
+                               background: 'linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%)',
+                               borderRadius: '24px',
+                               overflow: 'hidden',
+                               border: '1px solid rgba(0,0,0,0.08)',
+                               boxShadow: '0 10px 40px rgba(0,0,0,0.08)',
+                               transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
+                               position: 'relative',
+                               height: '100%',
+                               cursor: 'pointer',
                                opacity: (() => {
                                  const isOutOfStock = product.status === 'outofstock' || (
                                    product.status !== 'active' && product.status !== 'instock'
