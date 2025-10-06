@@ -94,6 +94,9 @@ export default function DashboardPage() {
   const [loadingAddresses, setLoadingAddresses] = useState(false);
   const [showAddressModal, setShowAddressModal] = useState(false);
   const [editingAddress, setEditingAddress] = useState<any>(null);
+  const [showRestockModal, setShowRestockModal] = useState(false);
+  const [restockingProduct, setRestockingProduct] = useState<Product | null>(null);
+  const [restockData, setRestockData] = useState<{[key: string]: number}>({});
   const [showSlipModal, setShowSlipModal] = useState(false);
   const [selectedSlip, setSelectedSlip] = useState<any>(null);
   const [addressFormData, setAddressFormData] = useState({
@@ -1174,6 +1177,52 @@ export default function DashboardPage() {
     printWindow?.document.close();
   };
 
+  const openRestockModal = (product: Product) => {
+    setRestockingProduct(product);
+    const initialData: {[key: string]: number} = {};
+    
+    if (Array.isArray(product.sizes)) {
+      product.sizes.forEach(size => {
+        if (size.colors && size.colors.length > 0) {
+          size.colors.forEach((color: any) => {
+            initialData[`${size.size}-${color.name}`] = 0;
+          });
+        } else {
+          initialData[size.size] = 0;
+        }
+      });
+    }
+    
+    setRestockData(initialData);
+    setShowRestockModal(true);
+  };
+
+  const handleRestock = async () => {
+    if (!restockingProduct) return;
+    
+    try {
+      const productId = restockingProduct._id || restockingProduct.id;
+      const response = await fetch(`/api/products/${productId}/restock`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ restockData })
+      });
+      
+      if (response.ok) {
+        await loadProducts();
+        setShowRestockModal(false);
+        setRestockingProduct(null);
+        setRestockData({});
+        setToast({message: 'Product restocked successfully!', type: 'success'});
+        setTimeout(() => setToast(null), 3000);
+      }
+    } catch (error) {
+      console.error('Error restocking product:', error);
+      setToast({message: 'Failed to restock product', type: 'error'});
+      setTimeout(() => setToast(null), 3000);
+    }
+  };
+
   const deleteCustomer = async (customer: any) => {
     const customerId = customer._id || customer.id;
     if (confirm('Are you sure you want to delete this customer?')) {
@@ -1566,6 +1615,9 @@ export default function DashboardPage() {
                         </td>
                         <td>
                           <div className="d-flex gap-2">
+                            <button className="btn btn-sm btn-outline-success" onClick={() => openRestockModal(product)} title="Restock">
+                              <i className="bi bi-plus-square"></i>
+                            </button>
                             <button className="btn btn-sm btn-outline-primary" onClick={() => openModal(product)}>
                               <i className="bi bi-pencil"></i>
                             </button>
@@ -3566,6 +3618,72 @@ export default function DashboardPage() {
                 </div>
                 <div className="modal-footer">
                   <button type="button" className="btn btn-secondary" onClick={() => setShowSlipModal(false)}>Close</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {showRestockModal && restockingProduct && (
+          <div className="modal d-block" tabIndex={-1} style={{background: 'rgba(0,0,0,0.5)'}}>
+            <div className="modal-dialog">
+              <div className="modal-content">
+                <div className="modal-header bg-success text-white">
+                  <h5 className="modal-title">
+                    <i className="bi bi-plus-square me-2"></i>Restock Product - {restockingProduct.name}
+                  </h5>
+                  <button type="button" className="btn-close btn-close-white" onClick={() => setShowRestockModal(false)}></button>
+                </div>
+                <div className="modal-body">
+                  <div className="row g-3">
+                    {Array.isArray(restockingProduct.sizes) ? (
+                      restockingProduct.sizes.map(size => (
+                        size.colors && size.colors.length > 0 ? (
+                          size.colors.map((color: any) => (
+                            <div key={`${size.size}-${color.name}`} className="col-md-6">
+                              <label className="form-label fw-bold">{size.size} - {color.name}</label>
+                              <div className="input-group">
+                                <span className="input-group-text">Current: {color.stock}</span>
+                                <input 
+                                  type="number" 
+                                  className="form-control" 
+                                  placeholder="Add stock"
+                                  min="0"
+                                  value={restockData[`${size.size}-${color.name}`] || 0}
+                                  onChange={(e) => setRestockData({...restockData, [`${size.size}-${color.name}`]: +e.target.value})}
+                                />
+                              </div>
+                            </div>
+                          ))
+                        ) : (
+                          <div key={size.size} className="col-md-6">
+                            <label className="form-label fw-bold">Size {size.size}</label>
+                            <div className="input-group">
+                              <span className="input-group-text">Current: {size.stock}</span>
+                              <input 
+                                type="number" 
+                                className="form-control" 
+                                placeholder="Add stock"
+                                min="0"
+                                value={restockData[size.size] || 0}
+                                onChange={(e) => setRestockData({...restockData, [size.size]: +e.target.value})}
+                              />
+                            </div>
+                          </div>
+                        )
+                      ))
+                    ) : (
+                      <div className="col-12">
+                        <p className="text-muted">No size variants configured for this product.</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+                <div className="modal-footer">
+                  <button type="button" className="btn btn-secondary" onClick={() => setShowRestockModal(false)}>Cancel</button>
+                  <button type="button" className="btn btn-success" onClick={handleRestock}>
+                    <i className="bi bi-check-circle me-2"></i>Update Stock
+                  </button>
                 </div>
               </div>
             </div>
