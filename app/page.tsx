@@ -1802,7 +1802,7 @@ export default function ClientPage() {
                             </div>
                             <div className="d-flex justify-content-between align-items-center">
                               <span className="fw-bold" style={{color: '#27ae60', fontSize: '1.1rem'}}>LKR {(item.price * item.quantity).toLocaleString()}</span>
-                              <button onClick={() => removeFromCart(item.id || item._id, item.size)} className="btn btn-outline-danger btn-sm rounded-circle" style={{width: '32px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center'}}>
+                              <button onClick={() => removeFromCart(item.id || item._id || '', item.size)} className="btn btn-outline-danger btn-sm rounded-circle" style={{width: '32px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center'}}>
                                 <i className="bi bi-trash" style={{fontSize: '0.8rem'}}></i>
                               </button>
                             </div>
