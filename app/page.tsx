@@ -1924,21 +1924,21 @@ export default function ClientPage() {
                   <div className="col-lg-7">
                     <div className="d-flex flex-column h-100">
                       <div className="position-relative flex-grow-1 d-flex align-items-center justify-content-center" style={{minHeight: '500px', background: 'rgba(255,255,255,0.02)', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.1)'}}>
-                        <ImageWithFallback 
-                          src={getProductImages()[currentImageIndex] || selectedProduct.image} 
-                          alt={selectedProduct.name}
-                          className="img-fluid product-zoom"
-                          key={currentImageIndex}
-                          style={{
-                            transform: `scale(${zoomLevel})`,
-                            transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
-                            cursor: zoomLevel === 1 ? 'zoom-in' : 'zoom-out',
-                            maxHeight: '65vh',
-                            objectFit: 'contain',
-                            borderRadius: '8px'
-                          }}
-                          onClick={toggleZoom}
-                        />
+                        <div onClick={toggleZoom} style={{cursor: zoomLevel === 1 ? 'zoom-in' : 'zoom-out'}}>
+                          <ImageWithFallback 
+                            src={getProductImages()[currentImageIndex] || selectedProduct.image} 
+                            alt={selectedProduct.name}
+                            className="img-fluid product-zoom"
+                            key={currentImageIndex}
+                            style={{
+                              transform: `scale(${zoomLevel})`,
+                              transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
+                              maxHeight: '65vh',
+                              objectFit: 'contain',
+                              borderRadius: '8px'
+                            }}
+                          />
+                        </div>
                         
                         {/* Image Navigation Arrows */}
                         {getProductImages().length > 1 && (
