@@ -1355,8 +1355,6 @@ export default function ClientPage() {
                                   objectFit: 'cover',
                                   transition: 'transform 0.6s cubic-bezier(0.4, 0, 0.2, 1)'
                                 }}
-                                onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.1)'}
-                                onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
                               />
                             </div>
                             
