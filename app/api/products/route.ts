@@ -5,32 +5,25 @@ import Product from '../../lib/models/Product';
 export async function GET() {
   try {
     await dbConnect();
-    
-    // Use lean() for faster queries and select only needed fields
     const products = await Product.find(
-      {},
-      'name code price image additionalImages category subcategory status featured rating discount originalPrice sizes cost vat description specifications brand'
-    )
-      .sort({ featured: -1, sortOrder: 1 })
-      .lean()
-      .limit(100);
+      { status: { $in: ['active', 'instock'] } },
+      'name code price image category status sizes brand cost vat'
+    ).lean().limit(100).sort({ updatedAt: -1 });
     
-    // Remove duplicates based on code (in case there are any)
-    const uniqueProducts = products.filter((product, index, self) => 
-      index === self.findIndex(p => p.code === product.code)
-    );
-    
-    // Add cache headers for better performance
-    return NextResponse.json(uniqueProducts, {
+    return NextResponse.json(products, {
       headers: {
-        'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=600',
-        'CDN-Cache-Control': 'public, s-maxage=300',
-        'Vercel-CDN-Cache-Control': 'public, s-maxage=300'
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0'
       }
     });
   } catch (error) {
     console.error('Products API error:', error);
-    return NextResponse.json([]);
+    return NextResponse.json([], {
+      headers: {
+        'Cache-Control': 'no-cache, no-store, must-revalidate'
+      }
+    });
   }
 }
 

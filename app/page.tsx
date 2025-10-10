@@ -82,7 +82,7 @@ export default function ClientPage() {
     loadCartFromStorage();
     loadCategoriesFromAPI();
     startProductUpdateListener();
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, []);
 
   const startProductUpdateListener = () => {
     if (typeof window !== 'undefined') {
@@ -165,51 +165,22 @@ export default function ClientPage() {
     try {
       setLoading(true);
       
-      // Try to get from cache first
-      const cachedProducts = sessionStorage.getItem('products_cache');
-      const cacheTimestamp = sessionStorage.getItem('products_cache_time');
-      
-      if (cachedProducts && cacheTimestamp) {
-        const age = Date.now() - parseInt(cacheTimestamp);
-        if (age < 300000) { // 5 minutes cache
-          const products = JSON.parse(cachedProducts);
-          setProducts(Array.isArray(products) ? products : []);
-          updateCategories(Array.isArray(products) ? products : []);
-          setLoading(false);
-          return;
-        }
-      }
-      
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10s timeout
-      
-      const response = await fetch('/api/products', {
-        signal: controller.signal,
+      const response = await fetch(`/api/products?t=${Date.now()}`, {
+        cache: 'no-store',
         headers: {
-          'Cache-Control': 'max-age=300'
+          'Cache-Control': 'no-cache'
         }
       });
-      
-      clearTimeout(timeoutId);
-      
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
-      }
       
       const products = await response.json();
       
       if (Array.isArray(products) && products.length > 0) {
         setProducts(products);
         updateCategories(products);
-        
-        // Cache the results
-        sessionStorage.setItem('products_cache', JSON.stringify(products));
-        sessionStorage.setItem('products_cache_time', Date.now().toString());
       } else {
         loadFallbackProducts();
       }
     } catch (error) {
-      console.error('Error loading products:', error);
       loadFallbackProducts();
     } finally {
       setLoading(false);
@@ -279,7 +250,10 @@ export default function ClientPage() {
 
   const updateCategories = (productList: Product[]) => {
     const uniqueCategories = [...new Set(productList.map(p => getCategoryName(p.category)))];
-    setCategories(['All', ...uniqueCategories]);
+    // Only update categories if we don't have API categories loaded
+    if (categories.length <= 1) {
+      setCategories(['All', ...uniqueCategories]);
+    }
     const maxProductPrice = Math.max(...productList.map(p => p.price));
     setMaxPrice(Math.ceil(maxProductPrice));
     setPriceRange({ min: 0, max: Math.ceil(maxProductPrice) });
@@ -287,40 +261,15 @@ export default function ClientPage() {
 
   const loadCategoriesFromAPI = async () => {
     try {
-      // Check cache first
-      const cachedCategories = sessionStorage.getItem('categories_cache');
-      const cacheTimestamp = sessionStorage.getItem('categories_cache_time');
-      
-      if (cachedCategories && cacheTimestamp) {
-        const age = Date.now() - parseInt(cacheTimestamp);
-        if (age < 600000) { // 10 minutes cache for categories
-          const categories = JSON.parse(cachedCategories);
-          setCategories(['All', ...categories.map((cat: any) => cat.name)]);
-          return;
-        }
-      }
-      
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 5000);
-      
-      const response = await fetch('/api/categories', {
-        signal: controller.signal
-      });
-      
-      clearTimeout(timeoutId);
-      
+      const response = await fetch('/api/categories');
       if (response.ok) {
         const apiCategories = await response.json();
         const categoryNames = apiCategories.map((cat: any) => cat.name);
         setCategories(['All', ...categoryNames]);
-        
-        // Cache categories
-        sessionStorage.setItem('categories_cache', JSON.stringify(apiCategories));
-        sessionStorage.setItem('categories_cache_time', Date.now().toString());
+      } else {
+        setCategories(['All', "Men's Fashion", "Women's Fashion", 'Kids Fashion']);
       }
-    } catch (error) {
-      console.error('Error loading categories:', error);
-      // Use fallback categories
+    } catch {
       setCategories(['All', "Men's Fashion", "Women's Fashion", 'Kids Fashion']);
     }
   };
@@ -1868,16 +1817,45 @@ export default function ClientPage() {
                         <span className="fw-bold" style={{fontSize: '1.3rem', color: '#27ae60'}}>LKR {getTotal().toLocaleString()}</span>
                       </div>
                       <div className="text-center mt-2">
-                        <button 
-                          className="btn btn-sm btn-outline-secondary" 
-                          onClick={() => {
-                            console.log('Manual cart refresh clicked');
-                            loadCartFromStorage();
-                          }}
-                          title="Refresh cart from server"
-                        >
-                          <i className="bi bi-arrow-clockwise me-1"></i>Refresh Cart
-                        </button>
+                        <div className="d-flex gap-2 justify-content-center">
+                          <button 
+                            className="btn btn-sm btn-outline-secondary" 
+                            onClick={() => {
+                              console.log('Manual cart refresh clicked');
+                              loadCartFromStorage();
+                            }}
+                            title="Refresh cart from server"
+                          >
+                            <i className="bi bi-arrow-clockwise me-1"></i>Refresh Cart
+                          </button>
+                          <button 
+                            className="btn btn-sm btn-outline-primary" 
+                            onClick={() => {
+                              console.log('Manual products refresh clicked');
+                              loadProducts();
+                            }}
+                            title="Refresh products from MongoDB"
+                          >
+                            <i className="bi bi-database me-1"></i>Refresh Products
+                          </button>
+                          <button 
+                            className="btn btn-sm btn-outline-info" 
+                            onClick={async () => {
+                              try {
+                                const response = await fetch('/api/debug/products');
+                                const data = await response.json();
+                                console.log('Debug data:', data);
+                                alert(`Products in DB: ${data.count}`);
+                              } catch (error) {
+                                console.error('Debug error:', error);
+                                alert('Debug failed - check console');
+                              }
+                            }}
+                            title="Check MongoDB status"
+                          >
+                            <i className="bi bi-bug me-1"></i>Debug DB
+                          </button>
+                        </div>
                       </div>
                     </div>
                   </>

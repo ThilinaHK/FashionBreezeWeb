@@ -3,8 +3,10 @@
 import { useState, useEffect } from 'react';
 import { Product } from '../types';
 import ImageWithFallback from '../components/ImageWithFallback';
+import { useSocket } from '../components/SocketProvider';
 
 export default function DashboardPage() {
+  const { socket, isConnected } = useSocket();
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<any[]>([]);
   const [customers, setCustomers] = useState<any[]>([]);
@@ -99,6 +101,15 @@ export default function DashboardPage() {
   const [restockData, setRestockData] = useState<{[key: string]: number}>({});
   const [showSlipModal, setShowSlipModal] = useState(false);
   const [selectedSlip, setSelectedSlip] = useState<any>(null);
+  const [stockAlerts, setStockAlerts] = useState<any[]>([]);
+  const [loadingStockAlerts, setLoadingStockAlerts] = useState(false);
+  const [topProducts, setTopProducts] = useState<any[]>([]);
+  const [loadingTopProducts, setLoadingTopProducts] = useState(false);
+  const [analyticsData, setAnalyticsData] = useState<any>(null);
+  const [loadingAnalytics, setLoadingAnalytics] = useState(false);
+  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+  const [selectedMonth, setSelectedMonth] = useState<number | null>(null);
+  const [selectedCategory, setSelectedCategory] = useState('');
   const [addressFormData, setAddressFormData] = useState({
     name: '',
     type: 'country',
@@ -127,41 +138,55 @@ export default function DashboardPage() {
         setCurrentUser(user);
         setIsLoggedIn(true);
         
+        // Load essential data first
         loadProducts();
         loadCategories();
-        loadCustomers();
-        loadOrders();
-        loadUsers();
-        loadUserReports();
-        loadReturns();
-        loadSalesData();
-        loadAddresses();
+        
+        // Load other data after a short delay to improve perceived performance
+        setTimeout(() => {
+          loadCustomers();
+          loadOrders();
+          loadUsers();
+          loadSalesData();
+        }, 100);
+        
+        setTimeout(() => {
+          loadUserReports();
+          loadReturns();
+          loadAddresses();
+          loadStockAlerts();
+          loadTopProducts();
+        }, 200);
       } else {
         setIsLoggedIn(false);
       }
     }
   }, []);
 
+  useEffect(() => {
+    if (socket && isConnected) {
+      socket.on('orderStatusChanged', (data) => {
+        setToast({message: `Order ${data.orderId.slice(-8)} status changed to ${data.status} for ${data.customerName}`, type: 'success'});
+        setTimeout(() => setToast(null), 5000);
+        loadOrders();
+      });
+
+      socket.on('newProductArrival', (data) => {
+        setToast({message: `New stock arrived: ${data.name} (+${data.stock} units)`, type: 'success'});
+        setTimeout(() => setToast(null), 5000);
+        loadProducts();
+      });
+    }
+  }, [socket, isConnected]);
+
   const loadProducts = async () => {
     setLoadingProducts(true);
     try {
-      const response = await fetch('/api/products?' + new Date().getTime());
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-      }
-      const text = await response.text();
-      let products;
-      try {
-        products = JSON.parse(text);
-      } catch (parseError) {
-        console.error('JSON parse error:', parseError, 'Response text:', text);
-        products = [];
-      }
-      // Remove duplicates based on code or _id
-      const uniqueProducts = Array.isArray(products) ? products.filter((product, index, self) => 
-        index === self.findIndex(p => p.code === product.code || p._id === product._id)
-      ) : [];
-      setProducts(uniqueProducts);
+      const response = await fetch('/api/products', {
+        headers: { 'Cache-Control': 'no-cache' }
+      });
+      const products = await response.json();
+      setProducts(Array.isArray(products) ? products : []);
     } catch (error) {
       console.error('Error loading products:', error);
       setProducts([]);
@@ -173,18 +198,10 @@ export default function DashboardPage() {
   const loadCategories = async () => {
     setLoadingCategories(true);
     try {
-      const response = await fetch('/api/categories');
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-      }
-      const text = await response.text();
-      let categories;
-      try {
-        categories = JSON.parse(text);
-      } catch (parseError) {
-        console.error('JSON parse error:', parseError, 'Response text:', text);
-        categories = [];
-      }
+      const response = await fetch('/api/categories', {
+        headers: { 'Cache-Control': 'no-cache' }
+      });
+      const categories = await response.json();
       setCategories(Array.isArray(categories) ? categories : []);
     } catch (error) {
       console.error('Error loading categories:', error);
@@ -282,6 +299,183 @@ export default function DashboardPage() {
     } finally {
       setLoadingSales(false);
     }
+  };
+
+  const loadStockAlerts = async () => {
+    setLoadingStockAlerts(true);
+    try {
+      const response = await fetch('/api/products/stock-alerts');
+      const alerts = await response.json();
+      setStockAlerts(Array.isArray(alerts) ? alerts : []);
+    } catch (error) {
+      console.error('Error loading stock alerts:', error);
+      setStockAlerts([]);
+    } finally {
+      setLoadingStockAlerts(false);
+    }
+  };
+
+  const loadTopProducts = async () => {
+    setLoadingTopProducts(true);
+    try {
+      const response = await fetch('/api/analytics/top-products');
+      const products = await response.json();
+      setTopProducts(Array.isArray(products) ? products : []);
+    } catch (error) {
+      console.error('Error loading top products:', error);
+      setTopProducts([]);
+    } finally {
+      setLoadingTopProducts(false);
+    }
+  };
+
+  const loadAnalytics = async () => {
+    setLoadingAnalytics(true);
+    try {
+      const params = new URLSearchParams({
+        year: selectedYear.toString(),
+        ...(selectedMonth && { month: selectedMonth.toString() }),
+        ...(selectedCategory && { category: selectedCategory })
+      });
+      const response = await fetch(`/api/analytics/product-orders?${params}`);
+      const data = await response.json();
+      setAnalyticsData(data);
+    } catch (error) {
+      console.error('Error loading analytics:', error);
+      setAnalyticsData(null);
+    } finally {
+      setLoadingAnalytics(false);
+    }
+  };
+
+  const downloadPDF = async () => {
+    if (!analyticsData) return;
+    
+    const jsPDF = (await import('jspdf')).default;
+    
+    const pdf = new jsPDF('p', 'mm', 'a4');
+    const pageWidth = pdf.internal.pageSize.getWidth();
+    const pageHeight = pdf.internal.pageSize.getHeight();
+    
+    // Header with logo space
+    pdf.setFontSize(24);
+    pdf.setTextColor(102, 126, 234); // Primary color
+    pdf.text('FASHION BREEZE', pageWidth / 2, 25, { align: 'center' });
+    
+    pdf.setFontSize(16);
+    pdf.setTextColor(0, 0, 0);
+    pdf.text('Product Orders Calendar Report', pageWidth / 2, 35, { align: 'center' });
+    
+    // Report details
+    pdf.setFontSize(12);
+    const reportTitle = `${selectedCategory || 'All Categories'} - ${selectedYear}${selectedMonth ? ` (${new Date(0, selectedMonth - 1).toLocaleString('default', { month: 'long' })})` : ''}`;
+    pdf.text(reportTitle, pageWidth / 2, 45, { align: 'center' });
+    
+    pdf.setFontSize(10);
+    pdf.setTextColor(128, 128, 128);
+    pdf.text(`Generated on: ${new Date().toLocaleDateString()} at ${new Date().toLocaleTimeString()}`, pageWidth / 2, 52, { align: 'center' });
+    
+    // Summary statistics box
+    const totalOrders = Object.values(analyticsData.dailyData).reduce((sum: number, day: any) => sum + day.orders, 0);
+    const totalRevenue = Object.values(analyticsData.dailyData).reduce((sum: number, day: any) => sum + day.revenue, 0);
+    const totalQuantity = Object.values(analyticsData.dailyData).reduce((sum: number, day: any) => sum + day.quantity, 0);
+    const activeDays = Object.values(analyticsData.dailyData).filter((day: any) => day.orders > 0).length;
+    
+    // Summary box
+    pdf.setDrawColor(200, 200, 200);
+    pdf.rect(15, 60, pageWidth - 30, 35);
+    
+    pdf.setFontSize(14);
+    pdf.setTextColor(0, 0, 0);
+    pdf.text('SUMMARY STATISTICS', pageWidth / 2, 70, { align: 'center' });
+    
+    pdf.setFontSize(11);
+    const summaryY = 78;
+    pdf.text(`Total Orders: ${totalOrders}`, 25, summaryY);
+    pdf.text(`Total Revenue: LKR ${totalRevenue.toFixed(2)}`, 25, summaryY + 7);
+    pdf.text(`Total Quantity: ${totalQuantity}`, 25, summaryY + 14);
+    pdf.text(`Active Days: ${activeDays}`, 25, summaryY + 21);
+    
+    // Average calculations
+    const avgOrderValue = totalOrders > 0 ? totalRevenue / totalOrders : 0;
+    const avgDailyOrders = activeDays > 0 ? totalOrders / activeDays : 0;
+    
+    pdf.text(`Avg Order Value: LKR ${avgOrderValue.toFixed(2)}`, pageWidth / 2 + 10, summaryY);
+    pdf.text(`Avg Daily Orders: ${avgDailyOrders.toFixed(1)}`, pageWidth / 2 + 10, summaryY + 7);
+    pdf.text(`Peak Day Revenue: LKR ${Math.max(...Object.values(analyticsData.dailyData).map((day: any) => day.revenue)).toFixed(2)}`, pageWidth / 2 + 10, summaryY + 14);
+    pdf.text(`Peak Day Orders: ${Math.max(...Object.values(analyticsData.dailyData).map((day: any) => day.orders))}`, pageWidth / 2 + 10, summaryY + 21);
+    
+    // Data table header
+    let yPos = 110;
+    pdf.setFontSize(12);
+    pdf.setTextColor(0, 0, 0);
+    pdf.text('DAILY BREAKDOWN', pageWidth / 2, yPos, { align: 'center' });
+    
+    yPos += 15;
+    
+    // Table headers
+    pdf.setFillColor(102, 126, 234);
+    pdf.rect(20, yPos - 5, pageWidth - 40, 10, 'F');
+    
+    pdf.setFontSize(10);
+    pdf.setTextColor(255, 255, 255);
+    pdf.text('Date', 25, yPos);
+    pdf.text('Day', 60, yPos);
+    pdf.text('Orders', 90, yPos);
+    pdf.text('Quantity', 120, yPos);
+    pdf.text('Revenue (LKR)', 150, yPos);
+    
+    yPos += 10;
+    pdf.setTextColor(0, 0, 0);
+    
+    // Data rows
+    const sortedData = Object.entries(analyticsData.dailyData).sort(([a], [b]) => new Date(a).getTime() - new Date(b).getTime());
+    
+    sortedData.forEach(([date, data]: [string, any], index) => {
+      if (yPos > pageHeight - 30) {
+        pdf.addPage();
+        yPos = 30;
+        
+        // Repeat headers on new page
+        pdf.setFillColor(102, 126, 234);
+        pdf.rect(20, yPos - 5, pageWidth - 40, 10, 'F');
+        
+        pdf.setFontSize(10);
+        pdf.setTextColor(255, 255, 255);
+        pdf.text('Date', 25, yPos);
+        pdf.text('Day', 60, yPos);
+        pdf.text('Orders', 90, yPos);
+        pdf.text('Quantity', 120, yPos);
+        pdf.text('Revenue (LKR)', 150, yPos);
+        
+        yPos += 10;
+        pdf.setTextColor(0, 0, 0);
+      }
+      
+      // Alternate row colors
+      if (index % 2 === 0) {
+        pdf.setFillColor(248, 249, 250);
+        pdf.rect(20, yPos - 4, pageWidth - 40, 8, 'F');
+      }
+      
+      const dateObj = new Date(date);
+      pdf.text(dateObj.toLocaleDateString(), 25, yPos);
+      pdf.text(dateObj.toLocaleDateString('en', {weekday: 'short'}), 60, yPos);
+      pdf.text(data.orders.toString(), 90, yPos);
+      pdf.text(data.quantity.toString(), 120, yPos);
+      pdf.text(data.revenue.toFixed(2), 150, yPos);
+      yPos += 8;
+    });
+    
+    // Footer
+    const footerY = pageHeight - 20;
+    pdf.setFontSize(8);
+    pdf.setTextColor(128, 128, 128);
+    pdf.text('Fashion Breeze Admin Dashboard - Confidential Report', pageWidth / 2, footerY, { align: 'center' });
+    pdf.text(`Page 1 of ${pdf.getNumberOfPages()}`, pageWidth - 20, footerY, { align: 'right' });
+    
+    const fileName = `fashion-breeze-orders-report-${selectedYear}${selectedMonth ? `-${selectedMonth.toString().padStart(2, '0')}` : ''}-${new Date().toISOString().split('T')[0]}.pdf`;
+    pdf.save(fileName);
   };
 
   const loadAddresses = async () => {
@@ -600,6 +794,20 @@ export default function DashboardPage() {
           order._id === orderId ? { ...order, status } : order
         ));
         
+        // Send socket notification
+        await fetch('/api/notifications/socket', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            type: 'orderStatusChanged',
+            data: {
+              orderId,
+              status,
+              customerName: updatedOrder?.customerInfo?.name || 'Customer'
+            }
+          })
+        });
+        
         if (updatedOrder?.customerInfo?.email) {
           await fetch('/api/notifications', {
             method: 'POST',
@@ -804,6 +1012,7 @@ export default function DashboardPage() {
         const result = await response.json();
         // Always reload products after insert/update
         await loadProducts();
+        await loadStockAlerts();
         closeModal();
         setToast({message: editingProduct ? 'Product updated successfully!' : 'Product created successfully!', type: 'success'});
         setTimeout(() => setToast(null), 3000);
@@ -1209,7 +1418,24 @@ export default function DashboardPage() {
       });
       
       if (response.ok) {
+        const totalNewStock = Object.values(restockData).reduce((sum: number, stock: number) => sum + stock, 0);
+        
+        // Send socket notification for new stock arrival
+        await fetch('/api/notifications/socket', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            type: 'newProductArrival',
+            data: {
+              productId,
+              name: restockingProduct.name,
+              stock: totalNewStock
+            }
+          })
+        });
+        
         await loadProducts();
+        await loadStockAlerts();
         setShowRestockModal(false);
         setRestockingProduct(null);
         setRestockData({});
@@ -1368,6 +1594,20 @@ export default function DashboardPage() {
                   </button>
                 </li>
               )}
+              {hasPrivilege('analytics') && (
+                <li className="nav-item">
+                  <button className={`nav-link ${activeTab === 'top-products' ? 'active' : ''}`} onClick={() => setActiveTab('top-products')}>
+                    <i className="bi bi-trophy me-2"></i>Top Products
+                  </button>
+                </li>
+              )}
+              {hasPrivilege('analytics') && (
+                <li className="nav-item">
+                  <button className={`nav-link ${activeTab === 'calendar' ? 'active' : ''}`} onClick={() => {setActiveTab('calendar'); loadAnalytics();}}>
+                    <i className="bi bi-calendar3 me-2"></i>Calendar Report
+                  </button>
+                </li>
+              )}
               {hasPrivilege('orders') && (
                 <li className="nav-item">
                   <button className={`nav-link ${activeTab === 'returns' ? 'active' : ''}`} onClick={() => setActiveTab('returns')}>
@@ -1385,6 +1625,17 @@ export default function DashboardPage() {
             </ul>
           </div>
         </div>
+
+        {stockAlerts.length > 0 && (
+          <div className="alert alert-warning d-flex align-items-center mb-4" role="alert">
+            <i className="bi bi-exclamation-triangle-fill me-2"></i>
+            <div>
+              <strong>Stock Alert:</strong> {stockAlerts.length} product(s) need attention - 
+              {stockAlerts.filter(p => p.isOutOfStock).length} out of stock, 
+              {stockAlerts.filter(p => p.isLowStock && !p.isOutOfStock).length} low stock
+            </div>
+          </div>
+        )}
 
         <div className="row g-4 mb-5">
           <div className="col-md-3">
@@ -1518,10 +1769,19 @@ export default function DashboardPage() {
         {activeTab === 'products' && hasPrivilege('products') && (
           <div className="card border-0 shadow-sm">
             <div className="card-header bg-primary text-white d-flex justify-content-between align-items-center">
-              <h5 className="mb-0"><i className="bi bi-list me-2"></i>Product Management</h5>
-              <button className="btn btn-light" onClick={() => openModal()}>
-                <i className="bi bi-plus-circle me-2"></i>Add Product
-              </button>
+              <h5 className="mb-0">
+                <i className="bi bi-list me-2"></i>Product Management
+                {loadingProducts && <span className="spinner-border spinner-border-sm ms-2" role="status"></span>}
+                {!loadingProducts && <span className="badge bg-light text-primary ms-2">{products.length}</span>}
+              </h5>
+              <div className="d-flex gap-2">
+                <button className="btn btn-outline-light btn-sm" onClick={loadProducts} disabled={loadingProducts}>
+                  <i className="bi bi-arrow-clockwise me-1"></i>Refresh
+                </button>
+                <button className="btn btn-light" onClick={() => openModal()}>
+                  <i className="bi bi-plus-circle me-2"></i>Add Product
+                </button>
+              </div>
             </div>
             <div className="card-body">
               <div className="row g-3 mb-3">
@@ -1582,9 +1842,23 @@ export default function DashboardPage() {
                   <tbody>
                     {loadingProducts ? (
                       <tr>
-                        <td colSpan={9} className="text-center py-4">
-                          <div className="spinner-border text-primary" role="status">
-                            <span className="visually-hidden">Loading...</span>
+                        <td colSpan={10} className="text-center py-5">
+                          <div className="d-flex flex-column align-items-center">
+                            <div className="spinner-border text-primary mb-3" role="status">
+                              <span className="visually-hidden">Loading...</span>
+                            </div>
+                            <p className="text-muted mb-0">Loading products...</p>
+                            <small className="text-muted">This may take a few seconds</small>
+                          </div>
+                        </td>
+                      </tr>
+                    ) : products.length === 0 ? (
+                      <tr>
+                        <td colSpan={10} className="text-center py-5">
+                          <div className="text-muted">
+                            <i className="bi bi-box-seam display-4 mb-3"></i>
+                            <p className="mb-0">No products found</p>
+                            <small>Click "Add Product" to create your first product</small>
                           </div>
                         </td>
                       </tr>
@@ -1609,9 +1883,16 @@ export default function DashboardPage() {
                         <td className="fw-bold text-success">LKR {product.price}</td>
                         <td className="fw-bold text-primary">LKR {((product.price || 0) - (product.cost || 0) - (product.vat || 0)).toFixed(2)}</td>
                         <td>
-                          <span className={`badge ${(product.status === 'instock' || product.status === 'active') ? 'bg-success' : 'bg-danger'}`}>
-                            {(product.status === 'instock' || product.status === 'active') ? 'In Stock' : 'Out of Stock'}
-                          </span>
+                          <div className="d-flex flex-column gap-1">
+                            <span className={`badge ${(product.status === 'instock' || product.status === 'active') ? 'bg-success' : 'bg-danger'}`}>
+                              {(product.status === 'instock' || product.status === 'active') ? 'In Stock' : 'Out of Stock'}
+                            </span>
+                            {stockAlerts.find(alert => alert._id === product._id) && (
+                              <span className="badge bg-warning text-dark">
+                                <i className="bi bi-exclamation-triangle me-1"></i>Low Stock
+                              </span>
+                            )}
+                          </div>
                         </td>
                         <td>
                           <div className="d-flex gap-2">
@@ -1745,10 +2026,12 @@ export default function DashboardPage() {
                       </tr>
                     ) : (
                       customers.filter(customer => 
-                        customer.name.toLowerCase().includes(customerFilter.toLowerCase()) ||
-                        customer.email.toLowerCase().includes(customerFilter.toLowerCase()) ||
-                        customer.country.toLowerCase().includes(customerFilter.toLowerCase()) ||
-                        (customer.address?.line1 || '').toLowerCase().includes(customerFilter.toLowerCase())
+                        !customerFilter || (
+                          (customer.name || '').toLowerCase().includes(customerFilter.toLowerCase()) ||
+                          (customer.email || '').toLowerCase().includes(customerFilter.toLowerCase()) ||
+                          (customer.country || '').toLowerCase().includes(customerFilter.toLowerCase()) ||
+                          (customer.address?.line1 || '').toLowerCase().includes(customerFilter.toLowerCase())
+                        )
                       ).map((customer, index) => (
                       <tr key={customer._id || index}>
                         <td><span className="badge bg-secondary">{customer._id?.slice(-8) || customer.id}</span></td>
@@ -2286,6 +2569,186 @@ export default function DashboardPage() {
                   </tbody>
                 </table>
               </div>
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'top-products' && hasPrivilege('analytics') && (
+          <div className="card border-0 shadow-sm">
+            <div className="card-header bg-success text-white">
+              <h5 className="mb-0"><i className="bi bi-trophy me-2"></i>Most Ordered Products</h5>
+            </div>
+            <div className="card-body">
+              <div className="table-responsive">
+                <table className="table table-hover">
+                  <thead>
+                    <tr>
+                      <th>Rank</th>
+                      <th>Product</th>
+                      <th>Code</th>
+                      <th>Total Orders</th>
+                      <th>Total Quantity</th>
+                      <th>Total Revenue</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {loadingTopProducts ? (
+                      <tr>
+                        <td colSpan={6} className="text-center py-4">
+                          <div className="spinner-border text-success" role="status">
+                            <span className="visually-hidden">Loading...</span>
+                          </div>
+                        </td>
+                      </tr>
+                    ) : (
+                      topProducts.map((product, index) => (
+                        <tr key={product.code || index}>
+                          <td>
+                            <span className={`badge ${
+                              index === 0 ? 'bg-warning' :
+                              index === 1 ? 'bg-secondary' :
+                              index === 2 ? 'bg-dark' : 'bg-light text-dark'
+                            }`}>
+                              #{index + 1}
+                            </span>
+                          </td>
+                          <td>
+                            <div className="d-flex align-items-center">
+                              {product.image && (
+                                <img src={product.image} alt={product.name} className="me-2 rounded" style={{width: '40px', height: '40px', objectFit: 'cover'}} />
+                              )}
+                              <strong>{product.name}</strong>
+                            </div>
+                          </td>
+                          <td><span className="badge bg-info">{product.code}</span></td>
+                          <td><span className="badge bg-primary">{product.totalOrders}</span></td>
+                          <td><span className="badge bg-success">{product.totalQuantity}</span></td>
+                          <td className="fw-bold text-success">LKR {product.totalRevenue.toFixed(2)}</td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'calendar' && hasPrivilege('analytics') && (
+          <div className="card border-0 shadow-sm">
+            <div className="card-header bg-info text-white">
+              <h5 className="mb-0"><i className="bi bi-calendar3 me-2"></i>Product Orders Calendar Report</h5>
+            </div>
+            <div className="card-body">
+              <div className="row g-3 mb-4">
+                <div className="col-md-3">
+                  <select className="form-select" value={selectedYear} onChange={(e) => setSelectedYear(parseInt(e.target.value))}>
+                    {[2024, 2023, 2022].map(year => (
+                      <option key={year} value={year}>{year}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="col-md-3">
+                  <select className="form-select" value={selectedMonth || ''} onChange={(e) => setSelectedMonth(e.target.value ? parseInt(e.target.value) : null)}>
+                    <option value="">All Year</option>
+                    {Array.from({length: 12}, (_, i) => (
+                      <option key={i+1} value={i+1}>{new Date(0, i).toLocaleString('default', {month: 'long'})}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="col-md-3">
+                  <select className="form-select" value={selectedCategory} onChange={(e) => setSelectedCategory(e.target.value)}>
+                    <option value="">All Categories</option>
+                    {categories.map(cat => (
+                      <option key={cat.id || cat._id} value={cat.name}>{cat.name}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="col-md-3">
+                  <div className="d-flex gap-2">
+                    <button className="btn btn-info" onClick={loadAnalytics} disabled={loadingAnalytics}>
+                      {loadingAnalytics ? <i className="bi bi-hourglass-split"></i> : <i className="bi bi-search"></i>} Filter
+                    </button>
+                    {analyticsData && (
+                      <button className="btn btn-success" onClick={downloadPDF} disabled={loadingAnalytics}>
+                        <i className="bi bi-download"></i> PDF
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+              
+              {loadingAnalytics ? (
+                <div className="text-center py-5">
+                  <div className="spinner-border text-info" role="status">
+                    <span className="visually-hidden">Loading...</span>
+                  </div>
+                </div>
+              ) : analyticsData ? (
+                <>
+                  <div className="row g-4 mb-4">
+                    <div className="col-md-3">
+                      <div className="card border-0 shadow-sm">
+                        <div className="card-body text-center">
+                          <i className="bi bi-cart-check display-4 text-primary mb-2"></i>
+                          <h4 className="fw-bold">{Object.values(analyticsData.dailyData).reduce((sum: number, day: any) => sum + day.orders, 0)}</h4>
+                          <p className="text-muted mb-0">Total Orders</p>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="col-md-3">
+                      <div className="card border-0 shadow-sm">
+                        <div className="card-body text-center">
+                          <i className="bi bi-currency-dollar display-4 text-success mb-2"></i>
+                          <h4 className="fw-bold">LKR {Object.values(analyticsData.dailyData).reduce((sum: number, day: any) => sum + day.revenue, 0).toFixed(2)}</h4>
+                          <p className="text-muted mb-0">Total Revenue</p>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="col-md-3">
+                      <div className="card border-0 shadow-sm">
+                        <div className="card-body text-center">
+                          <i className="bi bi-box-seam display-4 text-warning mb-2"></i>
+                          <h4 className="fw-bold">{Object.values(analyticsData.dailyData).reduce((sum: number, day: any) => sum + day.quantity, 0)}</h4>
+                          <p className="text-muted mb-0">Total Quantity</p>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="col-md-3">
+                      <div className="card border-0 shadow-sm">
+                        <div className="card-body text-center">
+                          <i className="bi bi-calendar-check display-4 text-info mb-2"></i>
+                          <h4 className="fw-bold">{Object.values(analyticsData.dailyData).filter((day: any) => day.orders > 0).length}</h4>
+                          <p className="text-muted mb-0">Active Days</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="row g-2">
+                    {Object.entries(analyticsData.dailyData || {}).map(([date, data]: [string, any]) => (
+                      <div key={date} className="col-md-2 col-sm-3 col-4">
+                        <div className={`card border ${data.orders > 0 ? 'border-success bg-light' : 'border-light'}`}>
+                          <div className="card-body p-2 text-center">
+                            <div className="fw-bold">{new Date(date).getDate()}</div>
+                            <small className="text-muted">{new Date(date).toLocaleDateString('en', {weekday: 'short'})}</small>
+                            {data.orders > 0 && (
+                              <>
+                                <div className="badge bg-primary">{data.orders}</div>
+                                <div className="small text-success">LKR {data.revenue.toFixed(0)}</div>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              ) : (
+                <div className="text-center py-5 text-muted">
+                  <i className="bi bi-calendar3 display-4 mb-3"></i>
+                  <p>Select filters and click "Filter" to view calendar report</p>
+                </div>
+              )}
             </div>
           </div>
         )}

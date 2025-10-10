@@ -5,46 +5,23 @@ import Category from '../../lib/models/Category';
 export async function GET() {
   try {
     await dbConnect();
-    
-    const categories = await Category.find(
-      {},
-      'id name slug description icon subcategories sortOrder isActive'
-    )
-      .sort({ sortOrder: 1, name: 1 })
-      .lean()
-      .limit(50);
-    
-    // Add product count for each category
     const Product = require('../../lib/models/Product').default;
-    const categoriesWithCount = await Promise.all(
+    
+    const categories = await Category.find({}, 'name').lean();
+    
+    // Get product counts for each category
+    const categoriesWithCounts = await Promise.all(
       categories.map(async (category) => {
         const productCount = await Product.countDocuments({ category: category.name });
         return { ...category, productCount };
       })
     );
     
-    return NextResponse.json(categoriesWithCount, {
-      headers: {
-        'Cache-Control': 'public, s-maxage=600, stale-while-revalidate=1200',
-        'CDN-Cache-Control': 'public, s-maxage=600',
-        'Vercel-CDN-Cache-Control': 'public, s-maxage=600'
-      }
+    return NextResponse.json(categoriesWithCounts, {
+      headers: { 'Cache-Control': 'no-cache' }
     });
   } catch (error) {
-    console.error('Categories API error:', error);
-    
-    // Return fallback categories
-    const fallbackCategories = [
-      { _id: '1', id: 1, name: "Men's Fashion", slug: 'mens-fashion', isActive: true, sortOrder: 1, productCount: 0 },
-      { _id: '2', id: 2, name: "Women's Fashion", slug: 'womens-fashion', isActive: true, sortOrder: 2, productCount: 0 },
-      { _id: '3', id: 3, name: "Kids Fashion", slug: 'kids-fashion', isActive: true, sortOrder: 3, productCount: 0 }
-    ];
-    
-    return NextResponse.json(fallbackCategories, {
-      headers: {
-        'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=600'
-      }
-    });
+    return NextResponse.json([]);
   }
 }
 
