@@ -7,7 +7,7 @@ export async function GET() {
     await dbConnect();
     const products = await Product.find(
       { status: { $in: ['active', 'instock'] } },
-      'name code price image category status sizes brand cost vat'
+      'name code price image additionalImages category status sizes brand cost vat'
     ).lean().limit(100).sort({ updatedAt: -1 });
     
     return NextResponse.json(products, {

@@ -3,7 +3,6 @@ import 'bootstrap/dist/css/bootstrap.min.css'
 import 'bootstrap-icons/font/bootstrap-icons.css'
 import './globals.scss'
 import BootstrapClient from './components/BootstrapClient'
-import SocketProvider from './components/SocketProvider'
 
 export const metadata: Metadata = {
   title: 'Fashion Breeze - Premium Fashion Store',
@@ -18,9 +17,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body>
-        <SocketProvider>
-          {children}
-        </SocketProvider>
+        {children}
         <BootstrapClient />
       </body>
     </html>

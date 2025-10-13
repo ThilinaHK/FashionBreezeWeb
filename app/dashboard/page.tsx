@@ -3,10 +3,10 @@
 import { useState, useEffect } from 'react';
 import { Product } from '../types';
 import ImageWithFallback from '../components/ImageWithFallback';
-import { useSocket } from '../components/SocketProvider';
+
 
 export default function DashboardPage() {
-  const { socket, isConnected } = useSocket();
+
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<any[]>([]);
   const [customers, setCustomers] = useState<any[]>([]);
@@ -163,21 +163,7 @@ export default function DashboardPage() {
     }
   }, []);
 
-  useEffect(() => {
-    if (socket && isConnected) {
-      socket.on('orderStatusChanged', (data) => {
-        setToast({message: `Order ${data.orderId.slice(-8)} status changed to ${data.status} for ${data.customerName}`, type: 'success'});
-        setTimeout(() => setToast(null), 5000);
-        loadOrders();
-      });
 
-      socket.on('newProductArrival', (data) => {
-        setToast({message: `New stock arrived: ${data.name} (+${data.stock} units)`, type: 'success'});
-        setTimeout(() => setToast(null), 5000);
-        loadProducts();
-      });
-    }
-  }, [socket, isConnected]);
 
   const loadProducts = async () => {
     setLoadingProducts(true);
@@ -794,19 +780,7 @@ export default function DashboardPage() {
           order._id === orderId ? { ...order, status } : order
         ));
         
-        // Send socket notification
-        await fetch('/api/notifications/socket', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            type: 'orderStatusChanged',
-            data: {
-              orderId,
-              status,
-              customerName: updatedOrder?.customerInfo?.name || 'Customer'
-            }
-          })
-        });
+
         
         if (updatedOrder?.customerInfo?.email) {
           await fetch('/api/notifications', {
@@ -1420,19 +1394,7 @@ export default function DashboardPage() {
       if (response.ok) {
         const totalNewStock = Object.values(restockData).reduce((sum: number, stock: number) => sum + stock, 0);
         
-        // Send socket notification for new stock arrival
-        await fetch('/api/notifications/socket', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            type: 'newProductArrival',
-            data: {
-              productId,
-              name: restockingProduct.name,
-              stock: totalNewStock
-            }
-          })
-        });
+
         
         await loadProducts();
         await loadStockAlerts();

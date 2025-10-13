@@ -1,18 +1,28 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { Product } from './types';
-import ImageWithFallback from './components/ImageWithFallback';
+import React, { useState, useEffect } from 'react';
+
+interface Product {
+  id?: number;
+  _id?: string;
+  name: string;
+  code: string;
+  price: number;
+  category: string | { _id: string; name: string; slug: string };
+  brand?: string;
+  image: string;
+  images?: string[];
+  sizes?: any;
+  status: 'instock' | 'outofstock' | 'active';
+  rating?: number | { average: number; count: number };
+  reviewCount?: number;
+}
 
 interface CartItem extends Product {
-  size?: string;
-  color?: string;
+  size: string;
   quantity: number;
-  selectedSizeData?: {
-    size: string;
-    stock: number;
-    price: number;
-  };
+  color?: string;
+  selectedSizeData?: any;
 }
 
 interface ChatMessage {
@@ -27,7 +37,26 @@ interface Comment {
   comment: string;
 }
 
-export default function ClientPage() {
+const ImageWithFallback = ({ src, alt, ...props }: any) => {
+  const [imgSrc, setImgSrc] = useState(src);
+  const [hasError, setHasError] = useState(false);
+
+  useEffect(() => {
+    setImgSrc(src);
+    setHasError(false);
+  }, [src]);
+
+  const handleError = () => {
+    if (!hasError) {
+      setHasError(true);
+      setImgSrc('https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=400&h=400&fit=crop');
+    }
+  };
+
+  return <img src={imgSrc} alt={alt} onError={handleError} {...props} />;
+};
+
+export default function HomePage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [categories, setCategories] = useState<string[]>([]);
@@ -60,6 +89,8 @@ export default function ClientPage() {
   const [newReview, setNewReview] = useState({ rating: 5, comment: '' });
   const [productReviews, setProductReviews] = useState<{[key: string]: Comment[]}>({});
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const [backgroundAnimation, setBackgroundAnimation] = useState(true);
+  const [isAdmin, setIsAdmin] = useState(false);
 
   const availableSizes = ['XS', 'S', 'M', 'L', 'XL', 'XXL'];
 
@@ -82,6 +113,14 @@ export default function ClientPage() {
     loadCartFromStorage();
     loadCategoriesFromAPI();
     startProductUpdateListener();
+    
+    // Check admin status
+    const adminStatus = localStorage.getItem('isAdmin') === 'true';
+    setIsAdmin(adminStatus);
+    
+    // Load background animation preference
+    const bgAnimation = localStorage.getItem('backgroundAnimation');
+    setBackgroundAnimation(bgAnimation !== 'false');
   }, []);
 
   const startProductUpdateListener = () => {
@@ -414,7 +453,7 @@ export default function ClientPage() {
   const sendToWhatsApp = () => {
     const orderDetails = cart.map(item => 
       `${item.code || 'N/A'} - ${item.name}${item.size ? ` (Size: ${item.size})` : ''} - Qty: ${item.quantity} - LKR ${(item.price * item.quantity).toFixed(2)}`
-    ).join('\\n');
+    ).join('\n');
     
     let customerData: any[] = [];
     let currentCustomer: any = {};
@@ -428,11 +467,11 @@ export default function ClientPage() {
       currentCustomer.address?.line1,
       currentCustomer.address?.line2,
       currentCustomer.address?.line3
-    ].filter((line: any) => line && line.trim()).join('\\n');
+    ].filter((line: any) => line && line.trim()).join('\n');
     
-    const customerInfo = `CUSTOMER DETAILS:\r\nName: ${currentCustomer.name || getUserName()}\r\nEmail: ${currentCustomer.email || 'N/A'}\r\nPhone: ${currentCustomer.phone || 'N/A'}\r\nCountry: ${currentCustomer.country || 'N/A'}\r\n\r\nDELIVERY ADDRESS:\r\n${addressLines || 'N/A'}`;
+    const customerInfo = `CUSTOMER DETAILS:\nName: ${currentCustomer.name || getUserName()}\nEmail: ${currentCustomer.email || 'N/A'}\nPhone: ${currentCustomer.phone || 'N/A'}\nCountry: ${currentCustomer.country || 'N/A'}\n\nDELIVERY ADDRESS:\n${addressLines || 'N/A'}`;
     
-    const message = `🛍️ NEW ORDER - Fashion Breeze\r\n\r\nORDER ITEMS:\r\n${orderDetails}\r\n\r\nTOTAL: LKR ${getTotal().toFixed(2)}\r\n\r\n${customerInfo}`;
+    const message = `🛍️ NEW ORDER - Fashion Breeze\n\nORDER ITEMS:\n${orderDetails}\n\nTOTAL: LKR ${getTotal().toFixed(2)}\n\n${customerInfo}`;
     
     const whatsappUrl = `https://wa.me/94707003722?text=${encodeURIComponent(message)}`;
     window.open(whatsappUrl, '_blank');
@@ -453,17 +492,17 @@ export default function ClientPage() {
   };
 
   const openProductModal = (product: Product) => {
-    const images = getProductImagesForProduct(product);
-    console.log('Opening modal for product:', product.name, 'Images:', images);
-    
-    setSelectedProduct({...product, image: images[0] || product.image});
-    setShowProductModal(true);
+    // Reset all states immediately
     setZoomLevel(1);
     setModalQuantity(1);
     setSelectedSize('M');
     setSelectedColor('');
     setCurrentSlide(0);
     setCurrentImageIndex(0);
+    
+    // Set product directly
+    setSelectedProduct(product);
+    setShowProductModal(true);
   };
 
   const navigateImage = (direction: 'prev' | 'next') => {
@@ -525,6 +564,12 @@ export default function ClientPage() {
   const closeProductModal = () => {
     setShowProductModal(false);
     setSelectedProduct(null);
+    setZoomLevel(1);
+    setModalQuantity(1);
+    setSelectedSize('M');
+    setSelectedColor('');
+    setCurrentSlide(0);
+    setCurrentImageIndex(0);
   };
 
   const scrollToProducts = () => {
@@ -543,7 +588,7 @@ export default function ClientPage() {
     setChatInput('');
     
     setTimeout(() => {
-      let botResponse = 'I\'m here to help! You can ask about products, sizes, or orders.';
+      let botResponse = "I'm here to help! You can ask about products, sizes, or orders.";
       
       if (userMessage.includes('discount') || userMessage.includes('sale')) {
         botResponse = 'We have amazing discounts! Use code SUMMER20 for 20% off on selected items.';
@@ -669,21 +714,47 @@ export default function ClientPage() {
   };
 
   const getProductImagesForProduct = (product: Product | null) => {
-    if (!product) return [];
+    if (!product) return ['https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=400&h=400&fit=crop'];
+    
     const productAny = product as any;
+    const allImages = [];
     
-    // Get all images: main image + additional images
-    const allImages = [product.image];
-    
-    // Check multiple possible field names for additional images
-    const additionalImages = productAny.additionalImages || productAny.images || [];
-    
-    if (Array.isArray(additionalImages)) {
-      const validAdditionalImages = additionalImages.filter((img: string) => img && img.trim());
-      allImages.push(...validAdditionalImages);
+    // Add main image first
+    if (product.image) {
+      allImages.push(product.image);
     }
     
-    return allImages.filter((img, index, self) => img && self.indexOf(img) === index); // Remove duplicates
+    // Add additional images from various possible fields
+    const additionalSources = [
+      productAny.additionalImages,
+      productAny.images,
+      productAny.gallery
+    ];
+    
+    additionalSources.forEach(source => {
+      if (Array.isArray(source)) {
+        source.forEach(img => {
+          if (img && typeof img === 'string' && img.trim() && !allImages.includes(img)) {
+            allImages.push(img);
+          }
+        });
+      }
+    });
+    
+    // If we only have one image, add some sample additional images for demo
+    if (allImages.length === 1 && product.image) {
+      // Add some sample additional images based on the main image
+      const baseUrl = product.image.split('?')[0];
+      if (baseUrl.includes('unsplash.com')) {
+        // Add variations of the same image with different parameters
+        allImages.push(baseUrl + '?w=400&h=400&fit=crop&sat=-20');
+        allImages.push(baseUrl + '?w=400&h=400&fit=crop&brightness=10');
+        allImages.push(baseUrl + '?w=400&h=400&fit=crop&contrast=10');
+      }
+    }
+    
+    // Return at least one image
+    return allImages.length > 0 ? allImages : ['https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=400&h=400&fit=crop'];
   };
 
   const getProductImages = () => {
@@ -829,6 +900,12 @@ export default function ClientPage() {
     }
   };
 
+  const toggleBackgroundAnimation = () => {
+    const newValue = !backgroundAnimation;
+    setBackgroundAnimation(newValue);
+    localStorage.setItem('backgroundAnimation', newValue.toString());
+  };
+
   const addToCartFromModal = async () => {
     const product = selectedProduct;
     
@@ -904,7 +981,42 @@ export default function ClientPage() {
   };
 
   return (
-    <div className="client-app">
+    <div className="client-app" style={{position: 'relative', overflow: 'hidden'}}>
+      {/* Summer Background Animation */}
+      {backgroundAnimation && (
+        <div className="summer-background" style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          width: '100%',
+          height: '100%',
+          zIndex: -1,
+          background: 'linear-gradient(45deg, #ff9a9e 0%, #fecfef 50%, #fecfef 100%)',
+          opacity: 0.1
+        }}>
+          <div className="floating-elements">
+            {[...Array(8)].map((_, i) => (
+              <div key={i} className="floating-element" style={{
+                position: 'absolute',
+                width: '20px',
+                height: '20px',
+                background: `hsl(${45 + i * 30}, 70%, 60%)`,
+                borderRadius: '50%',
+                left: `${10 + i * 12}%`,
+                animation: `float ${3 + i * 0.5}s ease-in-out infinite`,
+                animationDelay: `${i * 0.2}s`,
+                opacity: 0.6
+              }} />
+            ))}
+          </div>
+          <style jsx>{`
+            @keyframes float {
+              0%, 100% { transform: translateY(0px) rotate(0deg); }
+              50% { transform: translateY(-20px) rotate(180deg); }
+            }
+          `}</style>
+        </div>
+      )}
       {/* Navigation */}
       <nav className="navbar navbar-expand-lg navbar-light bg-white shadow-lg" style={{zIndex: 1050, position: 'relative'}}>
         <div className="container">
@@ -946,6 +1058,15 @@ export default function ClientPage() {
                     <li><a className="dropdown-item" href="/profile">
                       <i className="bi bi-person me-2"></i>My Profile
                     </a></li>
+                    {isAdmin && (
+                      <>
+                        <li><hr className="dropdown-divider" /></li>
+                        <li><button className="dropdown-item" onClick={toggleBackgroundAnimation}>
+                          <i className={`bi ${backgroundAnimation ? 'bi-eye-slash' : 'bi-eye'} me-2`}></i>
+                          {backgroundAnimation ? 'Disable' : 'Enable'} Summer Animation
+                        </button></li>
+                      </>
+                    )}
                     <li><hr className="dropdown-divider" /></li>
                     <li><a className="dropdown-item" href="#" onClick={() => {
                       localStorage.clear();
@@ -979,7 +1100,7 @@ export default function ClientPage() {
       </nav>
 
       {/* Promotion Banner */}
-      <div className="py-2" style={{background: 'linear-gradient(90deg, #dc2626, #ef4444, #f97316)', color: 'white'}}>
+      <div className="py-2" style={{background: backgroundAnimation ? 'linear-gradient(90deg, #ff6b6b, #feca57, #ff9ff3)' : 'linear-gradient(90deg, #dc2626, #ef4444, #f97316)', color: 'white', transition: 'background 0.5s ease'}}>
         <div className="container">
           <div className="row align-items-center">
             <div className="col-md-8">
@@ -1021,7 +1142,7 @@ export default function ClientPage() {
 
 
       {/* Category Navigation */}
-      <div className="py-4" style={{background: 'var(--gradient-primary)', boxShadow: 'var(--shadow-lg)'}}>
+      <div className="py-4" style={{background: 'var(--gradient-primary)', boxShadow: 'var(--shadow-lg)', position: 'sticky', top: 0, zIndex: 1040}}>
         <div className="container">
           <div className="row justify-content-center">
             <div className="col-12">
@@ -1030,7 +1151,20 @@ export default function ClientPage() {
                   <button 
                     key={category}
                     className={`btn btn-sm text-white fw-bold ${selectedCategory === category ? 'btn-light text-dark' : 'btn-outline-light'}`}
-                    onClick={() => setSelectedCategory(category)}
+                    onClick={() => {
+                      setSelectedCategory(category);
+                      // Smooth scroll to products section after category change
+                      setTimeout(() => {
+                        const productsSection = document.getElementById('products-section');
+                        if (productsSection) {
+                          productsSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                        }
+                      }, 100);
+                    }}
+                    style={{
+                      transition: 'all 0.3s ease',
+                      minWidth: '80px'
+                    }}
                   >
                     {category}
                   </button>
@@ -1212,7 +1346,7 @@ export default function ClientPage() {
 
 
               {loading ? (
-                <div className="text-center py-5">
+                <div className="text-center py-5" style={{minHeight: '600px'}}>
                   <div className="d-flex justify-content-center align-items-center mb-4">
                     <div className="spinner-border text-primary me-3" role="status" style={{width: '3rem', height: '3rem'}}>
                       <span className="visually-hidden">Loading...</span>
@@ -1224,8 +1358,8 @@ export default function ClientPage() {
                   </div>
                   <div className="row g-3">
                     {[1,2,3,4,5,6].map(i => (
-                      <div key={i} className="col-lg-4 col-md-6">
-                        <div className="card border-0" style={{borderRadius: '20px', overflow: 'hidden'}}>
+                      <div key={i} className="col-xl-3 col-lg-4 col-md-6">
+                        <div className="card border-0" style={{borderRadius: '20px', overflow: 'hidden', height: '450px'}}>
                           <div className="placeholder-glow">
                             <div className="placeholder" style={{height: '300px', background: 'linear-gradient(45deg, #f8f9fa, #e9ecef)'}}></div>
                           </div>
@@ -1242,8 +1376,8 @@ export default function ClientPage() {
                   </div>
                 </div>
               ) : (
-                <div className="premium-products-grid">
-                  <div className="row g-4">
+                <div className="premium-products-grid" style={{minHeight: '600px'}}>
+                  <div className="row g-4" style={{minHeight: '500px'}}>
                     {getFilteredProducts().map(product => (
                       <div key={product.id} className="col-xl-3 col-lg-4 col-md-6">
                         <div className={`premium-product-card ${product.status === 'outofstock' ? 'out-of-stock' : ''}`}
@@ -1603,23 +1737,25 @@ export default function ClientPage() {
                   
                   {/* No Products Found */}
                   {getFilteredProducts().length === 0 && !loading && (
-                    <div className="no-products-found text-center py-5">
-                      <div className="mb-4">
-                        <i className="bi bi-search" style={{fontSize: '4rem', color: '#e5e7eb'}}></i>
-                      </div>
-                      <h4 className="mb-3" style={{color: '#6b7280'}}>No Products Found</h4>
-                      <p className="text-muted mb-4">We couldn't find any products matching your criteria. Try adjusting your filters or search terms.</p>
-                      <div className="d-flex justify-content-center gap-3">
-                        <button className="btn btn-outline-primary" onClick={() => {
-                          setSelectedCategory('All');
-                          setSearchTerm('');
-                          setPriceRange({ min: 0, max: maxPrice });
-                        }}>
-                          <i className="bi bi-arrow-clockwise me-2"></i>Reset Filters
-                        </button>
-                        <button className="btn btn-primary" onClick={() => window.location.href = '/contact'}>
-                          <i className="bi bi-headset me-2"></i>Contact Support
-                        </button>
+                    <div className="col-12">
+                      <div className="no-products-found text-center py-5" style={{minHeight: '400px', display: 'flex', flexDirection: 'column', justifyContent: 'center'}}>
+                        <div className="mb-4">
+                          <i className="bi bi-search" style={{fontSize: '4rem', color: '#e5e7eb'}}></i>
+                        </div>
+                        <h4 className="mb-3" style={{color: '#6b7280'}}>No Products Found</h4>
+                        <p className="text-muted mb-4">We couldn't find any products matching your criteria. Try adjusting your filters or search terms.</p>
+                        <div className="d-flex justify-content-center gap-3">
+                          <button className="btn btn-outline-primary" onClick={() => {
+                            setSelectedCategory('All');
+                            setSearchTerm('');
+                            setPriceRange({ min: 0, max: maxPrice });
+                          }}>
+                            <i className="bi bi-arrow-clockwise me-2"></i>Reset Filters
+                          </button>
+                          <button className="btn btn-primary" onClick={() => window.location.href = '/contact'}>
+                            <i className="bi bi-headset me-2"></i>Contact Support
+                          </button>
+                        </div>
                       </div>
                     </div>
                   )}
@@ -1904,10 +2040,10 @@ export default function ClientPage() {
                       <div className="position-relative flex-grow-1 d-flex align-items-center justify-content-center" style={{minHeight: '500px', background: 'rgba(255,255,255,0.02)', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.1)'}}>
                         <div onClick={toggleZoom} style={{cursor: zoomLevel === 1 ? 'zoom-in' : 'zoom-out'}}>
                           <ImageWithFallback 
-                            src={getProductImages()[currentImageIndex] || selectedProduct.image} 
+                            src={getProductImages()[currentImageIndex] || selectedProduct.image || 'https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=400&h=400&fit=crop'} 
                             alt={selectedProduct.name}
                             className="img-fluid product-zoom"
-                            key={currentImageIndex}
+                            key={`${selectedProduct.id}-${currentImageIndex}`}
                             style={{
                               transform: `scale(${zoomLevel})`,
                               transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
@@ -2064,56 +2200,54 @@ export default function ClientPage() {
                         </div>
                       </div>
                       {/* Image Thumbnails */}
-                      {getProductImages().length > 1 && (
-                        <div className="d-flex justify-content-center gap-3 mt-4 p-3 rounded-3" style={{background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)'}}>
-                          {getProductImages().map((img, index) => (
-                            <div key={index} className="position-relative">
-                              <img 
-                                src={img} 
-                                className="rounded-3"
-                                style={{
-                                  cursor: 'pointer',
-                                  width: '80px',
-                                  height: '80px',
-                                  objectFit: 'cover',
-                                  border: '3px solid',
-                                  transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
-                                  opacity: index === currentImageIndex ? '1' : '0.6',
-                                  borderColor: index === currentImageIndex ? '#ffffff' : 'rgba(255,255,255,0.3)',
-                                  transform: index === currentImageIndex ? 'scale(1.1)' : 'scale(1)',
-                                  boxShadow: index === currentImageIndex ? '0 8px 25px rgba(255,255,255,0.2)' : '0 2px 8px rgba(0,0,0,0.2)'
-                                }}
-                                onClick={() => {
-                                  setCurrentImageIndex(index);
-                                  changeMainImage(img);
-                                }}
-                                onMouseEnter={(e) => {
-                                  if (index !== currentImageIndex) {
-                                    e.currentTarget.style.opacity = '0.8';
-                                    e.currentTarget.style.transform = 'scale(1.05)';
-                                  }
-                                }}
-                                onMouseLeave={(e) => {
-                                  if (index !== currentImageIndex) {
-                                    e.currentTarget.style.opacity = '0.6';
-                                    e.currentTarget.style.transform = 'scale(1)';
-                                  }
-                                }}
-                              />
-                              {index === currentImageIndex && (
-                                <div className="position-absolute top-50 start-50 translate-middle">
-                                  <div className="bg-white rounded-circle d-flex align-items-center justify-content-center" style={{width: '24px', height: '24px', boxShadow: '0 2px 8px rgba(0,0,0,0.3)'}}>
-                                    <i className="bi bi-check text-dark" style={{fontSize: '0.8rem', fontWeight: 'bold'}}></i>
-                                  </div>
+                      <div className="d-flex justify-content-center gap-3 mt-4 p-3 rounded-3" style={{background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)'}}>
+                        {getProductImages().map((img, index) => (
+                          <div key={index} className="position-relative">
+                            <img 
+                              src={img} 
+                              className="rounded-3"
+                              style={{
+                                cursor: 'pointer',
+                                width: '80px',
+                                height: '80px',
+                                objectFit: 'cover',
+                                border: '3px solid',
+                                transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
+                                opacity: index === currentImageIndex ? '1' : '0.6',
+                                borderColor: index === currentImageIndex ? '#ffffff' : 'rgba(255,255,255,0.3)',
+                                transform: index === currentImageIndex ? 'scale(1.1)' : 'scale(1)',
+                                boxShadow: index === currentImageIndex ? '0 8px 25px rgba(255,255,255,0.2)' : '0 2px 8px rgba(0,0,0,0.2)'
+                              }}
+                              onClick={() => {
+                                setCurrentImageIndex(index);
+                                changeMainImage(img);
+                              }}
+                              onMouseEnter={(e) => {
+                                if (index !== currentImageIndex) {
+                                  e.currentTarget.style.opacity = '0.8';
+                                  e.currentTarget.style.transform = 'scale(1.05)';
+                                }
+                              }}
+                              onMouseLeave={(e) => {
+                                if (index !== currentImageIndex) {
+                                  e.currentTarget.style.opacity = '0.6';
+                                  e.currentTarget.style.transform = 'scale(1)';
+                                }
+                              }}
+                            />
+                            {index === currentImageIndex && (
+                              <div className="position-absolute top-50 start-50 translate-middle">
+                                <div className="bg-white rounded-circle d-flex align-items-center justify-content-center" style={{width: '24px', height: '24px', boxShadow: '0 2px 8px rgba(0,0,0,0.3)'}}>
+                                  <i className="bi bi-check text-dark" style={{fontSize: '0.8rem', fontWeight: 'bold'}}></i>
                                 </div>
-                              )}
-                              <div className="position-absolute bottom-0 end-0 translate-middle">
-                                <span className="badge bg-dark text-white" style={{fontSize: '0.6rem', padding: '2px 6px'}}>{index + 1}</span>
                               </div>
+                            )}
+                            <div className="position-absolute bottom-0 end-0 translate-middle">
+                              <span className="badge bg-dark text-white" style={{fontSize: '0.6rem', padding: '2px 6px'}}>{index + 1}</span>
                             </div>
-                          ))}
-                        </div>
-                      )}
+                          </div>
+                        ))}
+                      </div>
                     </div>
                   </div>
                   <div className="col-lg-5">
