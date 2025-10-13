@@ -717,7 +717,7 @@ export default function HomePage() {
     if (!product) return ['https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=400&h=400&fit=crop'];
     
     const productAny = product as any;
-    const allImages = [];
+    const allImages: string[] = [];
     
     // Add main image first
     if (product.image) {
