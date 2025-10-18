@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useSocket } from '../components/SocketProvider';
+// import { useSocket } from '../components/SocketProvider';
 
 interface Customer {
   name: string;
@@ -16,7 +16,7 @@ interface Customer {
 }
 
 export default function ProfilePage() {
-  const { socket, isConnected } = useSocket();
+  // const { socket, isConnected } = useSocket();
   const [customer, setCustomer] = useState<Customer | null>(null);
   const [isRegistered, setIsRegistered] = useState(false);
   const [orders, setOrders] = useState<any[]>([]);
@@ -83,25 +83,25 @@ export default function ProfilePage() {
     loadAddresses();
   }, []);
 
-  useEffect(() => {
-    if (socket && isConnected) {
-      socket.on('orderStatusChanged', (data) => {
-        const userId = localStorage.getItem('userId');
-        if (userId) {
-          loadProfile(); // Reload orders to get updated status
-        }
-      });
+  // useEffect(() => {
+  //   if (socket && isConnected) {
+  //     socket.on('orderStatusChanged', (data) => {
+  //       const userId = localStorage.getItem('userId');
+  //       if (userId) {
+  //         loadProfile(); // Reload orders to get updated status
+  //       }
+  //     });
 
-      socket.on('paymentSlipStatusChanged', (data) => {
-        const userEmail = localStorage.getItem('userEmail');
-        if (userEmail === data.customerEmail) {
-          loadProfile(); // Reload orders to get updated slip status
-          setToast({message: `Payment slip ${data.status === 'verified' ? 'approved' : 'rejected'} for order ${data.orderNumber}`, type: data.status === 'verified' ? 'success' : 'error'});
-          setTimeout(() => setToast(null), 5000);
-        }
-      });
-    }
-  }, [socket, isConnected]);
+  //     socket.on('paymentSlipStatusChanged', (data) => {
+  //       const userEmail = localStorage.getItem('userEmail');
+  //       if (userEmail === data.customerEmail) {
+  //         loadProfile(); // Reload orders to get updated slip status
+  //         setToast({message: `Payment slip ${data.status === 'verified' ? 'approved' : 'rejected'} for order ${data.orderNumber}`, type: data.status === 'verified' ? 'success' : 'error'});
+  //         setTimeout(() => setToast(null), 5000);
+  //       }
+  //     });
+  //   }
+  // }, [socket, isConnected]);
 
   const loadProfile = async () => {
     if (typeof window !== 'undefined') {

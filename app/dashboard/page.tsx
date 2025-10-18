@@ -3,10 +3,10 @@
 import { useState, useEffect } from 'react';
 import { Product } from '../types';
 import ImageWithFallback from '../components/ImageWithFallback';
-import { useSocket } from '../components/SocketProvider';
+// import { useSocket } from '../components/SocketProvider';
 
 export default function DashboardPage() {
-  const { socket, isConnected } = useSocket();
+  // const { socket, isConnected } = useSocket();
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<any[]>([]);
   const [customers, setCustomers] = useState<any[]>([]);
@@ -180,28 +180,28 @@ export default function DashboardPage() {
     }
   }, []);
 
-  useEffect(() => {
-    if (socket && isConnected) {
-      socket.on('newOrder', (data) => {
-        setToast({message: `🛒 New Order: ${data.orderNumber} from ${data.customerName} - LKR ${data.total.toFixed(2)} (${data.itemCount} items)`, type: 'success'});
-        setTimeout(() => setToast(null), 8000);
-        loadOrders();
-        loadSalesData();
-      });
+  // useEffect(() => {
+  //   if (socket && isConnected) {
+  //     socket.on('newOrder', (data) => {
+  //       setToast({message: `🛒 New Order: ${data.orderNumber} from ${data.customerName} - LKR ${data.total.toFixed(2)} (${data.itemCount} items)`, type: 'success'});
+  //       setTimeout(() => setToast(null), 8000);
+  //       loadOrders();
+  //       loadSalesData();
+  //     });
 
-      socket.on('paymentSlipUploaded', (data) => {
-        setToast({message: `💳 Payment Slip Uploaded: ${data.orderNumber} from ${data.customerName}`, type: 'success'});
-        setTimeout(() => setToast(null), 8000);
-        loadOrders();
-      });
+  //     socket.on('paymentSlipUploaded', (data) => {
+  //       setToast({message: `💳 Payment Slip Uploaded: ${data.orderNumber} from ${data.customerName}`, type: 'success'});
+  //       setTimeout(() => setToast(null), 8000);
+  //       loadOrders();
+  //     });
 
-      socket.on('paymentSlipStatusChanged', (data) => {
-        setToast({message: `📋 Payment Slip ${data.status.toUpperCase()}: ${data.orderNumber}`, type: data.status === 'verified' ? 'success' : 'error'});
-        setTimeout(() => setToast(null), 8000);
-        loadOrders();
-      });
-    }
-  }, [socket, isConnected]);
+  //     socket.on('paymentSlipStatusChanged', (data) => {
+  //       setToast({message: `📋 Payment Slip ${data.status.toUpperCase()}: ${data.orderNumber}`, type: data.status === 'verified' ? 'success' : 'error'});
+  //       setTimeout(() => setToast(null), 8000);
+  //       loadOrders();
+  //     });
+  //   }
+  // }, [socket, isConnected]);
 
 
 

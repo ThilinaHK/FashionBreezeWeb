@@ -9,17 +9,34 @@ const nextConfig = {
   typescript: {
     ignoreBuildErrors: true,
   },
+  swcMinify: false,
+  experimental: {
+    optimizeCss: false,
+    turbo: {
+      rules: {
+        '*.svg': {
+          loaders: ['@svgr/webpack'],
+          as: '*.js',
+        },
+      },
+    },
+  },
   webpack: (config, { dev, isServer }) => {
-    if (dev) {
-      config.watchOptions = {
-        poll: 1000,
-        aggregateTimeout: 300,
-      }
+    config.optimization.splitChunks = {
+      chunks: 'all',
+      cacheGroups: {
+        default: false,
+        vendors: false,
+        vendor: {
+          chunks: 'all',
+          test: /node_modules/,
+          name: 'vendor',
+        },
+      },
     }
     
     if (!isServer) {
       config.resolve.fallback = {
-        ...config.resolve.fallback,
         fs: false,
         net: false,
         tls: false,
@@ -28,10 +45,6 @@ const nextConfig = {
     
     return config
   },
-  swcMinify: true,
-  experimental: {
-    optimizeCss: false,
-  }
 }
 
 module.exports = nextConfig
