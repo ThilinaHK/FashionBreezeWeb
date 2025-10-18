@@ -12,34 +12,47 @@ const nextConfig = {
   swcMinify: false,
   experimental: {
     optimizeCss: false,
-    turbo: {
-      rules: {
-        '*.svg': {
-          loaders: ['@svgr/webpack'],
-          as: '*.js',
-        },
-      },
-    },
+    esmExternals: false,
   },
   webpack: (config, { dev, isServer }) => {
-    config.optimization.splitChunks = {
-      chunks: 'all',
-      cacheGroups: {
-        default: false,
-        vendors: false,
-        vendor: {
-          chunks: 'all',
-          test: /node_modules/,
-          name: 'vendor',
-        },
-      },
-    }
-    
+    // Handle client-side only modules
     if (!isServer) {
       config.resolve.fallback = {
         fs: false,
         net: false,
         tls: false,
+        crypto: false,
+        stream: false,
+        http: false,
+        https: false,
+        zlib: false,
+        path: false,
+        os: false,
+      }
+    }
+    
+    // Define global variables to prevent 'self is not defined' errors
+    const webpack = require('webpack')
+    config.plugins = config.plugins || []
+    config.plugins.push(
+      new webpack.DefinePlugin({
+        'typeof window': JSON.stringify(isServer ? 'undefined' : 'object'),
+        'typeof self': JSON.stringify(isServer ? 'undefined' : 'object'),
+        'typeof global': JSON.stringify('object'),
+      })
+    )
+    
+    // Simplified chunk splitting
+    if (!dev) {
+      config.optimization.splitChunks = {
+        chunks: 'all',
+        cacheGroups: {
+          vendor: {
+            test: /[\\/]node_modules[\\/]/,
+            name: 'vendors',
+            chunks: 'all',
+          },
+        },
       }
     }
     
