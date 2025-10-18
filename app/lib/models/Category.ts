@@ -20,6 +20,11 @@ const SubCategorySchema = new mongoose.Schema({
 });
 
 const CategorySchema = new mongoose.Schema({
+  id: {
+    type: Number,
+    unique: true,
+    sparse: true,
+  },
   name: {
     type: String,
     required: true,
@@ -41,6 +46,11 @@ const CategorySchema = new mongoose.Schema({
   sortOrder: {
     type: Number,
     default: 0,
+  },
+  deliveryCost: {
+    type: Number,
+    default: 0,
+    min: 0,
   },
 }, {
   timestamps: true,

@@ -5,6 +5,25 @@ const SizeSchema = new mongoose.Schema({
     type: String,
     required: true,
   },
+  colors: [{
+    name: {
+      type: String,
+      required: true,
+    },
+    code: {
+      type: String,
+      required: true,
+    },
+    stock: {
+      type: Number,
+      required: true,
+      default: 0,
+    },
+    price: {
+      type: Number,
+      required: true,
+    },
+  }],
   stock: {
     type: Number,
     required: true,
@@ -17,14 +36,19 @@ const SizeSchema = new mongoose.Schema({
 });
 
 const ProductSchema = new mongoose.Schema({
+  id: {
+    type: Number,
+    unique: true,
+    sparse: true,
+  },
   name: {
     type: String,
     required: true,
   },
   slug: {
     type: String,
-    required: true,
     unique: true,
+    sparse: true,
   },
   code: {
     type: String,
@@ -33,7 +57,6 @@ const ProductSchema = new mongoose.Schema({
   },
   description: {
     type: String,
-    required: true,
   },
   shortDescription: String,
   price: {
@@ -49,13 +72,11 @@ const ProductSchema = new mongoose.Schema({
   },
   promoCode: String,
   category: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Category',
+    type: mongoose.Schema.Types.Mixed,
     required: true,
   },
   subcategory: {
     type: String,
-    required: true,
   },
   brand: String,
   tags: [String],
@@ -63,14 +84,7 @@ const ProductSchema = new mongoose.Schema({
     type: String,
     required: true,
   },
-  images: [{
-    url: String,
-    alt: String,
-    isPrimary: {
-      type: Boolean,
-      default: false,
-    },
-  }],
+  additionalImages: [String],
   sizes: [SizeSchema],
   colors: [{
     name: String,
@@ -134,6 +148,14 @@ const ProductSchema = new mongoose.Schema({
       default: true,
     },
   },
+  cost: {
+    type: Number,
+    default: 0,
+  },
+  vat: {
+    type: Number,
+    default: 0,
+  },
   pricing: {
     costPrice: Number,
     profitMargin: Number,
@@ -168,8 +190,6 @@ const ProductSchema = new mongoose.Schema({
 });
 
 // Indexes for better performance
-ProductSchema.index({ slug: 1 });
-ProductSchema.index({ code: 1 });
 ProductSchema.index({ category: 1, subcategory: 1 });
 ProductSchema.index({ status: 1, visibility: 1 });
 ProductSchema.index({ featured: 1 });
@@ -184,7 +204,7 @@ ProductSchema.virtual('totalStock').get(function() {
 
 // Virtual for in stock status
 ProductSchema.virtual('inStock').get(function() {
-  return this.totalStock > 0;
+  return (this.inventory?.totalStock || 0) > 0;
 });
 
 export default mongoose.models.Product || mongoose.model('Product', ProductSchema);
