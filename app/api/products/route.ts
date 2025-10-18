@@ -4,11 +4,32 @@ import Product from '../../lib/models/Product';
 
 export async function GET() {
   try {
+    console.log('Connecting to MongoDB...');
     await dbConnect();
+    console.log('MongoDB connected, fetching products...');
+    
     const products = await Product.find(
-      { status: { $in: ['active', 'instock'] } },
-      'name code price image additionalImages category status sizes brand cost vat'
-    ).lean().limit(100).sort({ updatedAt: -1 });
+      { status: { $in: ['active', 'instock'] } }
+    ).lean().limit(100).sort({ createdAt: -1 });
+    
+    console.log(`Found ${products.length} products in database`);
+    
+    if (products.length === 0) {
+      console.log('No products found, checking all products...');
+      const allProducts = await Product.find({}).lean().limit(10);
+      console.log(`Total products in database: ${allProducts.length}`);
+      
+      if (allProducts.length > 0) {
+        console.log('Returning all products regardless of status');
+        return NextResponse.json(allProducts, {
+          headers: {
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
+            'Pragma': 'no-cache',
+            'Expires': '0'
+          }
+        });
+      }
+    }
     
     return NextResponse.json(products, {
       headers: {
@@ -19,6 +40,7 @@ export async function GET() {
     });
   } catch (error) {
     console.error('Products API error:', error);
+    console.error('Error details:', error.message);
     return NextResponse.json([], {
       headers: {
         'Cache-Control': 'no-cache, no-store, must-revalidate'

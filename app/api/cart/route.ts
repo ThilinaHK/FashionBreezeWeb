@@ -22,7 +22,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     await dbConnect();
-    const { userId, items, total } = await request.json();
+    const { userId, items, total, subtotal, deliveryCost } = await request.json();
     
     console.log('Cart POST - userId:', userId, 'items:', items?.length);
     
@@ -34,15 +34,24 @@ export async function POST(request: NextRequest) {
       // Allow saving empty cart
       await Cart.findOneAndUpdate(
         { userId },
-        { items: [], total: 0 },
+        { items: [], subtotal: 0, deliveryCost: 0, total: 0 },
         { upsert: true, new: true }
       );
       return NextResponse.json({ success: true });
     }
     
+    const cartSubtotal = subtotal || items.reduce((sum: number, item: any) => sum + (item.price * item.quantity), 0);
+    const cartDeliveryCost = deliveryCost || 0;
+    const cartTotal = total || (cartSubtotal + cartDeliveryCost);
+    
     await Cart.findOneAndUpdate(
       { userId },
-      { items, total },
+      { 
+        items, 
+        subtotal: cartSubtotal,
+        deliveryCost: cartDeliveryCost,
+        total: cartTotal 
+      },
       { upsert: true, new: true }
     );
     

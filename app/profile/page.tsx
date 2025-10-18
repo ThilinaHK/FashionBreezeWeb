@@ -1,6 +1,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useSocket } from '../components/SocketProvider';
+
 interface Customer {
   name: string;
   email: string;
@@ -14,6 +16,7 @@ interface Customer {
 }
 
 export default function ProfilePage() {
+  const { socket, isConnected } = useSocket();
   const [customer, setCustomer] = useState<Customer | null>(null);
   const [isRegistered, setIsRegistered] = useState(false);
   const [orders, setOrders] = useState<any[]>([]);
@@ -73,11 +76,32 @@ export default function ProfilePage() {
   const [showReviewModal, setShowReviewModal] = useState(false);
   const [reviewData, setReviewData] = useState({ productId: '', rating: 5, comment: '' });
   const [submittingReview, setSubmittingReview] = useState(false);
+  const [toast, setToast] = useState<{message: string, type: string} | null>(null);
 
   useEffect(() => {
     loadProfile();
     loadAddresses();
   }, []);
+
+  useEffect(() => {
+    if (socket && isConnected) {
+      socket.on('orderStatusChanged', (data) => {
+        const userId = localStorage.getItem('userId');
+        if (userId) {
+          loadProfile(); // Reload orders to get updated status
+        }
+      });
+
+      socket.on('paymentSlipStatusChanged', (data) => {
+        const userEmail = localStorage.getItem('userEmail');
+        if (userEmail === data.customerEmail) {
+          loadProfile(); // Reload orders to get updated slip status
+          setToast({message: `Payment slip ${data.status === 'verified' ? 'approved' : 'rejected'} for order ${data.orderNumber}`, type: data.status === 'verified' ? 'success' : 'error'});
+          setTimeout(() => setToast(null), 5000);
+        }
+      });
+    }
+  }, [socket, isConnected]);
 
   const loadProfile = async () => {
     if (typeof window !== 'undefined') {
@@ -980,15 +1004,16 @@ export default function ProfilePage() {
                                   >
                                     <i className="bi bi-clock-history"></i>
                                   </button>
-                                  {/* Debug info */}
+                                  {/* Debug info - remove this after testing */}
                                   <button 
                                     className="btn btn-sm btn-outline-secondary" 
                                     onClick={() => {
                                       console.log('=== ORDER DEBUG ===');
                                       console.log('Order ID:', order._id);
                                       console.log('Payment Method:', order.paymentMethod);
-                                      console.log('Payment Slip:', order.paymentSlip);
                                       console.log('Order Status:', order.status);
+                                      console.log('Has Payment Slip:', !!order.paymentSlip);
+                                      console.log('Should show upload?', (order.paymentMethod === 'bank_transfer' || order.status === 'confirmed') && !order.paymentSlip);
                                       console.log('Full Order:', order);
                                       console.log('==================');
                                     }}
@@ -996,35 +1021,40 @@ export default function ProfilePage() {
                                   >
                                     <i className="bi bi-bug"></i>
                                   </button>
-                                  {order.paymentMethod === 'bank_transfer' && (
-                                    !order.paymentSlip ? (
-                                      <button 
-                                        className="btn btn-sm btn-outline-primary" 
-                                        onClick={() => {
-                                          setUploadOrderId(order._id); 
-                                          setShowUploadModal(true);
-                                        }}
-                                        title="Upload Payment Slip"
-                                      >
-                                        <i className="bi bi-upload"></i>
-                                      </button>
-                                    ) : (
-                                      <button 
-                                        className={`btn btn-sm ${
-                                          order.paymentSlip.status === 'verified' ? 'btn-success' :
-                                          order.paymentSlip.status === 'rejected' ? 'btn-danger' : 'btn-warning'
-                                        }`}
-                                        onClick={() => {
-                                          console.log('Viewing payment slip for order:', order._id);
-                                          console.log('Payment slip data:', order.paymentSlip);
-                                          setSelectedSlip(order); 
-                                          setShowSlipModal(true);
-                                        }}
-                                        title="View Payment Slip"
-                                      >
-                                        <i className="bi bi-file-image"></i>
-                                      </button>
-                                    )
+
+                                  {/* Upload/View Payment Slip */}
+                                  {(order.paymentMethod?.toLowerCase().replace(/\s+/g, '_') === 'bank_transfer' || order.status?.toLowerCase() === 'confirmed') && (
+                                    <div className="d-flex gap-1">
+                                      {(!order.paymentSlip || order.paymentSlip?.status === 'rejected') && (
+                                        <button 
+                                          className="btn btn-sm btn-outline-success" 
+                                          onClick={() => {
+                                            setUploadOrderId(order._id); 
+                                            setShowUploadModal(true);
+                                          }}
+                                          title={order.paymentSlip?.status === 'rejected' ? 'Resubmit Payment Slip' : (order.status?.toLowerCase() === 'confirmed' ? 'Upload Bank Deposit Slip' : 'Upload Payment Slip')}
+                                        >
+                                          <i className="bi bi-upload me-1"></i>
+                                          {order.paymentSlip?.status === 'rejected' ? 'Resubmit' : (order.status?.toLowerCase() === 'confirmed' ? 'Deposit' : 'Upload')}
+                                        </button>
+                                      )}
+                                      {order.paymentSlip && (
+                                        <button 
+                                          className={`btn btn-sm ${
+                                            order.paymentSlip.status === 'verified' ? 'btn-success' :
+                                            order.paymentSlip.status === 'rejected' ? 'btn-danger' : 'btn-warning'
+                                          }`}
+                                          onClick={() => {
+                                            setSelectedSlip(order); 
+                                            setShowSlipModal(true);
+                                          }}
+                                          title="View Payment Slip"
+                                        >
+                                          <i className="bi bi-file-image me-1"></i>
+                                          View
+                                        </button>
+                                      )}
+                                    </div>
                                   )}
 
                                   {order.status === 'delivered' && (
@@ -1661,7 +1691,8 @@ export default function ProfilePage() {
             <div className="modal-content">
               <div className="modal-header bg-primary text-white">
                 <h5 className="modal-title">
-                  <i className="bi bi-upload me-2"></i>Upload Payment Slip
+                  <i className="bi bi-upload me-2"></i>
+                  {orders.find(o => o._id === uploadOrderId)?.status === 'confirmed' ? 'Upload Bank Deposit Slip' : 'Upload Payment Slip'}
                 </h5>
                 <button type="button" className="btn-close btn-close-white" onClick={() => {setShowUploadModal(false); setUploadOrderId('');}}></button>
               </div>
@@ -1671,7 +1702,7 @@ export default function ProfilePage() {
                     <div className="alert alert-info">
                       <i className="bi bi-info-circle me-2"></i>
                       <strong>Order ID:</strong> {uploadOrderId}<br/>
-                      <strong>Payment Method:</strong> Bank Transfer
+                      <strong>Status:</strong> {orders.find(o => o._id === uploadOrderId)?.status === 'confirmed' ? 'Confirmed - Bank Deposit Required' : 'Bank Transfer Payment'}
                     </div>
                   </div>
                   <div className="mb-3">
@@ -1683,16 +1714,18 @@ export default function ProfilePage() {
                       accept="image/*,.pdf"
                       required
                     />
-                    <div className="form-text">Supported formats: JPG, PNG, PDF (Max 10MB)</div>
+                    <div className="form-text">Supported formats: JPG, PNG, PDF (Max 10MB)<br/>
+                      <small className="text-muted">Upload your bank deposit slip or payment receipt</small>
+                    </div>
                   </div>
                   <div className="alert alert-warning">
                     <i className="bi bi-exclamation-triangle me-2"></i>
-                    <strong>Important:</strong> Please ensure the payment slip clearly shows:
+                    <strong>Important:</strong> Please ensure the bank deposit slip clearly shows:
                     <ul className="mb-0 mt-2">
                       <li>Transaction date and time</li>
-                      <li>Amount transferred</li>
+                      <li>Amount deposited: LKR {orders.find(o => o._id === uploadOrderId)?.total?.toFixed(2) || '0.00'}</li>
                       <li>Reference number</li>
-                      <li>Bank details</li>
+                      <li>Bank details and branch</li>
                     </ul>
                   </div>
                   <div className="alert alert-success">

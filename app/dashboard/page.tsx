@@ -3,10 +3,10 @@
 import { useState, useEffect } from 'react';
 import { Product } from '../types';
 import ImageWithFallback from '../components/ImageWithFallback';
-
+import { useSocket } from '../components/SocketProvider';
 
 export default function DashboardPage() {
-
+  const { socket, isConnected } = useSocket();
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<any[]>([]);
   const [customers, setCustomers] = useState<any[]>([]);
@@ -19,6 +19,7 @@ export default function DashboardPage() {
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [editingCategory, setEditingCategory] = useState<any>(null);
   const [categoryName, setCategoryName] = useState('');
+  const [categoryDeliveryCost, setCategoryDeliveryCost] = useState(0);
   const [formData, setFormData] = useState({
     name: '',
     code: '',
@@ -127,6 +128,21 @@ export default function DashboardPage() {
     address: { line1: '', line2: '', line3: '' }
   });
   const [savingCustomer, setSavingCustomer] = useState(false);
+  const [slides, setSlides] = useState<any[]>([]);
+  const [loadingSlides, setLoadingSlides] = useState(false);
+  const [showSlideModal, setShowSlideModal] = useState(false);
+  const [editingSlide, setEditingSlide] = useState<any>(null);
+  const [slideFormData, setSlideFormData] = useState({
+    title: '',
+    subtitle: '',
+    image: '',
+    saleType: 'flash_sale',
+    discount: 0,
+    validUntil: '',
+    isActive: true,
+    order: 1
+  });
+  const [savingSlide, setSavingSlide] = useState(false);
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -156,12 +172,36 @@ export default function DashboardPage() {
           loadAddresses();
           loadStockAlerts();
           loadTopProducts();
+          loadSlides();
         }, 200);
       } else {
         setIsLoggedIn(false);
       }
     }
   }, []);
+
+  useEffect(() => {
+    if (socket && isConnected) {
+      socket.on('newOrder', (data) => {
+        setToast({message: `🛒 New Order: ${data.orderNumber} from ${data.customerName} - LKR ${data.total.toFixed(2)} (${data.itemCount} items)`, type: 'success'});
+        setTimeout(() => setToast(null), 8000);
+        loadOrders();
+        loadSalesData();
+      });
+
+      socket.on('paymentSlipUploaded', (data) => {
+        setToast({message: `💳 Payment Slip Uploaded: ${data.orderNumber} from ${data.customerName}`, type: 'success'});
+        setTimeout(() => setToast(null), 8000);
+        loadOrders();
+      });
+
+      socket.on('paymentSlipStatusChanged', (data) => {
+        setToast({message: `📋 Payment Slip ${data.status.toUpperCase()}: ${data.orderNumber}`, type: data.status === 'verified' ? 'success' : 'error'});
+        setTimeout(() => setToast(null), 8000);
+        loadOrders();
+      });
+    }
+  }, [socket, isConnected]);
 
 
 
@@ -1044,8 +1084,10 @@ export default function DashboardPage() {
   };
 
   const openCategoryModal = (category?: any) => {
+    console.log('Opening category modal with:', category);
     setEditingCategory(category || null);
     setCategoryName(category?.name || '');
+    setCategoryDeliveryCost(category?.deliveryCost || 0);
     setShowCategoryModal(true);
   };
 
@@ -1054,7 +1096,11 @@ export default function DashboardPage() {
     setSavingCategory(true);
     try {
       const method = editingCategory ? 'PUT' : 'POST';
-      const body = editingCategory ? { id: editingCategory._id || editingCategory.id, name: categoryName } : { name: categoryName };
+      const categoryId = editingCategory?._id || editingCategory?.id;
+      const body = editingCategory ? { id: categoryId, name: categoryName, deliveryCost: categoryDeliveryCost } : { name: categoryName, deliveryCost: categoryDeliveryCost };
+      
+      console.log('Saving category with data:', body);
+      console.log('Category ID being used:', categoryId);
       
       const currentUser = JSON.parse(localStorage.getItem('adminUser') || '{}');
       
@@ -1072,8 +1118,16 @@ export default function DashboardPage() {
         await loadCategories();
         setShowCategoryModal(false);
         setCategoryName('');
+        setCategoryDeliveryCost(0);
         setEditingCategory(null);
-        setToast({message: editingCategory ? 'Category updated successfully!' : 'Category created successfully!', type: 'success'});
+        
+        // Trigger product refresh to update delivery costs
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('products_timestamp', Date.now().toString());
+          localStorage.setItem('categories_updated', 'true');
+        }
+        
+        setToast({message: editingCategory ? 'Category updated successfully! Delivery costs will be recalculated.' : 'Category created successfully!', type: 'success'});
         setTimeout(() => setToast(null), 3000);
       } else {
         const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
@@ -1465,6 +1519,98 @@ export default function DashboardPage() {
     }
   };
 
+  const loadSlides = async () => {
+    setLoadingSlides(true);
+    try {
+      const response = await fetch('/api/slideshow');
+      const slides = await response.json();
+      setSlides(Array.isArray(slides) ? slides : []);
+    } catch (error) {
+      console.error('Error loading slides:', error);
+      setSlides([]);
+    } finally {
+      setLoadingSlides(false);
+    }
+  };
+
+  const openSlideModal = (slide?: any) => {
+    if (slide) {
+      setEditingSlide(slide);
+      setSlideFormData({
+        title: slide.title,
+        subtitle: slide.subtitle,
+        image: slide.image,
+        saleType: slide.saleType,
+        discount: slide.discount,
+        validUntil: slide.validUntil ? new Date(slide.validUntil).toISOString().split('T')[0] : '',
+        isActive: slide.isActive,
+        order: slide.order
+      });
+    } else {
+      setEditingSlide(null);
+      setSlideFormData({
+        title: '',
+        subtitle: '',
+        image: '',
+        saleType: 'flash_sale',
+        discount: 0,
+        validUntil: '',
+        isActive: true,
+        order: slides.length + 1
+      });
+    }
+    setShowSlideModal(true);
+  };
+
+  const saveSlide = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSavingSlide(true);
+    try {
+      const method = editingSlide ? 'PUT' : 'POST';
+      const body = editingSlide ? { id: editingSlide._id || editingSlide.id, ...slideFormData } : slideFormData;
+      
+      const response = await fetch('/api/slideshow', {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      });
+      
+      if (response.ok) {
+        await loadSlides();
+        setShowSlideModal(false);
+        setToast({message: editingSlide ? 'Slide updated successfully!' : 'Slide created successfully!', type: 'success'});
+        setTimeout(() => setToast(null), 3000);
+      } else {
+        const errorData = await response.json();
+        setToast({message: errorData.error || 'Failed to save slide', type: 'error'});
+        setTimeout(() => setToast(null), 3000);
+      }
+    } catch (error) {
+      console.error('Error saving slide:', error);
+      setToast({message: 'Failed to save slide', type: 'error'});
+      setTimeout(() => setToast(null), 3000);
+    } finally {
+      setSavingSlide(false);
+    }
+  };
+
+  const deleteSlide = async (slide: any) => {
+    if (confirm('Are you sure you want to delete this slide?')) {
+      try {
+        const response = await fetch(`/api/slideshow?id=${slide._id || slide.id}`, { method: 'DELETE' });
+        if (response.ok) {
+          await loadSlides();
+          setToast({message: 'Slide deleted successfully!', type: 'success'});
+        }
+      } catch (error) {
+        console.error('Error deleting slide:', error);
+        setToast({message: 'Failed to delete slide', type: 'error'});
+      } finally {
+        setTimeout(() => setToast(null), 3000);
+      }
+    }
+  };
+
   if (!isLoggedIn) {
     return (
       <div className="dashboard-page">
@@ -1581,6 +1727,13 @@ export default function DashboardPage() {
                 <li className="nav-item">
                   <button className={`nav-link ${activeTab === 'addresses' ? 'active' : ''}`} onClick={() => setActiveTab('addresses')}>
                     <i className="bi bi-geo-alt me-2"></i>Addresses
+                  </button>
+                </li>
+              )}
+              {hasPrivilege('products') && (
+                <li className="nav-item">
+                  <button className={`nav-link ${activeTab === 'slideshow' ? 'active' : ''}`} onClick={() => setActiveTab('slideshow')}>
+                    <i className="bi bi-images me-2"></i>Slideshow
                   </button>
                 </li>
               )}
@@ -1910,13 +2063,14 @@ export default function DashboardPage() {
                       <th>ID</th>
                       <th>Name</th>
                       <th>Products</th>
+                      <th>Delivery Cost</th>
                       <th>Actions</th>
                     </tr>
                   </thead>
                   <tbody>
                     {loadingCategories ? (
                       <tr>
-                        <td colSpan={4} className="text-center py-4">
+                        <td colSpan={5} className="text-center py-4">
                           <div className="spinner-border text-success" role="status">
                             <span className="visually-hidden">Loading...</span>
                           </div>
@@ -1930,6 +2084,7 @@ export default function DashboardPage() {
                         <td>{category.id || category._id}</td>
                         <td className="fw-bold">{category.name}</td>
                         <td><span className="badge bg-info">{category.productCount || 0}</span></td>
+                        <td className="fw-bold text-success">LKR {(category.deliveryCost || 0).toFixed(2)}</td>
                         <td>
                           <button className="btn btn-sm btn-outline-primary me-2" onClick={() => openCategoryModal(category)}>
                             <i className="bi bi-pencil"></i>
@@ -2809,6 +2964,261 @@ export default function DashboardPage() {
           </div>
         )}
 
+        {activeTab === 'slideshow' && hasPrivilege('products') && (
+          <div className="card border-0 shadow-sm">
+            <div className="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+              <h5 className="mb-0"><i className="bi bi-images me-2"></i>Slideshow Management</h5>
+              <button className="btn btn-light" onClick={() => openSlideModal()}>
+                <i className="bi bi-plus-circle me-2"></i>Add Slide
+              </button>
+            </div>
+            <div className="card-body">
+              <div className="table-responsive">
+                <table className="table table-hover">
+                  <thead>
+                    <tr>
+                      <th>Preview</th>
+                      <th>Title</th>
+                      <th>Sale Type</th>
+                      <th>Discount</th>
+                      <th>Valid Until</th>
+                      <th>Order</th>
+                      <th>Status</th>
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {loadingSlides ? (
+                      <tr>
+                        <td colSpan={8} className="text-center py-4">
+                          <div className="spinner-border text-primary" role="status">
+                            <span className="visually-hidden">Loading...</span>
+                          </div>
+                        </td>
+                      </tr>
+                    ) : slides.length === 0 ? (
+                      <tr>
+                        <td colSpan={8} className="text-center py-5">
+                          <div className="text-muted">
+                            <i className="bi bi-images display-4 mb-3"></i>
+                            <p className="mb-0">No slides found</p>
+                            <small>Click "Add Slide" to create your first promotional slide</small>
+                          </div>
+                        </td>
+                      </tr>
+                    ) : (
+                      slides.map(slide => (
+                        <tr key={slide._id || slide.id}>
+                          <td>
+                            <img src={slide.image} alt={slide.title} style={{width: '80px', height: '50px', objectFit: 'cover'}} className="rounded" />
+                          </td>
+                          <td>
+                            <div>
+                              <strong>{slide.title}</strong>
+                              {slide.subtitle && <><br/><small className="text-muted">{slide.subtitle}</small></>}
+                            </div>
+                          </td>
+                          <td>
+                            <span className={`badge ${
+                              slide.saleType === 'flash_sale' ? 'bg-danger' :
+                              slide.saleType === 'seasonal' ? 'bg-warning' :
+                              slide.saleType === 'clearance' ? 'bg-info' : 'bg-success'
+                            }`}>
+                              {slide.saleType.replace('_', ' ').toUpperCase()}
+                            </span>
+                          </td>
+                          <td>
+                            {slide.discount > 0 ? (
+                              <span className="badge bg-success">{slide.discount}% OFF</span>
+                            ) : (
+                              <span className="text-muted">No discount</span>
+                            )}
+                          </td>
+                          <td>
+                            {slide.validUntil ? (
+                              <small>{new Date(slide.validUntil).toLocaleDateString()}</small>
+                            ) : (
+                              <span className="text-muted">No expiry</span>
+                            )}
+                          </td>
+                          <td><span className="badge bg-secondary">{slide.order}</span></td>
+                          <td>
+                            <span className={`badge ${slide.isActive ? 'bg-success' : 'bg-secondary'}`}>
+                              {slide.isActive ? 'Active' : 'Inactive'}
+                            </span>
+                          </td>
+                          <td>
+                            <div className="d-flex gap-2">
+                              <button className="btn btn-sm btn-outline-primary" onClick={() => openSlideModal(slide)}>
+                                <i className="bi bi-pencil"></i>
+                              </button>
+                              <button className="btn btn-sm btn-outline-danger" onClick={() => deleteSlide(slide)}>
+                                <i className="bi bi-trash"></i>
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {showSlideModal && (
+          <div className="modal d-block" tabIndex={-1} style={{background: 'rgba(0,0,0,0.5)'}}>
+            <div className="modal-dialog modal-lg">
+              <div className="modal-content">
+                <div className="modal-header bg-primary text-white">
+                  <h5 className="modal-title">
+                    <i className={`bi ${editingSlide ? 'bi-pencil-square' : 'bi-plus-circle'} me-2`}></i>
+                    {editingSlide ? 'Edit Slide' : 'Add New Slide'}
+                  </h5>
+                  <button type="button" className="btn-close btn-close-white" onClick={() => setShowSlideModal(false)}></button>
+                </div>
+                <form onSubmit={saveSlide}>
+                  <div className="modal-body">
+                    <div className="row g-3">
+                      <div className="col-md-6">
+                        <label className="form-label fw-bold">Title *</label>
+                        <input 
+                          type="text" 
+                          className="form-control" 
+                          value={slideFormData.title}
+                          onChange={(e) => setSlideFormData({...slideFormData, title: e.target.value})}
+                          required 
+                          placeholder="e.g., Summer Sale"
+                        />
+                      </div>
+                      <div className="col-md-6">
+                        <label className="form-label fw-bold">Subtitle</label>
+                        <input 
+                          type="text" 
+                          className="form-control" 
+                          value={slideFormData.subtitle}
+                          onChange={(e) => setSlideFormData({...slideFormData, subtitle: e.target.value})}
+                          placeholder="e.g., Up to 70% OFF"
+                        />
+                      </div>
+                      <div className="col-md-6">
+                        <label className="form-label fw-bold">Sale Type *</label>
+                        <select 
+                          className="form-select" 
+                          value={slideFormData.saleType}
+                          onChange={(e) => setSlideFormData({...slideFormData, saleType: e.target.value})}
+                          required
+                        >
+                          <option value="flash_sale">Flash Sale</option>
+                          <option value="seasonal">Seasonal Sale</option>
+                          <option value="clearance">Clearance</option>
+                          <option value="new_arrival">New Arrival</option>
+                          <option value="featured">Featured</option>
+                        </select>
+                      </div>
+                      <div className="col-md-6">
+                        <label className="form-label fw-bold">Discount (%)</label>
+                        <input 
+                          type="number" 
+                          className="form-control" 
+                          value={slideFormData.discount}
+                          onChange={(e) => setSlideFormData({...slideFormData, discount: +e.target.value})}
+                          min="0"
+                          max="100"
+                          placeholder="0"
+                        />
+                      </div>
+                      <div className="col-md-6">
+                        <label className="form-label fw-bold">Valid Until</label>
+                        <input 
+                          type="date" 
+                          className="form-control" 
+                          value={slideFormData.validUntil}
+                          onChange={(e) => setSlideFormData({...slideFormData, validUntil: e.target.value})}
+                        />
+                      </div>
+                      <div className="col-md-6">
+                        <label className="form-label fw-bold">Display Order</label>
+                        <input 
+                          type="number" 
+                          className="form-control" 
+                          value={slideFormData.order}
+                          onChange={(e) => setSlideFormData({...slideFormData, order: +e.target.value})}
+                          min="1"
+                          required
+                        />
+                      </div>
+                      <div className="col-12">
+                        <label className="form-label fw-bold">Slide Image *</label>
+                        <input 
+                          type="file" 
+                          className="form-control" 
+                          accept="image/*" 
+                          required={!slideFormData.image}
+                          onChange={async (e) => {
+                            const file = e.target.files?.[0];
+                            if (file) {
+                              try {
+                                const uploadData = new FormData();
+                                uploadData.append('file', file);
+                                const response = await fetch('/api/upload', { method: 'POST', body: uploadData });
+                                if (!response.ok) {
+                                  throw new Error(`Upload failed: ${response.status}`);
+                                }
+                                const result = await response.json();
+                                if (result.url) {
+                                  setSlideFormData(prev => ({...prev, image: result.url}));
+                                } else if (result.error) {
+                                  setToast({message: result.error, type: 'error'});
+                                  setTimeout(() => setToast(null), 3000);
+                                }
+                              } catch (error) {
+                                console.error('Upload error:', error);
+                                setToast({message: 'Failed to upload image', type: 'error'});
+                                setTimeout(() => setToast(null), 3000);
+                              }
+                            }
+                          }}
+                        />
+                        {slideFormData.image && (
+                          <div className="mt-2">
+                            <img src={slideFormData.image} alt="Preview" className="img-fluid rounded" style={{maxHeight: '200px'}} />
+                            <small className="text-success d-block">✓ Image uploaded successfully</small>
+                          </div>
+                        )}
+                      </div>
+                      <div className="col-12">
+                        <div className="form-check">
+                          <input 
+                            className="form-check-input" 
+                            type="checkbox" 
+                            checked={slideFormData.isActive}
+                            onChange={(e) => setSlideFormData({...slideFormData, isActive: e.target.checked})}
+                          />
+                          <label className="form-check-label fw-bold">
+                            Active (Show on website)
+                          </label>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="modal-footer">
+                    <button type="button" className="btn btn-secondary" onClick={() => setShowSlideModal(false)}>Cancel</button>
+                    <button type="submit" className="btn btn-primary" disabled={savingSlide}>
+                      {savingSlide ? (
+                        <><i className="bi bi-hourglass-split me-2"></i>Saving...</>
+                      ) : (
+                        <><i className={`bi ${editingSlide ? 'bi-check-circle' : 'bi-plus-circle'} me-2`}></i>{editingSlide ? 'Update Slide' : 'Create Slide'}</>
+                      )}
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          </div>
+        )}
+
         {showUserModal && (
           <div className="modal d-block" tabIndex={-1} style={{background: 'rgba(0,0,0,0.5)'}}>
             <div className="modal-dialog modal-lg">
@@ -3512,6 +3922,19 @@ export default function DashboardPage() {
                         onChange={(e) => setCategoryName(e.target.value)}
                         required 
                       />
+                    </div>
+                    <div className="mb-3">
+                      <label className="form-label">Delivery Cost (LKR)</label>
+                      <input 
+                        type="number" 
+                        className="form-control" 
+                        value={categoryDeliveryCost}
+                        onChange={(e) => setCategoryDeliveryCost(+e.target.value)}
+                        min="0"
+                        step="0.01"
+                        placeholder="0.00"
+                      />
+                      <small className="text-muted">Set delivery cost for products in this category</small>
                     </div>
                   </div>
                   <div className="modal-footer">

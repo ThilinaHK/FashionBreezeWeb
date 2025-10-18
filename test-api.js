@@ -1,59 +1,38 @@
-// Simple API test script
-const testAPI = async () => {
-  const baseURL = 'http://localhost:3000';
-  
-  console.log('Testing API endpoints...\n');
-  
-  // Test products endpoint
-  try {
-    console.log('1. Testing /api/products...');
-    const response = await fetch(`${baseURL}/api/products`);
-    console.log(`Status: ${response.status}`);
-    const text = await response.text();
-    console.log(`Response length: ${text.length} characters`);
-    
-    try {
-      const json = JSON.parse(text);
-      console.log(`Products found: ${Array.isArray(json) ? json.length : 'Not an array'}`);
-    } catch (e) {
-      console.log('Response is not valid JSON');
-      console.log('First 200 chars:', text.substring(0, 200));
-    }
-  } catch (error) {
-    console.log('Error:', error.message);
-  }
-  
-  console.log('\n2. Testing /api/categories...');
-  try {
-    const response = await fetch(`${baseURL}/api/categories`);
-    console.log(`Status: ${response.status}`);
-    const text = await response.text();
-    console.log(`Response length: ${text.length} characters`);
-    
-    try {
-      const json = JSON.parse(text);
-      console.log(`Categories found: ${Array.isArray(json) ? json.length : 'Not an array'}`);
-    } catch (e) {
-      console.log('Response is not valid JSON');
-      console.log('First 200 chars:', text.substring(0, 200));
-    }
-  } catch (error) {
-    console.log('Error:', error.message);
-  }
-  
-  console.log('\n3. Testing /api/upload (OPTIONS)...');
-  try {
-    const response = await fetch(`${baseURL}/api/upload`, { method: 'OPTIONS' });
-    console.log(`Status: ${response.status}`);
-    console.log('Headers:', Object.fromEntries(response.headers.entries()));
-  } catch (error) {
-    console.log('Error:', error.message);
+const http = require('http');
+
+// Test the products API endpoint
+const options = {
+  hostname: 'localhost',
+  port: 3000,
+  path: '/api/products',
+  method: 'GET',
+  headers: {
+    'Content-Type': 'application/json'
   }
 };
 
-// Run if this is the main module
-if (require.main === module) {
-  testAPI().catch(console.error);
-}
+const req = http.request(options, (res) => {
+  let data = '';
+  
+  res.on('data', (chunk) => {
+    data += chunk;
+  });
+  
+  res.on('end', () => {
+    try {
+      const products = JSON.parse(data);
+      console.log(`API returned ${products.length} products`);
+      if (products.length > 0) {
+        console.log('First product:', products[0].name);
+      }
+    } catch (error) {
+      console.log('Response:', data);
+    }
+  });
+});
 
-module.exports = testAPI;
+req.on('error', (error) => {
+  console.error('API test failed:', error.message);
+});
+
+req.end();

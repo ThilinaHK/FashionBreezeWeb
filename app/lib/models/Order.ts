@@ -32,6 +32,14 @@ const OrderSchema = new mongoose.Schema({
     address: String,
   },
   items: [OrderItemSchema],
+  subtotal: {
+    type: Number,
+    default: 0,
+  },
+  deliveryCost: {
+    type: Number,
+    default: 0,
+  },
   total: {
     type: Number,
     default: 0,

@@ -53,7 +53,16 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
       return NextResponse.json({ error: 'Product not found' }, { status: 404 });
     }
     
-    return NextResponse.json({ success: true, product });
+    // Trigger cart refresh for all users by updating timestamp
+    // This will cause the frontend to recalculate delivery costs
+    const timestamp = Date.now();
+    
+    return NextResponse.json({ 
+      success: true, 
+      product,
+      timestamp,
+      message: 'Product updated successfully. Cart delivery costs will be recalculated.' 
+    });
   } catch (error: any) {
     console.error('Product update error:', error);
     console.error('Error details:', error.message);

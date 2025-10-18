@@ -98,17 +98,59 @@ export async function POST(request: NextRequest) {
       }
     }
     
+    // Calculate delivery cost
+    const deliveryResponse = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/api/delivery/calculate`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        subtotal: orderTotal,
+        location: customerInfo?.address || '',
+        items: orderItems
+      })
+    });
+    
+    let deliveryCost = 0;
+    let finalTotal = orderTotal;
+    
+    if (deliveryResponse.ok) {
+      const deliveryData = await deliveryResponse.json();
+      deliveryCost = deliveryData.deliveryCost || 0;
+      finalTotal = deliveryData.total || orderTotal;
+    }
+    
     const order = await Order.create({
       id: orderId,
       orderNumber,
       userId,
       customerInfo,
       items: orderItems,
-      total: orderTotal,
+      subtotal: orderTotal,
+      deliveryCost,
+      total: finalTotal,
       status: 'pending',
       paymentMethod: paymentMethod || 'cash_on_delivery',
       paymentStatus: paymentStatus || 'pending'
     });
+    
+    // Send real-time notification to admin dashboard
+    try {
+      await fetch(`${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/api/notifications/socket`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: 'newOrder',
+          data: {
+            orderId: order._id,
+            orderNumber,
+            customerName: customerInfo?.name || 'Customer',
+            total: orderTotal,
+            itemCount: orderItems.length
+          }
+        })
+      });
+    } catch (notificationError) {
+      console.error('Failed to send new order notification:', notificationError);
+    }
     
     // Clear cart after successful order
     await Cart.findOneAndDelete({ userId });

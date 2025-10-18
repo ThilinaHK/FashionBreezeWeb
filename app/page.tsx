@@ -91,6 +91,11 @@ export default function HomePage() {
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [backgroundAnimation, setBackgroundAnimation] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [slides, setSlides] = useState<any[]>([]);
+  const [currentSlideIndex, setCurrentSlideIndex] = useState(0);
+  const [deliveryCost, setDeliveryCost] = useState(0);
+  const [deliveryMessage, setDeliveryMessage] = useState('FREE');
+  const [remainingForFreeDelivery, setRemainingForFreeDelivery] = useState(0);
 
   const availableSizes = ['XS', 'S', 'M', 'L', 'XL', 'XXL'];
 
@@ -109,37 +114,78 @@ export default function HomePage() {
 
   useEffect(() => {
     setMounted(true);
-    loadProducts();
-    loadCartFromStorage();
-    loadCategoriesFromAPI();
-    startProductUpdateListener();
     
-    // Check admin status
-    const adminStatus = localStorage.getItem('isAdmin') === 'true';
-    setIsAdmin(adminStatus);
+    // Load initial data
+    const initializeApp = async () => {
+      try {
+        console.log('Initializing app...');
+        await loadProducts();
+        await loadCartFromStorage();
+        await loadCategoriesFromAPI();
+        await loadSlides();
+        
+        // Check admin status
+        const adminStatus = localStorage.getItem('isAdmin') === 'true';
+        setIsAdmin(adminStatus);
+        
+        // Load background animation preference
+        const bgAnimation = localStorage.getItem('backgroundAnimation');
+        setBackgroundAnimation(bgAnimation !== 'false');
+        
+        console.log('App initialization complete');
+      } catch (error) {
+        console.error('Error during app initialization:', error);
+      }
+    };
     
-    // Load background animation preference
-    const bgAnimation = localStorage.getItem('backgroundAnimation');
-    setBackgroundAnimation(bgAnimation !== 'false');
+    initializeApp();
+    
+    // Start update listener after initial load
+    const cleanup = startProductUpdateListener();
+    
+    return cleanup;
   }, []);
 
   const startProductUpdateListener = () => {
     if (typeof window !== 'undefined') {
       const handleStorageChange = (e: StorageEvent) => {
         if (e.key === 'products_updated') {
+          console.log('Products updated via storage event');
           loadProducts();
+        }
+        if (e.key === 'categories_updated') {
+          console.log('Categories updated via storage event');
+          loadCategoriesFromAPI();
+          // Recalculate delivery costs when categories change
+          if (cart.length > 0) {
+            setTimeout(() => calculateDelivery(), 500);
+          }
         }
       };
       
       window.addEventListener('storage', handleStorageChange);
       
+      // Reduce interval frequency to prevent excessive API calls
       const interval = setInterval(() => {
         const timestamp = localStorage.getItem('products_timestamp');
+        const categoriesUpdated = localStorage.getItem('categories_updated');
+        
         if (timestamp && parseInt(timestamp) > lastUpdateCheck) {
+          console.log('Products updated via timestamp check');
           loadProducts();
           setLastUpdateCheck(parseInt(timestamp));
         }
-      }, 2000);
+        
+        if (categoriesUpdated === 'true') {
+          console.log('Categories updated via timestamp check');
+          localStorage.removeItem('categories_updated');
+          loadCategoriesFromAPI();
+          // Recalculate delivery costs when categories change
+          if (cart.length > 0) {
+            setTimeout(() => calculateDelivery(), 500);
+          }
+        }
+      }, 10000); // Increased from 2000ms to 10000ms
 
       return () => {
         clearInterval(interval);
@@ -158,6 +204,12 @@ export default function HomePage() {
         console.log('Loaded cart data:', cartData);
         const loadedItems = cartData.items || [];
         setCart(loadedItems);
+        
+        // Load delivery cost if available
+        if (cartData.deliveryCost !== undefined) {
+          setDeliveryCost(cartData.deliveryCost);
+        }
+        
         return loadedItems;
       } catch (error) {
         console.error('Error loading cart from MongoDB:', error);
@@ -180,13 +232,23 @@ export default function HomePage() {
           productId: item._id || item.id?.toString() || item.id
         }));
         console.log('Items with productId:', itemsWithProductId);
+        
+        const subtotal = cartItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+        
+        // Recalculate delivery cost before saving
+        await calculateDelivery();
+        
+        const total = subtotal + deliveryCost;
+        
         const response = await fetch('/api/cart', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             userId,
             items: itemsWithProductId,
-            total: cartItems.reduce((sum, item) => sum + (item.price * item.quantity), 0)
+            subtotal,
+            deliveryCost,
+            total
           })
         });
         const result = await response.json();
@@ -203,6 +265,7 @@ export default function HomePage() {
   const loadProducts = async () => {
     try {
       setLoading(true);
+      console.log('Loading products from database...');
       
       const response = await fetch(`/api/products?t=${Date.now()}`, {
         cache: 'no-store',
@@ -211,15 +274,24 @@ export default function HomePage() {
         }
       });
       
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
       const products = await response.json();
+      console.log('Received products from API:', products.length);
       
       if (Array.isArray(products) && products.length > 0) {
+        console.log('Setting products from database:', products);
         setProducts(products);
         updateCategories(products);
       } else {
+        console.warn('No products received from database, loading fallback products');
         loadFallbackProducts();
       }
     } catch (error) {
+      console.error('Error loading products from database:', error);
+      console.log('Loading fallback products due to error');
       loadFallbackProducts();
     } finally {
       setLoading(false);
@@ -351,14 +423,70 @@ export default function HomePage() {
     setCartLoading(null);
   };
 
-  const removeFromCart = (productId: number | string, size?: string) => {
+  const removeFromCart = async (productId: number | string, size?: string) => {
     const newCart = cart.filter(item => !((item.id || item._id) === productId && (!size || item.size === size)));
     setCart(newCart);
-    saveCartToMongoDB(newCart);
+    await saveCartToMongoDB(newCart);
   };
 
-  const getTotal = () => {
+  const getSubtotal = () => {
     return cart.reduce((total, item) => total + (item.price * item.quantity), 0);
+  };
+  
+  const getTotal = () => {
+    return getSubtotal() + deliveryCost;
+  };
+  
+  const calculateDelivery = async () => {
+    const subtotal = getSubtotal();
+    console.log('Calculating delivery for subtotal:', subtotal, 'Cart items:', cart.length);
+    
+    if (subtotal === 0) {
+      setDeliveryCost(0);
+      setDeliveryMessage('FREE');
+      setRemainingForFreeDelivery(0);
+      return;
+    }
+    
+    try {
+      const customerData = JSON.parse(localStorage.getItem('customers') || '[]');
+      const currentCustomer = customerData[customerData.length - 1] || {};
+      const location = currentCustomer.address?.line1 || localStorage.getItem('userAddress') || '';
+      
+      const response = await fetch('/api/delivery/calculate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          subtotal,
+          location,
+          items: cart.map(item => ({
+            ...item,
+            category: getCategoryName(item.category)
+          }))
+        })
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        console.log('Delivery calculation result:', data);
+        setDeliveryCost(data.deliveryCost || 0);
+        setDeliveryMessage(data.deliveryMessage || 'FREE');
+        setRemainingForFreeDelivery(data.remainingForFreeDelivery || 0);
+      } else {
+        // Fallback calculation
+        const cost = subtotal >= 5000 ? 0 : 300;
+        setDeliveryCost(cost);
+        setDeliveryMessage(cost === 0 ? 'FREE' : `LKR ${cost}`);
+        setRemainingForFreeDelivery(subtotal < 5000 ? 5000 - subtotal : 0);
+      }
+    } catch (error) {
+      console.error('Delivery calculation error:', error);
+      // Fallback calculation
+      const cost = subtotal >= 5000 ? 0 : 300;
+      setDeliveryCost(cost);
+      setDeliveryMessage(cost === 0 ? 'FREE' : `LKR ${cost}`);
+      setRemainingForFreeDelivery(subtotal < 5000 ? 5000 - subtotal : 0);
+    }
   };
 
   const placeOrder = async () => {
@@ -471,7 +599,11 @@ export default function HomePage() {
     
     const customerInfo = `CUSTOMER DETAILS:\nName: ${currentCustomer.name || getUserName()}\nEmail: ${currentCustomer.email || 'N/A'}\nPhone: ${currentCustomer.phone || 'N/A'}\nCountry: ${currentCustomer.country || 'N/A'}\n\nDELIVERY ADDRESS:\n${addressLines || 'N/A'}`;
     
-    const message = `🛍️ NEW ORDER - Fashion Breeze\n\nORDER ITEMS:\n${orderDetails}\n\nTOTAL: LKR ${getTotal().toFixed(2)}\n\n${customerInfo}`;
+    const subtotal = getSubtotal();
+    const total = getTotal();
+    const deliveryInfo = deliveryCost > 0 ? `\nDelivery: LKR ${deliveryCost.toFixed(2)}` : '\nDelivery: FREE';
+    
+    const message = `🛍️ NEW ORDER - Fashion Breeze\n\nORDER ITEMS:\n${orderDetails}\n\nSUBTOTAL: LKR ${subtotal.toFixed(2)}${deliveryInfo}\nTOTAL: LKR ${total.toFixed(2)}\n\n${customerInfo}`;
     
     const whatsappUrl = `https://wa.me/94707003722?text=${encodeURIComponent(message)}`;
     window.open(whatsappUrl, '_blank');
@@ -906,6 +1038,75 @@ export default function HomePage() {
     localStorage.setItem('backgroundAnimation', newValue.toString());
   };
 
+  const loadSlides = async () => {
+    try {
+      const response = await fetch('/api/slideshow');
+      if (response.ok) {
+        const slidesData = await response.json();
+        const activeSlides = slidesData.filter((slide: any) => slide.isActive);
+        setSlides(activeSlides);
+      }
+    } catch (error) {
+      console.error('Error loading slides:', error);
+    }
+  };
+
+  const nextSlideshow = () => {
+    setCurrentSlideIndex((prev) => (prev + 1) % slides.length);
+  };
+
+  const prevSlideshow = () => {
+    setCurrentSlideIndex((prev) => (prev - 1 + slides.length) % slides.length);
+  };
+
+  // Auto-advance slideshow
+  useEffect(() => {
+    if (slides.length > 1) {
+      const interval = setInterval(nextSlideshow, 5000);
+      return () => clearInterval(interval);
+    }
+  }, [slides.length]);
+  
+  // Calculate delivery cost when cart changes
+  useEffect(() => {
+    if (mounted) {
+      calculateDelivery();
+    }
+  }, [cart, mounted]);
+  
+  // Recalculate delivery when products are updated (in case cart items have outdated pricing)
+  useEffect(() => {
+    if (mounted && cart.length > 0) {
+      // Delay to ensure products are loaded first
+      const timer = setTimeout(() => {
+        calculateDelivery();
+      }, 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [products, mounted]);
+
+  const getSaleTypeColor = (saleType: string) => {
+    switch (saleType) {
+      case 'flash_sale': return '#dc2626, #ef4444';
+      case 'seasonal': return '#3b82f6, #1d4ed8';
+      case 'clearance': return '#10b981, #059669';
+      case 'new_arrival': return '#8b5cf6, #7c3aed';
+      case 'featured': return '#f59e0b, #d97706';
+      default: return '#6b7280, #4b5563';
+    }
+  };
+
+  const getSaleTypeIcon = (saleType: string) => {
+    switch (saleType) {
+      case 'flash_sale': return '🔥';
+      case 'seasonal': return '🌟';
+      case 'clearance': return '💥';
+      case 'new_arrival': return '✨';
+      case 'featured': return '💎';
+      default: return '🏷️';
+    }
+  };
+
   const addToCartFromModal = async () => {
     const product = selectedProduct;
     
@@ -1118,6 +1319,173 @@ export default function HomePage() {
         </div>
       </div>
 
+      {/* Promotional Slideshow */}
+      {slides.length > 0 && (
+        <div className="slideshow-container" style={{position: 'relative', height: '400px', overflow: 'hidden'}}>
+          <div className="slideshow-wrapper" style={{position: 'relative', width: '100%', height: '100%'}}>
+            {slides.map((slide, index) => (
+              <div 
+                key={slide._id}
+                className="slide"
+                style={{
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
+                  width: '100%',
+                  height: '100%',
+                  opacity: index === currentSlideIndex ? 1 : 0,
+                  transition: 'opacity 1s ease-in-out',
+                  backgroundImage: `linear-gradient(rgba(0,0,0,0.4), rgba(0,0,0,0.4)), url(${slide.image})`,
+                  backgroundSize: 'cover',
+                  backgroundPosition: 'center',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}
+              >
+                <div className="container text-center text-white">
+                  <div className="row justify-content-center">
+                    <div className="col-lg-8">
+                      <h1 className="display-4 fw-bold mb-3" style={{textShadow: '2px 2px 4px rgba(0,0,0,0.7)'}}>
+                        {slide.title}
+                      </h1>
+                      {slide.subtitle && (
+                        <p className="lead mb-4" style={{fontSize: '1.3rem', textShadow: '1px 1px 2px rgba(0,0,0,0.7)'}}>
+                          {slide.subtitle}
+                        </p>
+                      )}
+                      {slide.discount > 0 && (
+                        <div className="mb-4">
+                          <span className="badge px-4 py-3" style={{
+                            background: 'linear-gradient(135deg, #ff6b6b, #ee5a24)',
+                            fontSize: '1.2rem',
+                            borderRadius: '25px',
+                            boxShadow: '0 4px 15px rgba(255, 107, 107, 0.4)'
+                          }}>
+                            🔥 {slide.discount}% OFF
+                          </span>
+                        </div>
+                      )}
+                      <div className="d-flex gap-3 justify-content-center">
+                        <button 
+                          className="btn btn-lg px-5 py-3"
+                          onClick={scrollToProducts}
+                          style={{
+                            background: 'linear-gradient(135deg, #667eea, #764ba2)',
+                            border: 'none',
+                            borderRadius: '25px',
+                            color: 'white',
+                            fontWeight: '600',
+                            fontSize: '1.1rem',
+                            boxShadow: '0 8px 25px rgba(102, 126, 234, 0.4)',
+                            transition: 'all 0.3s ease'
+                          }}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.transform = 'translateY(-2px)';
+                            e.currentTarget.style.boxShadow = '0 12px 35px rgba(102, 126, 234, 0.6)';
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.transform = 'translateY(0)';
+                            e.currentTarget.style.boxShadow = '0 8px 25px rgba(102, 126, 234, 0.4)';
+                          }}
+                        >
+                          <i className="bi bi-bag-check me-2"></i>Shop Now
+                        </button>
+                        {slide.saleType === 'flash_sale' && slide.validUntil && (
+                          <div className="d-flex align-items-center text-white">
+                            <i className="bi bi-clock me-2"></i>
+                            <span>Ends: {new Date(slide.validUntil).toLocaleDateString()}</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+          
+          {/* Navigation Arrows */}
+          {slides.length > 1 && (
+            <>
+              <button 
+                className="btn position-absolute start-0 top-50 translate-middle-y ms-3"
+                onClick={prevSlideshow}
+                style={{
+                  background: 'rgba(255,255,255,0.2)',
+                  border: '2px solid rgba(255,255,255,0.3)',
+                  color: 'white',
+                  width: '60px',
+                  height: '60px',
+                  borderRadius: '50%',
+                  backdropFilter: 'blur(10px)',
+                  zIndex: 10,
+                  transition: 'all 0.3s ease'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = 'rgba(255,255,255,0.3)';
+                  e.currentTarget.style.transform = 'scale(1.1)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = 'rgba(255,255,255,0.2)';
+                  e.currentTarget.style.transform = 'scale(1)';
+                }}
+              >
+                <i className="bi bi-chevron-left" style={{fontSize: '1.5rem'}}></i>
+              </button>
+              <button 
+                className="btn position-absolute end-0 top-50 translate-middle-y me-3"
+                onClick={nextSlideshow}
+                style={{
+                  background: 'rgba(255,255,255,0.2)',
+                  border: '2px solid rgba(255,255,255,0.3)',
+                  color: 'white',
+                  width: '60px',
+                  height: '60px',
+                  borderRadius: '50%',
+                  backdropFilter: 'blur(10px)',
+                  zIndex: 10,
+                  transition: 'all 0.3s ease'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = 'rgba(255,255,255,0.3)';
+                  e.currentTarget.style.transform = 'scale(1.1)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = 'rgba(255,255,255,0.2)';
+                  e.currentTarget.style.transform = 'scale(1)';
+                }}
+              >
+                <i className="bi bi-chevron-right" style={{fontSize: '1.5rem'}}></i>
+              </button>
+            </>
+          )}
+          
+          {/* Slide Indicators */}
+          {slides.length > 1 && (
+            <div className="position-absolute bottom-0 start-50 translate-middle-x mb-4">
+              <div className="d-flex gap-2">
+                {slides.map((_, index) => (
+                  <button
+                    key={index}
+                    className="btn p-0"
+                    onClick={() => setCurrentSlideIndex(index)}
+                    style={{
+                      width: '12px',
+                      height: '12px',
+                      borderRadius: '50%',
+                      border: '2px solid white',
+                      background: index === currentSlideIndex ? 'white' : 'transparent',
+                      transition: 'all 0.3s ease'
+                    }}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Success Alert */}
       {orderPlaced && (
         <div className="container mt-3">
@@ -1150,7 +1518,7 @@ export default function HomePage() {
                 {categories.map(category => (
                   <button 
                     key={category}
-                    className={`btn btn-sm text-white fw-bold ${selectedCategory === category ? 'btn-light text-dark' : 'btn-outline-light'}`}
+                    className={`btn btn-sm fw-bold ${selectedCategory === category ? 'btn-light' : 'btn-outline-light text-white'}`}
                     onClick={() => {
                       setSelectedCategory(category);
                       // Smooth scroll to products section after category change
@@ -1163,7 +1531,8 @@ export default function HomePage() {
                     }}
                     style={{
                       transition: 'all 0.3s ease',
-                      minWidth: '80px'
+                      minWidth: '80px',
+                      color: selectedCategory === category ? '#333' : 'white'
                     }}
                   >
                     {category}
@@ -1236,79 +1605,44 @@ export default function HomePage() {
             {/* Left Hot Deals Sidebar */}
             <div className="col-lg-2 d-none d-lg-block">
               <div className="position-sticky" style={{top: '20px'}}>
-                <div id="leftDealsCarousel" className="carousel slide" data-bs-ride="carousel" data-bs-interval="3000">
-                  <div className="carousel-inner">
-                    <div className="carousel-item active">
-                      <div className="card border-0 shadow-sm" style={{cursor: 'pointer', transition: 'all 0.3s ease'}} onClick={() => products[0] && openProductModal(products[0])} onMouseEnter={(e) => {e.currentTarget.style.transform = 'translateY(-5px) scale(1.02)'; e.currentTarget.style.boxShadow = '0 8px 25px rgba(220, 38, 38, 0.3)';}} onMouseLeave={(e) => {e.currentTarget.style.transform = 'translateY(0) scale(1)'; e.currentTarget.style.boxShadow = '0 2px 10px rgba(0,0,0,0.1)';}}>  
-                        <div className="card-header text-center" style={{background: 'linear-gradient(135deg, #dc2626, #ef4444)', color: 'white'}}>
-                          <h6 className="mb-0"><i className="bi bi-fire me-1"></i>🔥 Flash Sale</h6>
-                        </div>
-                        <div className="position-relative overflow-hidden">
-                          <img src={products[0]?.image || 'https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=200&h=150&fit=crop'} alt="Flash Sale" className="card-img-top" style={{height: '120px', objectFit: 'cover', transition: 'transform 0.3s ease'}} onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.1)'} onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'} />
-                          <div className="position-absolute top-0 end-0 m-2">
-                            <span className="badge bg-danger" style={{animation: 'pulse 2s infinite'}}>50% OFF</span>
-                          </div>
-                          <div className="position-absolute bottom-0 start-0 end-0 p-2" style={{background: 'linear-gradient(transparent, rgba(0,0,0,0.7))', opacity: 0, transition: 'opacity 0.3s ease'}} onMouseEnter={(e) => e.currentTarget.style.opacity = '1'} onMouseLeave={(e) => e.currentTarget.style.opacity = '0'}>
-                            <small className="text-white fw-bold">Click to view details</small>
-                          </div>
-                        </div>
-                        <div className="card-body p-2">
-                          <h6 className="fw-bold mb-1" style={{fontSize: '0.8rem'}}>{products[0]?.name || 'Flash Deal'}</h6>
-                          <div className="d-flex justify-content-between align-items-center">
-                            <small className="text-success fw-bold">LKR {products[0]?.price || '5,997'}</small>
-                            <small className="text-muted">Limited time!</small>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                    <div className="carousel-item">
-                      <div className="card border-0 shadow-sm" style={{cursor: 'pointer', transition: 'all 0.3s ease'}} onClick={() => products[1] && openProductModal(products[1])} onMouseEnter={(e) => {e.currentTarget.style.transform = 'translateY(-5px) scale(1.02)'; e.currentTarget.style.boxShadow = '0 8px 25px rgba(59, 130, 246, 0.3)';}} onMouseLeave={(e) => {e.currentTarget.style.transform = 'translateY(0) scale(1)'; e.currentTarget.style.boxShadow = '0 2px 10px rgba(0,0,0,0.1)';}}>  
-                        <div className="card-header text-center" style={{background: 'linear-gradient(135deg, #3b82f6, #1d4ed8)', color: 'white'}}>
-                          <h6 className="mb-0"><i className="bi bi-truck me-1"></i>📦 Free Ship</h6>
-                        </div>
-                        <div className="position-relative overflow-hidden">
-                          <img src={products[1]?.image || 'https://images.unsplash.com/photo-1542272604-787c3835535d?w=200&h=150&fit=crop'} alt="Free Ship" className="card-img-top" style={{height: '120px', objectFit: 'cover', transition: 'transform 0.3s ease'}} onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.1)'} onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'} />
-                          <div className="position-absolute top-0 end-0 m-2">
-                            <span className="badge bg-primary">FREE SHIP</span>
-                          </div>
-                          <div className="position-absolute bottom-0 start-0 end-0 p-2" style={{background: 'linear-gradient(transparent, rgba(0,0,0,0.7))', opacity: 0, transition: 'opacity 0.3s ease'}} onMouseEnter={(e) => e.currentTarget.style.opacity = '1'} onMouseLeave={(e) => e.currentTarget.style.opacity = '0'}>
-                            <small className="text-white fw-bold">Click to view details</small>
+                {slides.length > 0 ? (
+                  <div id="leftDealsCarousel" className="carousel slide" data-bs-ride="carousel" data-bs-interval="3000">
+                    <div className="carousel-inner">
+                      {slides.slice(0, 3).map((slide, index) => (
+                        <div key={slide._id} className={`carousel-item ${index === 0 ? 'active' : ''}`}>
+                          <div className="card border-0 shadow-sm" style={{cursor: 'pointer', transition: 'all 0.3s ease'}} onClick={scrollToProducts}>
+                            <div className="card-header text-center" style={{background: `linear-gradient(135deg, ${getSaleTypeColor(slide.saleType)})`, color: 'white'}}>
+                              <h6 className="mb-0">{getSaleTypeIcon(slide.saleType)} {slide.title}</h6>
+                            </div>
+                            <div className="position-relative overflow-hidden">
+                              <img src={slide.image} alt={slide.title} className="card-img-top" style={{height: '120px', objectFit: 'cover'}} />
+                              {slide.discount > 0 && (
+                                <div className="position-absolute top-0 end-0 m-2">
+                                  <span className="badge bg-danger">{slide.discount}% OFF</span>
+                                </div>
+                              )}
+                            </div>
+                            <div className="card-body p-2">
+                              <h6 className="fw-bold mb-1" style={{fontSize: '0.8rem'}}>{slide.subtitle || slide.title}</h6>
+                              <div className="text-center">
+                                <small className="text-muted">Click to explore</small>
+                              </div>
+                            </div>
                           </div>
                         </div>
-                        <div className="card-body p-2">
-                          <h6 className="fw-bold mb-1" style={{fontSize: '0.8rem'}}>{products[1]?.name || 'Free Shipping'}</h6>
-                          <div className="d-flex justify-content-between align-items-center">
-                            <small className="text-success fw-bold">LKR {products[1]?.price || '14,997'}</small>
-                            <small className="text-muted">LKR 5000+</small>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                    <div className="carousel-item">
-                      <div className="card border-0 shadow-sm" style={{cursor: 'pointer', transition: 'all 0.3s ease'}} onClick={() => products[2] && openProductModal(products[2])} onMouseEnter={(e) => {e.currentTarget.style.transform = 'translateY(-5px) scale(1.02)'; e.currentTarget.style.boxShadow = '0 8px 25px rgba(16, 185, 129, 0.3)';}} onMouseLeave={(e) => {e.currentTarget.style.transform = 'translateY(0) scale(1)'; e.currentTarget.style.boxShadow = '0 2px 10px rgba(0,0,0,0.1)';}}>  
-                        <div className="card-header text-center" style={{background: 'linear-gradient(135deg, #10b981, #059669)', color: 'white'}}>
-                          <h6 className="mb-0"><i className="bi bi-gift me-1"></i>🎁 Buy 2 Get 1</h6>
-                        </div>
-                        <div className="position-relative overflow-hidden">
-                          <img src={products[2]?.image || 'https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=200&h=150&fit=crop'} alt="Buy 2 Get 1" className="card-img-top" style={{height: '120px', objectFit: 'cover', transition: 'transform 0.3s ease'}} onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.1)'} onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'} />
-                          <div className="position-absolute top-0 end-0 m-2">
-                            <span className="badge bg-success">BUY 2 GET 1</span>
-                          </div>
-                          <div className="position-absolute bottom-0 start-0 end-0 p-2" style={{background: 'linear-gradient(transparent, rgba(0,0,0,0.7))', opacity: 0, transition: 'opacity 0.3s ease'}} onMouseEnter={(e) => e.currentTarget.style.opacity = '1'} onMouseLeave={(e) => e.currentTarget.style.opacity = '0'}>
-                            <small className="text-white fw-bold">Click to view details</small>
-                          </div>
-                        </div>
-                        <div className="card-body p-2">
-                          <h6 className="fw-bold mb-1" style={{fontSize: '0.8rem'}}>{products[2]?.name || 'Special Offer'}</h6>
-                          <div className="d-flex justify-content-between align-items-center">
-                            <small className="text-success fw-bold">LKR {products[2]?.price || '500,019'}</small>
-                            <small className="text-muted">Selected items</small>
-                          </div>
-                        </div>
-                      </div>
+                      ))}
                     </div>
                   </div>
-                </div>
+                ) : (
+                  <div className="card border-0 shadow-sm">
+                    <div className="card-header text-center bg-primary text-white">
+                      <h6 className="mb-0">🔥 Hot Deals</h6>
+                    </div>
+                    <div className="card-body text-center p-3">
+                      <p className="small text-muted mb-0">Check back for amazing deals!</p>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
             
@@ -1345,7 +1679,7 @@ export default function HomePage() {
 
 
 
-              {loading ? (
+              {loading && products.length === 0 ? (
                 <div className="text-center py-5" style={{minHeight: '600px'}}>
                   <div className="d-flex justify-content-center align-items-center mb-4">
                     <div className="spinner-border text-primary me-3" role="status" style={{width: '3rem', height: '3rem'}}>
@@ -1736,7 +2070,7 @@ export default function HomePage() {
                   </div>
                   
                   {/* No Products Found */}
-                  {getFilteredProducts().length === 0 && !loading && (
+                  {getFilteredProducts().length === 0 && !loading && products.length > 0 && (
                     <div className="col-12">
                       <div className="no-products-found text-center py-5" style={{minHeight: '400px', display: 'flex', flexDirection: 'column', justifyContent: 'center'}}>
                         <div className="mb-4">
@@ -1759,6 +2093,27 @@ export default function HomePage() {
                       </div>
                     </div>
                   )}
+                  
+                  {/* Show message when no products at all */}
+                  {products.length === 0 && !loading && (
+                    <div className="col-12">
+                      <div className="no-products-found text-center py-5" style={{minHeight: '400px', display: 'flex', flexDirection: 'column', justifyContent: 'center'}}>
+                        <div className="mb-4">
+                          <i className="bi bi-exclamation-triangle" style={{fontSize: '4rem', color: '#f59e0b'}}></i>
+                        </div>
+                        <h4 className="mb-3" style={{color: '#6b7280'}}>No Products Available</h4>
+                        <p className="text-muted mb-4">We're currently updating our inventory. Please check back soon or contact support.</p>
+                        <div className="d-flex justify-content-center gap-3">
+                          <button className="btn btn-outline-primary" onClick={() => loadProducts()}>
+                            <i className="bi bi-arrow-clockwise me-2"></i>Refresh Products
+                          </button>
+                          <button className="btn btn-primary" onClick={() => window.location.href = '/contact'}>
+                            <i className="bi bi-headset me-2"></i>Contact Support
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -1766,70 +2121,44 @@ export default function HomePage() {
             {/* Right Hot Deals Sidebar */}
             <div className="col-lg-2 d-none d-lg-block">
               <div className="position-sticky" style={{top: '20px'}}>
-                <div id="rightDealsCarousel" className="carousel slide" data-bs-ride="carousel" data-bs-interval="4000">
-                  <div className="carousel-inner">
-                    <div className="carousel-item active">
-                      <div className="card border-0 shadow-sm" style={{cursor: 'pointer'}} onClick={() => products[0] && openProductModal(products[0])}>
-                        <div className="card-header text-center" style={{background: 'linear-gradient(135deg, #f59e0b, #d97706)', color: 'white'}}>
-                          <h6 className="mb-0"><i className="bi bi-percent me-1"></i>💰 Mega Deal</h6>
-                        </div>
-                        <div className="position-relative">
-                          <img src={products[0]?.image || 'https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=200&h=150&fit=crop'} alt="Deal" className="card-img-top" style={{height: '120px', objectFit: 'cover'}} />
-                          <div className="position-absolute top-0 end-0 m-2">
-                            <span className="badge bg-danger">70% OFF</span>
+                {slides.length > 0 ? (
+                  <div id="rightDealsCarousel" className="carousel slide" data-bs-ride="carousel" data-bs-interval="4000">
+                    <div className="carousel-inner">
+                      {slides.slice(-3).map((slide, index) => (
+                        <div key={slide._id} className={`carousel-item ${index === 0 ? 'active' : ''}`}>
+                          <div className="card border-0 shadow-sm" style={{cursor: 'pointer'}} onClick={scrollToProducts}>
+                            <div className="card-header text-center" style={{background: `linear-gradient(135deg, ${getSaleTypeColor(slide.saleType)})`, color: 'white'}}>
+                              <h6 className="mb-0">{getSaleTypeIcon(slide.saleType)} {slide.title}</h6>
+                            </div>
+                            <div className="position-relative">
+                              <img src={slide.image} alt={slide.title} className="card-img-top" style={{height: '120px', objectFit: 'cover'}} />
+                              {slide.discount > 0 && (
+                                <div className="position-absolute top-0 end-0 m-2">
+                                  <span className="badge bg-danger">{slide.discount}% OFF</span>
+                                </div>
+                              )}
+                            </div>
+                            <div className="card-body p-2">
+                              <h6 className="fw-bold mb-1" style={{fontSize: '0.8rem'}}>{slide.subtitle || slide.title}</h6>
+                              <div className="text-center">
+                                <small className="text-muted">Click to explore</small>
+                              </div>
+                            </div>
                           </div>
                         </div>
-                        <div className="card-body p-2">
-                          <h6 className="fw-bold mb-1" style={{fontSize: '0.8rem'}}>{products[0]?.name || 'Featured Product'}</h6>
-                          <div className="d-flex justify-content-between align-items-center">
-                            <small className="text-success fw-bold">LKR {products[0]?.price || '5,997'}</small>
-                            <small className="text-muted">Today only!</small>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                    <div className="carousel-item">
-                      <div className="card border-0 shadow-sm" style={{cursor: 'pointer'}} onClick={() => products[1] && openProductModal(products[1])}>
-                        <div className="card-header text-center" style={{background: 'linear-gradient(135deg, #8b5cf6, #7c3aed)', color: 'white'}}>
-                          <h6 className="mb-0"><i className="bi bi-clock me-1"></i>⏰ 24H Sale</h6>
-                        </div>
-                        <div className="position-relative">
-                          <img src={products[1]?.image || 'https://images.unsplash.com/photo-1542272604-787c3835535d?w=200&h=150&fit=crop'} alt="Deal" className="card-img-top" style={{height: '120px', objectFit: 'cover'}} />
-                          <div className="position-absolute top-0 end-0 m-2">
-                            <span className="badge bg-warning text-dark">HURRY!</span>
-                          </div>
-                        </div>
-                        <div className="card-body p-2">
-                          <h6 className="fw-bold mb-1" style={{fontSize: '0.8rem'}}>{products[1]?.name || 'Hot Deal'}</h6>
-                          <div className="d-flex justify-content-between align-items-center">
-                            <small className="text-success fw-bold">LKR {products[1]?.price || '14,997'}</small>
-                            <small className="text-muted">Ends soon</small>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                    <div className="carousel-item">
-                      <div className="card border-0 shadow-sm" style={{cursor: 'pointer'}} onClick={() => products[2] && openProductModal(products[2])}>
-                        <div className="card-header text-center" style={{background: 'linear-gradient(135deg, #ec4899, #db2777)', color: 'white'}}>
-                          <h6 className="mb-0"><i className="bi bi-heart me-1"></i>💝 Special</h6>
-                        </div>
-                        <div className="position-relative">
-                          <img src={products[2]?.image || 'https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=200&h=150&fit=crop'} alt="Deal" className="card-img-top" style={{height: '120px', objectFit: 'cover'}} />
-                          <div className="position-absolute top-0 end-0 m-2">
-                            <span className="badge" style={{background: '#ec4899', color: 'white'}}>VIP</span>
-                          </div>
-                        </div>
-                        <div className="card-body p-2">
-                          <h6 className="fw-bold mb-1" style={{fontSize: '0.8rem'}}>{products[2]?.name || 'VIP Special'}</h6>
-                          <div className="d-flex justify-content-between align-items-center">
-                            <small className="text-success fw-bold">LKR {products[2]?.price || '500,019'}</small>
-                            <small className="text-muted">Members only</small>
-                          </div>
-                        </div>
-                      </div>
+                      ))}
                     </div>
                   </div>
-                </div>
+                ) : (
+                  <div className="card border-0 shadow-sm">
+                    <div className="card-header text-center bg-warning text-dark">
+                      <h6 className="mb-0">💰 Special Offers</h6>
+                    </div>
+                    <div className="card-body text-center p-3">
+                      <p className="small text-muted mb-0">Amazing deals coming soon!</p>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -1941,19 +2270,29 @@ export default function HomePage() {
                     <div className="order-summary p-3 rounded-3" style={{background: 'linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%)', border: '1px solid #dee2e6'}}>
                       <div className="d-flex justify-content-between align-items-center mb-2">
                         <span className="text-muted">Subtotal ({cart.length} items)</span>
-                        <span className="fw-bold">LKR {getTotal().toLocaleString()}</span>
+                        <span className="fw-bold">LKR {getSubtotal().toLocaleString()}</span>
                       </div>
                       <div className="d-flex justify-content-between align-items-center mb-2">
                         <span className="text-muted">Delivery</span>
-                        <span className="text-success fw-bold">FREE</span>
+                        <span className={`fw-bold ${deliveryCost === 0 ? 'text-success' : 'text-primary'}`}>
+                          {deliveryCost === 0 ? 'FREE' : `LKR ${deliveryCost.toLocaleString()}`}
+                        </span>
                       </div>
+                      {remainingForFreeDelivery > 0 && (
+                        <div className="mb-2">
+                          <small className="text-info">
+                            <i className="bi bi-info-circle me-1"></i>
+                            Add LKR {remainingForFreeDelivery.toLocaleString()} more for FREE delivery!
+                          </small>
+                        </div>
+                      )}
                       <hr className="my-2" />
                       <div className="d-flex justify-content-between align-items-center mb-2">
                         <span className="fw-bold" style={{fontSize: '1.1rem'}}>Total</span>
                         <span className="fw-bold" style={{fontSize: '1.3rem', color: '#27ae60'}}>LKR {getTotal().toLocaleString()}</span>
                       </div>
                       <div className="text-center mt-2">
-                        <div className="d-flex gap-2 justify-content-center">
+                        <div className="d-flex gap-2 justify-content-center flex-wrap">
                           <button 
                             className="btn btn-sm btn-outline-secondary" 
                             onClick={() => {
@@ -1968,28 +2307,45 @@ export default function HomePage() {
                             className="btn btn-sm btn-outline-primary" 
                             onClick={() => {
                               console.log('Manual products refresh clicked');
+                              setLoading(true);
                               loadProducts();
                             }}
                             title="Refresh products from MongoDB"
+                            disabled={loading}
                           >
-                            <i className="bi bi-database me-1"></i>Refresh Products
+                            {loading ? (
+                              <><i className="bi bi-hourglass-split me-1"></i>Loading...</>
+                            ) : (
+                              <><i className="bi bi-database me-1"></i>Refresh Products</>
+                            )}
+                          </button>
+                          <button 
+                            className="btn btn-sm btn-outline-success" 
+                            onClick={() => {
+                              console.log('Manual delivery recalculation clicked');
+                              calculateDelivery();
+                            }}
+                            title="Recalculate delivery cost"
+                          >
+                            <i className="bi bi-truck me-1"></i>Recalc Delivery
                           </button>
                           <button 
                             className="btn btn-sm btn-outline-info" 
                             onClick={async () => {
                               try {
-                                const response = await fetch('/api/debug/products');
-                                const data = await response.json();
-                                console.log('Debug data:', data);
-                                alert(`Products in DB: ${data.count}`);
+                                const categories = [...new Set(cart.map(item => getCategoryName(item.category)))];
+                                console.log('Cart categories:', categories);
+                                console.log('Current delivery cost:', deliveryCost);
+                                console.log('Current delivery message:', deliveryMessage);
+                                alert(`Categories: ${categories.join(', ')}\nDelivery: LKR ${deliveryCost}\nMessage: ${deliveryMessage}`);
                               } catch (error) {
                                 console.error('Debug error:', error);
                                 alert('Debug failed - check console');
                               }
                             }}
-                            title="Check MongoDB status"
+                            title="Debug delivery calculation"
                           >
-                            <i className="bi bi-bug me-1"></i>Debug DB
+                            <i className="bi bi-bug me-1"></i>Debug Delivery
                           </button>
                         </div>
                       </div>

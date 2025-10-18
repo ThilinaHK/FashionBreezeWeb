@@ -20,6 +20,14 @@ const CartSchema = new mongoose.Schema({
     unique: true,
   },
   items: [CartItemSchema],
+  subtotal: {
+    type: Number,
+    default: 0,
+  },
+  deliveryCost: {
+    type: Number,
+    default: 0,
+  },
   total: {
     type: Number,
     default: 0,
