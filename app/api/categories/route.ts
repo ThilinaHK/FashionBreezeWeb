@@ -1,30 +1,50 @@
 import { NextRequest, NextResponse } from 'next/server';
+import mongoose from 'mongoose';
+
+const MONGODB_URI = process.env.MONGODB_URI || 'mongodb+srv://fashionbreeze:fashionbreeze123@cluster0.mongodb.net/fashionBreeze?retryWrites=true&w=majority';
+
+const categorySchema = new mongoose.Schema({
+  name: { type: String, required: true },
+  slug: { type: String, required: true, unique: true },
+  description: String,
+  image: String,
+  icon: String,
+  subcategories: [{
+    name: { type: String, required: true },
+    slug: { type: String, required: true },
+    description: String,
+    image: String,
+    isActive: { type: Boolean, default: true }
+  }],
+  isActive: { type: Boolean, default: true },
+  sortOrder: { type: Number, default: 0 }
+}, { timestamps: true });
+
+const Category = mongoose.models.Category || mongoose.model('Category', categorySchema);
 
 export async function GET() {
-  const categories = [
-    { id: 1, name: 'For Men', productCount: 3 },
-    { id: 2, name: 'For Women', productCount: 2 },
-    { id: 3, name: 'Kids', productCount: 1 },
-    { id: 4, name: 'Hair', productCount: 1 },
-    { id: 5, name: 'Fragrances', productCount: 1 },
-    { id: 6, name: 'Skin', productCount: 1 },
-    { id: 7, name: 'Home', productCount: 1 }
-  ];
-  return NextResponse.json(categories);
+  try {
+    await mongoose.connect(MONGODB_URI);
+    const categories = await Category.find({ isActive: true }).sort({ sortOrder: 1 });
+    return NextResponse.json(categories);
+  } catch (error) {
+    return NextResponse.json({ error: 'Failed to fetch categories' }, { status: 500 });
+  }
 }
 
 export async function POST(request: NextRequest) {
-  const { name } = await request.json();
-  const newCategory = { id: Date.now(), name, productCount: 0 };
-  return NextResponse.json(newCategory, { status: 201 });
-}
-
-export async function PUT(request: NextRequest) {
-  const { id, name } = await request.json();
-  return NextResponse.json({ id, name, productCount: 0 });
-}
-
-export async function DELETE(request: NextRequest) {
-  const { id } = await request.json();
-  return NextResponse.json({ success: true });
+  try {
+    await mongoose.connect(MONGODB_URI);
+    const data = await request.json();
+    
+    const category = new Category({
+      ...data,
+      slug: data.name.toLowerCase().replace(/\s+/g, '-')
+    });
+    
+    await category.save();
+    return NextResponse.json(category);
+  } catch (error) {
+    return NextResponse.json({ error: 'Failed to create category' }, { status: 500 });
+  }
 }
