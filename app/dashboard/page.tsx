@@ -1662,8 +1662,15 @@ export default function DashboardPage() {
             <ul className="nav nav-tabs">
               {hasPrivilege('products') && (
                 <li className="nav-item">
-                  <button className={`nav-link ${activeTab === 'products' ? 'active' : ''}`} onClick={() => setActiveTab('products')}>
+                  <a href="/dashboard/products" className="nav-link">
                     <i className="bi bi-box-seam me-2"></i>Products
+                  </a>
+                </li>
+              )}
+              {hasPrivilege('products') && (
+                <li className="nav-item">
+                  <button className={`nav-link ${activeTab === 'products' ? 'active' : ''}`} onClick={() => setActiveTab('products')}>
+                    <i className="bi bi-box-seam me-2"></i>Products (Old)
                   </button>
                 </li>
               )}
