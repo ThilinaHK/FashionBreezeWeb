@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { Product } from '../types';
 import ImageWithFallback from '../components/ImageWithFallback';
-import TailorsSection from './tailors-section';
+
 // import { useSocket } from '../components/SocketProvider';
 
 export default function DashboardPage() {
