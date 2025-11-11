@@ -739,7 +739,7 @@ export default function HomePage() {
   };
 
   const getStars = (rating: number): string[] => {
-    const stars = [];
+    const stars: string[] = [];
     const fullStars = Math.floor(rating);
     const hasHalfStar = rating % 1 !== 0;
     
