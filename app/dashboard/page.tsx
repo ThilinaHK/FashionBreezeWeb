@@ -415,10 +415,10 @@ export default function DashboardPage() {
     pdf.text(`Generated on: ${new Date().toLocaleDateString()} at ${new Date().toLocaleTimeString()}`, pageWidth / 2, 52, { align: 'center' });
     
     // Summary statistics box
-    const totalOrders = Object.values(analyticsData.dailyData).reduce((sum: number, day: any) => sum + day.orders, 0);
+    const totalOrders = Object.values(analyticsData.dailyData).reduce((sum: number, day: any) => sum + day.orders, 0) as number;
     const totalRevenue = Object.values(analyticsData.dailyData).reduce((sum: number, day: any) => sum + day.revenue, 0) as number;
-    const totalQuantity = Object.values(analyticsData.dailyData).reduce((sum: number, day: any) => sum + day.quantity, 0);
-    const activeDays = Object.values(analyticsData.dailyData).filter((day: any) => day.orders > 0).length;
+    const totalQuantity = Object.values(analyticsData.dailyData).reduce((sum: number, day: any) => sum + day.quantity, 0) as number;
+    const activeDays = Object.values(analyticsData.dailyData).filter((day: any) => day.orders > 0).length as number;
     
     // Summary box
     pdf.setDrawColor(200, 200, 200);
