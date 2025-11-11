@@ -9,7 +9,7 @@ export async function GET(request: NextRequest) {
     await dbConnect();
 
     const users = await User.find({}, 'id username role privileges');
-    const userReports = [];
+    const userReports: any[] = [];
 
     for (const user of users) {
       // Count products created/updated by user
