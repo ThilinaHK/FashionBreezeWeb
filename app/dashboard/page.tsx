@@ -3019,7 +3019,7 @@ export default function DashboardPage() {
                       <div className="card border-0 shadow-sm">
                         <div className="card-body text-center">
                           <i className="bi bi-cart-check display-4 text-primary mb-2"></i>
-                          <h4 className="fw-bold">{Object.values(analyticsData.dailyData).reduce((sum: number, day: any) => sum + day.orders, 0)}</h4>
+                          <h4 className="fw-bold">{Object.values(analyticsData.dailyData).reduce((sum: number, day: any) => sum + day.orders, 0) as number}</h4>
                           <p className="text-muted mb-0">Total Orders</p>
                         </div>
                       </div>
@@ -3028,7 +3028,7 @@ export default function DashboardPage() {
                       <div className="card border-0 shadow-sm">
                         <div className="card-body text-center">
                           <i className="bi bi-currency-dollar display-4 text-success mb-2"></i>
-                          <h4 className="fw-bold">LKR {Object.values(analyticsData.dailyData).reduce((sum: number, day: any) => sum + day.revenue, 0).toFixed(2)}</h4>
+                          <h4 className="fw-bold">LKR {(Object.values(analyticsData.dailyData).reduce((sum: number, day: any) => sum + day.revenue, 0) as number).toFixed(2)}</h4>
                           <p className="text-muted mb-0">Total Revenue</p>
                         </div>
                       </div>
@@ -3037,7 +3037,7 @@ export default function DashboardPage() {
                       <div className="card border-0 shadow-sm">
                         <div className="card-body text-center">
                           <i className="bi bi-box-seam display-4 text-warning mb-2"></i>
-                          <h4 className="fw-bold">{Object.values(analyticsData.dailyData).reduce((sum: number, day: any) => sum + day.quantity, 0)}</h4>
+                          <h4 className="fw-bold">{Object.values(analyticsData.dailyData).reduce((sum: number, day: any) => sum + day.quantity, 0) as number}</h4>
                           <p className="text-muted mb-0">Total Quantity</p>
                         </div>
                       </div>
@@ -3046,7 +3046,7 @@ export default function DashboardPage() {
                       <div className="card border-0 shadow-sm">
                         <div className="card-body text-center">
                           <i className="bi bi-calendar-check display-4 text-info mb-2"></i>
-                          <h4 className="fw-bold">{Object.values(analyticsData.dailyData).filter((day: any) => day.orders > 0).length}</h4>
+                          <h4 className="fw-bold">{Object.values(analyticsData.dailyData).filter((day: any) => day.orders > 0).length as number}</h4>
                           <p className="text-muted mb-0">Active Days</p>
                         </div>
                       </div>
