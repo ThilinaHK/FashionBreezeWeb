@@ -416,7 +416,7 @@ export default function DashboardPage() {
     
     // Summary statistics box
     const totalOrders = Object.values(analyticsData.dailyData).reduce((sum: number, day: any) => sum + day.orders, 0);
-    const totalRevenue = Object.values(analyticsData.dailyData).reduce((sum: number, day: any) => sum + day.revenue, 0);
+    const totalRevenue = Object.values(analyticsData.dailyData).reduce((sum: number, day: any) => sum + day.revenue, 0) as number;
     const totalQuantity = Object.values(analyticsData.dailyData).reduce((sum: number, day: any) => sum + day.quantity, 0);
     const activeDays = Object.values(analyticsData.dailyData).filter((day: any) => day.orders > 0).length;
     
