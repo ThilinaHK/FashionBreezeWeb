@@ -2172,7 +2172,7 @@ export default function DashboardPage() {
                         <td><span className="badge bg-secondary">{product.code}</span></td>
                         <td><span className="badge bg-primary">{(product as any).brand || 'N/A'}</span></td>
                         <td><span className="badge bg-info">{product.category}</span></td>
-                        <td><span className="badge bg-secondary">{product.subcategory || '-'}</span></td>
+                        <td><span className="badge bg-secondary">{(product as any).subcategory || '-'}</span></td>
                         <td className="text-danger">LKR {product.cost || 0}</td>
                         <td className="fw-bold text-success">LKR {product.price}</td>
                         <td className="fw-bold text-primary">LKR {((product.price || 0) - (product.cost || 0) - (product.vat || 0)).toFixed(2)}</td>
