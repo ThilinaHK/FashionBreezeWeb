@@ -4888,11 +4888,17 @@ export default function DashboardPage() {
         )}
 
         {activeTab === 'tailors' && hasPrivilege('users') && (
-          <TailorsSection 
-            tailors={tailors}
-            loadingTailors={loadingTailors}
-            updateTailorStatus={updateTailorStatus}
-          />
+          <div className="card border-0 shadow-sm">
+            <div className="card-header bg-info text-white">
+              <h5 className="mb-0"><i className="bi bi-people me-2"></i>Tailors Management</h5>
+            </div>
+            <div className="card-body">
+              <div className="text-center py-5">
+                <i className="bi bi-scissors display-4 text-muted mb-3"></i>
+                <p className="text-muted">Tailors management coming soon</p>
+              </div>
+            </div>
+          </div>
         )}
       </div>
     </div>
