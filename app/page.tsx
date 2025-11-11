@@ -1,6 +1,8 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import toast from 'react-hot-toast';
 
 interface Product {
   id?: number;
@@ -1115,13 +1117,19 @@ export default function HomePage() {
     // Check if we need color selection
     const allColors = getAllAvailableColors();
     if (allColors.length > 0 && !selectedColor) {
-      alert('Please select a color before adding to cart');
+      toast.error('Please select a color before adding to cart', {
+        icon: '🎨',
+        duration: 3000
+      });
       return;
     }
     
     // Check if we need size selection
     if (selectedColor && !selectedSize) {
-      alert('Please select a size before adding to cart');
+      toast.error('Please select a size before adding to cart', {
+        icon: '📏',
+        duration: 3000
+      });
       return;
     }
     
@@ -1134,7 +1142,10 @@ export default function HomePage() {
     if (selectedColor && selectedSize) {
       const colorStock = getColorStock(selectedSize, selectedColor);
       if (colorStock <= 0) {
-        alert('Selected color and size combination is out of stock');
+        toast.error('Selected color and size combination is out of stock', {
+          icon: '❌',
+          duration: 3000
+        });
         return;
       }
     }
@@ -1172,9 +1183,16 @@ export default function HomePage() {
     try {
       await saveCartToMongoDB(newCart);
       console.log('Cart saved successfully');
+      toast.success(`${selectedProduct.name} added to cart!`, {
+        icon: '🛍️',
+        duration: 2000
+      });
     } catch (error) {
       console.error('Failed to save cart:', error);
-      setError('Failed to add item to cart. Please try again.');
+      toast.error('Failed to add item to cart. Please try again.', {
+        icon: '⚠️',
+        duration: 4000
+      });
     }
     
     setCartLoading(null);
@@ -1183,37 +1201,39 @@ export default function HomePage() {
 
   return (
     <div className="client-app" style={{position: 'relative', overflow: 'hidden'}}>
-      {/* Summer Background Animation */}
+      {/* Background Animation */}
       {backgroundAnimation && (
-        <div className="summer-background" style={{
+        <div className="background-animation" style={{
           position: 'fixed',
           top: 0,
           left: 0,
           width: '100%',
           height: '100%',
           zIndex: -1,
-          background: 'linear-gradient(45deg, #ff9a9e 0%, #fecfef 50%, #fecfef 100%)',
-          opacity: 0.1
+          background: 'linear-gradient(45deg, #22c55e 0%, #16a34a 50%, #1a1a1a 100%)',
+          opacity: 0.05
         }}>
           <div className="floating-elements">
-            {[...Array(8)].map((_, i) => (
+            {[...Array(12)].map((_, i) => (
               <div key={i} className="floating-element" style={{
                 position: 'absolute',
-                width: '20px',
-                height: '20px',
-                background: `hsl(${45 + i * 30}, 70%, 60%)`,
-                borderRadius: '50%',
-                left: `${10 + i * 12}%`,
-                animation: `float ${3 + i * 0.5}s ease-in-out infinite`,
-                animationDelay: `${i * 0.2}s`,
-                opacity: 0.6
+                width: `${15 + i * 3}px`,
+                height: `${15 + i * 3}px`,
+                background: i % 2 === 0 ? '#22c55e' : '#1a1a1a',
+                borderRadius: i % 3 === 0 ? '50%' : '20%',
+                left: `${5 + i * 8}%`,
+                top: `${10 + (i * 7) % 80}%`,
+                animation: `float ${4 + i * 0.3}s ease-in-out infinite`,
+                animationDelay: `${i * 0.15}s`,
+                opacity: 0.4
               }} />
             ))}
           </div>
           <style jsx>{`
             @keyframes float {
-              0%, 100% { transform: translateY(0px) rotate(0deg); }
-              50% { transform: translateY(-20px) rotate(180deg); }
+              0%, 100% { transform: translateY(0px) rotate(0deg) scale(1); }
+              33% { transform: translateY(-15px) rotate(120deg) scale(1.1); }
+              66% { transform: translateY(-5px) rotate(240deg) scale(0.9); }
             }
           `}</style>
         </div>
@@ -1301,188 +1321,291 @@ export default function HomePage() {
       </nav>
 
       {/* Promotion Banner */}
-      <div className="py-2" style={{background: backgroundAnimation ? 'linear-gradient(90deg, #ff6b6b, #feca57, #ff9ff3)' : 'linear-gradient(90deg, #dc2626, #ef4444, #f97316)', color: 'white', transition: 'background 0.5s ease'}}>
-        <div className="container">
+      <div className="promotion-banner py-3" style={{
+        background: 'linear-gradient(135deg, #1a1a1a 0%, #22c55e 100%)',
+        color: 'white',
+        position: 'relative',
+        overflow: 'hidden'
+      }}>
+        <div className="position-absolute w-100 h-100" style={{
+          background: 'url("data:image/svg+xml,%3Csvg width="60" height="60" viewBox="0 0 60 60" xmlns="http://www.w3.org/2000/svg"%3E%3Cg fill="none" fill-rule="evenodd"%3E%3Cg fill="%23ffffff" fill-opacity="0.05"%3E%3Cpath d="M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z"/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")',
+          opacity: 0.1
+        }}></div>
+        <div className="container position-relative">
           <div className="row align-items-center">
             <div className="col-md-8">
               <div className="d-flex align-items-center">
-                <i className="bi bi-megaphone-fill me-2 fs-4"></i>
-                <span className="fw-bold me-3">🎉 MEGA SALE:</span>
-                <span>Up to 70% OFF + FREE Shipping on orders over LKR 3000!</span>
-                <span className="badge bg-warning text-dark ms-2">LIMITED TIME</span>
+                <div className="promotion-icon me-3 d-flex align-items-center justify-content-center" style={{
+                  width: '50px',
+                  height: '50px',
+                  background: 'rgba(255,255,255,0.2)',
+                  borderRadius: '50%',
+                  backdropFilter: 'blur(10px)'
+                }}>
+                  <i className="bi bi-lightning-charge-fill" style={{fontSize: '1.5rem'}}></i>
+                </div>
+                <div>
+                  <div className="d-flex align-items-center mb-1">
+                    <span className="fw-bold me-3" style={{fontSize: '1.1rem'}}>🎉 SPECIAL OFFER:</span>
+                    <span className="badge px-3 py-1" style={{
+                      background: 'rgba(255,255,255,0.2)',
+                      borderRadius: '15px',
+                      fontSize: '0.8rem'
+                    }}>LIMITED TIME</span>
+                  </div>
+                  <span style={{fontSize: '0.95rem', opacity: 0.9}}>Up to 70% OFF + FREE Shipping on orders over LKR 5000!</span>
+                </div>
               </div>
             </div>
             <div className="col-md-4 text-md-end">
-              <span className="small">Use code: <strong>MEGA70</strong></span>
+              <div className="promo-code p-2 rounded" style={{
+                background: 'rgba(255,255,255,0.15)',
+                backdropFilter: 'blur(10px)',
+                border: '1px solid rgba(255,255,255,0.2)'
+              }}>
+                <small className="d-block mb-1">Use promo code:</small>
+                <strong style={{fontSize: '1.1rem', letterSpacing: '1px'}}>FASHION70</strong>
+              </div>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Promotional Slideshow */}
-      {slides.length > 0 && (
-        <div className="slideshow-container" style={{position: 'relative', height: '400px', overflow: 'hidden'}}>
-          <div className="slideshow-wrapper" style={{position: 'relative', width: '100%', height: '100%'}}>
-            {slides.map((slide, index) => (
-              <div 
-                key={slide._id}
-                className="slide"
-                style={{
-                  position: 'absolute',
-                  top: 0,
-                  left: 0,
-                  width: '100%',
-                  height: '100%',
-                  opacity: index === currentSlideIndex ? 1 : 0,
-                  transition: 'opacity 1s ease-in-out',
-                  backgroundImage: `linear-gradient(rgba(0,0,0,0.4), rgba(0,0,0,0.4)), url(${slide.image})`,
-                  backgroundSize: 'cover',
-                  backgroundPosition: 'center',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center'
-                }}
+      {/* Hero Section */}
+      <div className="hero-section" style={{
+        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+        minHeight: '70vh',
+        display: 'flex',
+        alignItems: 'center',
+        position: 'relative',
+        overflow: 'hidden'
+      }}>
+        {/* Animated Background Elements */}
+        <div className="position-absolute w-100 h-100" style={{opacity: 0.1}}>
+          {[...Array(6)].map((_, i) => (
+            <div key={i} className="position-absolute rounded-circle" style={{
+              width: `${100 + i * 50}px`,
+              height: `${100 + i * 50}px`,
+              background: 'white',
+              left: `${10 + i * 15}%`,
+              top: `${20 + i * 10}%`,
+              animation: `float ${3 + i * 0.5}s ease-in-out infinite`,
+              animationDelay: `${i * 0.2}s`
+            }} />
+          ))}
+        </div>
+        
+        <div className="container position-relative">
+          <div className="row align-items-center">
+            <div className="col-lg-6">
+              <motion.div 
+                className="hero-content text-white"
+                initial={{ opacity: 0, x: -50 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ duration: 0.8, ease: "easeOut" }}
               >
-                <div className="container text-center text-white">
-                  <div className="row justify-content-center">
-                    <div className="col-lg-8">
-                      <h1 className="display-4 fw-bold mb-3" style={{textShadow: '2px 2px 4px rgba(0,0,0,0.7)'}}>
-                        {slide.title}
-                      </h1>
-                      {slide.subtitle && (
-                        <p className="lead mb-4" style={{fontSize: '1.3rem', textShadow: '1px 1px 2px rgba(0,0,0,0.7)'}}>
-                          {slide.subtitle}
-                        </p>
-                      )}
-                      {slide.discount > 0 && (
-                        <div className="mb-4">
-                          <span className="badge px-4 py-3" style={{
-                            background: 'linear-gradient(135deg, #ff6b6b, #ee5a24)',
-                            fontSize: '1.2rem',
-                            borderRadius: '25px',
-                            boxShadow: '0 4px 15px rgba(255, 107, 107, 0.4)'
-                          }}>
-                            🔥 {slide.discount}% OFF
-                          </span>
-                        </div>
-                      )}
-                      <div className="d-flex gap-3 justify-content-center">
-                        <button 
-                          className="btn btn-lg px-5 py-3"
-                          onClick={scrollToProducts}
+                <h1 className="display-3 fw-bold mb-4" style={{
+                  background: 'linear-gradient(45deg, #ffffff, #f8f9fa)',
+                  WebkitBackgroundClip: 'text',
+                  WebkitTextFillColor: 'transparent',
+                  textShadow: 'none'
+                }}>
+                  Fashion Breeze
+                </h1>
+                <p className="lead mb-4" style={{fontSize: '1.3rem', opacity: 0.9}}>
+                  Discover the latest trends in fashion with our premium collection of clothing and accessories.
+                </p>
+                <div className="d-flex flex-wrap gap-3 mb-4">
+                  <div className="feature-badge d-flex align-items-center px-3 py-2 rounded-pill" style={{
+                    background: 'rgba(255,255,255,0.2)',
+                    backdropFilter: 'blur(10px)'
+                  }}>
+                    <i className="bi bi-truck me-2"></i>
+                    <span>Free Shipping</span>
+                  </div>
+                  <div className="feature-badge d-flex align-items-center px-3 py-2 rounded-pill" style={{
+                    background: 'rgba(255,255,255,0.2)',
+                    backdropFilter: 'blur(10px)'
+                  }}>
+                    <i className="bi bi-shield-check me-2"></i>
+                    <span>Quality Guaranteed</span>
+                  </div>
+                  <div className="feature-badge d-flex align-items-center px-3 py-2 rounded-pill" style={{
+                    background: 'rgba(255,255,255,0.2)',
+                    backdropFilter: 'blur(10px)'
+                  }}>
+                    <i className="bi bi-arrow-clockwise me-2"></i>
+                    <span>Easy Returns</span>
+                  </div>
+                </div>
+                <div className="d-flex gap-3">
+                  <button 
+                    className="btn btn-light btn-lg px-4 py-3"
+                    onClick={scrollToProducts}
+                    style={{
+                      borderRadius: '15px',
+                      fontWeight: '600',
+                      boxShadow: '0 8px 25px rgba(0,0,0,0.2)',
+                      transition: 'all 0.3s ease'
+                    }}
+                  >
+                    <i className="bi bi-bag-check me-2"></i>Shop Now
+                  </button>
+                  <button 
+                    className="btn btn-outline-light btn-lg px-4 py-3"
+                    onClick={() => window.location.href = '/about'}
+                    style={{
+                      borderRadius: '15px',
+                      fontWeight: '600',
+                      borderWidth: '2px'
+                    }}
+                  >
+                    <i className="bi bi-info-circle me-2"></i>Learn More
+                  </button>
+                </div>
+              </motion.div>
+            </div>
+            <div className="col-lg-6">
+              <motion.div
+                className="hero-image position-relative"
+                initial={{ opacity: 0, x: 50 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ duration: 0.8, delay: 0.2, ease: "easeOut" }}
+              >
+                {slides.length > 0 ? (
+                  <div className="slideshow-container" style={{borderRadius: '20px', overflow: 'hidden', boxShadow: '0 20px 60px rgba(0,0,0,0.3)'}}>
+                    {slides.map((slide, index) => (
+                      <div 
+                        key={slide._id}
+                        className="slide"
+                        style={{
+                          display: index === currentSlideIndex ? 'block' : 'none',
+                          position: 'relative'
+                        }}
+                      >
+                        <img 
+                          src={slide.image} 
+                          alt={slide.title}
                           style={{
-                            background: 'linear-gradient(135deg, #667eea, #764ba2)',
-                            border: 'none',
-                            borderRadius: '25px',
-                            color: 'white',
-                            fontWeight: '600',
-                            fontSize: '1.1rem',
-                            boxShadow: '0 8px 25px rgba(102, 126, 234, 0.4)',
-                            transition: 'all 0.3s ease'
+                            width: '100%',
+                            height: '400px',
+                            objectFit: 'cover'
                           }}
-                          onMouseEnter={(e) => {
-                            e.currentTarget.style.transform = 'translateY(-2px)';
-                            e.currentTarget.style.boxShadow = '0 12px 35px rgba(102, 126, 234, 0.6)';
-                          }}
-                          onMouseLeave={(e) => {
-                            e.currentTarget.style.transform = 'translateY(0)';
-                            e.currentTarget.style.boxShadow = '0 8px 25px rgba(102, 126, 234, 0.4)';
-                          }}
-                        >
-                          <i className="bi bi-bag-check me-2"></i>Shop Now
-                        </button>
-                        {slide.saleType === 'flash_sale' && slide.validUntil && (
-                          <div className="d-flex align-items-center text-white">
-                            <i className="bi bi-clock me-2"></i>
-                            <span>Ends: {new Date(slide.validUntil).toLocaleDateString()}</span>
+                        />
+                        {slide.discount > 0 && (
+                          <div className="position-absolute top-0 end-0 m-3">
+                            <span className="badge px-3 py-2" style={{
+                              background: 'linear-gradient(135deg, #ff6b6b, #ee5a24)',
+                              fontSize: '1rem',
+                              borderRadius: '15px'
+                            }}>
+                              🔥 {slide.discount}% OFF
+                            </span>
                           </div>
                         )}
                       </div>
-                    </div>
+                    ))}
                   </div>
+                ) : (
+                  <div className="placeholder-image d-flex align-items-center justify-content-center" style={{
+                    height: '400px',
+                    background: 'rgba(255,255,255,0.1)',
+                    borderRadius: '20px',
+                    backdropFilter: 'blur(10px)'
+                  }}>
+                    <i className="bi bi-image" style={{fontSize: '4rem', opacity: 0.5}}></i>
+                  </div>
+                )}
+              </motion.div>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      {/* Promotional Slideshow */}
+      {slides.length > 0 && (
+        <div className="slideshow-container d-none" style={{position: 'relative', height: '400px', overflow: 'hidden'}}>
+          <div className="slideshow-wrapper" style={{position: 'relative', width: '100%', height: '100%'}}>
+          
+            {/* Navigation Arrows */}
+            {slides.length > 1 && (
+              <>
+                <button 
+                  className="btn position-absolute start-0 top-50 translate-middle-y ms-3"
+                  onClick={prevSlideshow}
+                  style={{
+                    background: 'rgba(255,255,255,0.2)',
+                    border: '2px solid rgba(255,255,255,0.3)',
+                    color: 'white',
+                    width: '60px',
+                    height: '60px',
+                    borderRadius: '50%',
+                    backdropFilter: 'blur(10px)',
+                    zIndex: 10,
+                    transition: 'all 0.3s ease'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = 'rgba(255,255,255,0.3)';
+                    e.currentTarget.style.transform = 'scale(1.1)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = 'rgba(255,255,255,0.2)';
+                    e.currentTarget.style.transform = 'scale(1)';
+                  }}
+                >
+                  <i className="bi bi-chevron-left" style={{fontSize: '1.5rem'}}></i>
+                </button>
+                <button 
+                  className="btn position-absolute end-0 top-50 translate-middle-y me-3"
+                  onClick={nextSlideshow}
+                  style={{
+                    background: 'rgba(255,255,255,0.2)',
+                    border: '2px solid rgba(255,255,255,0.3)',
+                    color: 'white',
+                    width: '60px',
+                    height: '60px',
+                    borderRadius: '50%',
+                    backdropFilter: 'blur(10px)',
+                    zIndex: 10,
+                    transition: 'all 0.3s ease'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = 'rgba(255,255,255,0.3)';
+                    e.currentTarget.style.transform = 'scale(1.1)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = 'rgba(255,255,255,0.2)';
+                    e.currentTarget.style.transform = 'scale(1)';
+                  }}
+                >
+                  <i className="bi bi-chevron-right" style={{fontSize: '1.5rem'}}></i>
+                </button>
+              </>
+            )}
+            
+            {/* Slide Indicators */}
+            {slides.length > 1 && (
+              <div className="position-absolute bottom-0 start-50 translate-middle-x mb-4">
+                <div className="d-flex gap-2">
+                  {slides.map((_, index) => (
+                    <button
+                      key={index}
+                      className="btn p-0"
+                      onClick={() => setCurrentSlideIndex(index)}
+                      style={{
+                        width: '12px',
+                        height: '12px',
+                        borderRadius: '50%',
+                        border: '2px solid white',
+                        background: index === currentSlideIndex ? 'white' : 'transparent',
+                        transition: 'all 0.3s ease'
+                      }}
+                    />
+                  ))}
                 </div>
               </div>
-            ))}
+            )}
           </div>
-          
-          {/* Navigation Arrows */}
-          {slides.length > 1 && (
-            <>
-              <button 
-                className="btn position-absolute start-0 top-50 translate-middle-y ms-3"
-                onClick={prevSlideshow}
-                style={{
-                  background: 'rgba(255,255,255,0.2)',
-                  border: '2px solid rgba(255,255,255,0.3)',
-                  color: 'white',
-                  width: '60px',
-                  height: '60px',
-                  borderRadius: '50%',
-                  backdropFilter: 'blur(10px)',
-                  zIndex: 10,
-                  transition: 'all 0.3s ease'
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.background = 'rgba(255,255,255,0.3)';
-                  e.currentTarget.style.transform = 'scale(1.1)';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.background = 'rgba(255,255,255,0.2)';
-                  e.currentTarget.style.transform = 'scale(1)';
-                }}
-              >
-                <i className="bi bi-chevron-left" style={{fontSize: '1.5rem'}}></i>
-              </button>
-              <button 
-                className="btn position-absolute end-0 top-50 translate-middle-y me-3"
-                onClick={nextSlideshow}
-                style={{
-                  background: 'rgba(255,255,255,0.2)',
-                  border: '2px solid rgba(255,255,255,0.3)',
-                  color: 'white',
-                  width: '60px',
-                  height: '60px',
-                  borderRadius: '50%',
-                  backdropFilter: 'blur(10px)',
-                  zIndex: 10,
-                  transition: 'all 0.3s ease'
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.background = 'rgba(255,255,255,0.3)';
-                  e.currentTarget.style.transform = 'scale(1.1)';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.background = 'rgba(255,255,255,0.2)';
-                  e.currentTarget.style.transform = 'scale(1)';
-                }}
-              >
-                <i className="bi bi-chevron-right" style={{fontSize: '1.5rem'}}></i>
-              </button>
-            </>
-          )}
-          
-          {/* Slide Indicators */}
-          {slides.length > 1 && (
-            <div className="position-absolute bottom-0 start-50 translate-middle-x mb-4">
-              <div className="d-flex gap-2">
-                {slides.map((_, index) => (
-                  <button
-                    key={index}
-                    className="btn p-0"
-                    onClick={() => setCurrentSlideIndex(index)}
-                    style={{
-                      width: '12px',
-                      height: '12px',
-                      borderRadius: '50%',
-                      border: '2px solid white',
-                      background: index === currentSlideIndex ? 'white' : 'transparent',
-                      transition: 'all 0.3s ease'
-                    }}
-                  />
-                ))}
-              </div>
-            </div>
-          )}
         </div>
       )}
 
@@ -1509,8 +1632,72 @@ export default function HomePage() {
 
 
 
+      {/* Stats Section */}
+      <div className="py-5" style={{background: '#f8f9fa'}}>
+        <div className="container">
+          <div className="row g-4 text-center">
+            <div className="col-md-3 col-6">
+              <div className="stat-card p-4 h-100" style={{
+                background: 'white',
+                borderRadius: '15px',
+                boxShadow: '0 5px 15px rgba(0,0,0,0.08)',
+                border: '1px solid #e9ecef'
+              }}>
+                <div className="stat-icon mb-3">
+                  <i className="bi bi-people-fill" style={{fontSize: '2.5rem', color: '#667eea'}}></i>
+                </div>
+                <h3 className="fw-bold mb-1" style={{color: '#2c3e50'}}>10K+</h3>
+                <p className="text-muted mb-0">Happy Customers</p>
+              </div>
+            </div>
+            <div className="col-md-3 col-6">
+              <div className="stat-card p-4 h-100" style={{
+                background: 'white',
+                borderRadius: '15px',
+                boxShadow: '0 5px 15px rgba(0,0,0,0.08)',
+                border: '1px solid #e9ecef'
+              }}>
+                <div className="stat-icon mb-3">
+                  <i className="bi bi-bag-check-fill" style={{fontSize: '2.5rem', color: '#22c55e'}}></i>
+                </div>
+                <h3 className="fw-bold mb-1" style={{color: '#2c3e50'}}>500+</h3>
+                <p className="text-muted mb-0">Products</p>
+              </div>
+            </div>
+            <div className="col-md-3 col-6">
+              <div className="stat-card p-4 h-100" style={{
+                background: 'white',
+                borderRadius: '15px',
+                boxShadow: '0 5px 15px rgba(0,0,0,0.08)',
+                border: '1px solid #e9ecef'
+              }}>
+                <div className="stat-icon mb-3">
+                  <i className="bi bi-truck" style={{fontSize: '2.5rem', color: '#f59e0b'}}></i>
+                </div>
+                <h3 className="fw-bold mb-1" style={{color: '#2c3e50'}}>24/7</h3>
+                <p className="text-muted mb-0">Fast Delivery</p>
+              </div>
+            </div>
+            <div className="col-md-3 col-6">
+              <div className="stat-card p-4 h-100" style={{
+                background: 'white',
+                borderRadius: '15px',
+                boxShadow: '0 5px 15px rgba(0,0,0,0.08)',
+                border: '1px solid #e9ecef'
+              }}>
+                <div className="stat-icon mb-3">
+                  <i className="bi bi-star-fill" style={{fontSize: '2.5rem', color: '#ef4444'}}></i>
+                </div>
+                <h3 className="fw-bold mb-1" style={{color: '#2c3e50'}}>4.9</h3>
+                <p className="text-muted mb-0">Rating</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
       {/* Category Navigation */}
-      <div className="py-4" style={{background: 'var(--gradient-primary)', boxShadow: 'var(--shadow-lg)', position: 'sticky', top: 0, zIndex: 1040}}>
+      <div className="py-4" style={{background: 'linear-gradient(135deg, #22c55e 0%, #16a34a 100%)', boxShadow: '0 4px 20px rgba(34, 197, 94, 0.3)', position: 'sticky', top: 0, zIndex: 1040}}>
         <div className="container">
           <div className="row justify-content-center">
             <div className="col-12">
@@ -1518,10 +1705,9 @@ export default function HomePage() {
                 {categories.map(category => (
                   <button 
                     key={category}
-                    className={`btn btn-sm fw-bold ${selectedCategory === category ? 'btn-light' : 'btn-outline-light text-white'}`}
+                    className={`btn fw-bold ${selectedCategory === category ? 'btn-light' : 'btn-outline-light text-white'}`}
                     onClick={() => {
                       setSelectedCategory(category);
-                      // Smooth scroll to products section after category change
                       setTimeout(() => {
                         const productsSection = document.getElementById('products-section');
                         if (productsSection) {
@@ -1531,8 +1717,11 @@ export default function HomePage() {
                     }}
                     style={{
                       transition: 'all 0.3s ease',
-                      minWidth: '80px',
-                      color: selectedCategory === category ? '#333' : 'white'
+                      minWidth: '100px',
+                      borderRadius: '25px',
+                      padding: '10px 20px',
+                      color: selectedCategory === category ? '#333' : 'white',
+                      border: selectedCategory === category ? 'none' : '2px solid rgba(255,255,255,0.3)'
                     }}
                   >
                     {category}
@@ -1549,52 +1738,103 @@ export default function HomePage() {
         <div className="container-fluid" style={{position: 'relative', zIndex: 2}}>
           <div className="row mb-4">
             <div className="col-12">
-              {/* Search and Filters Bar */}
-              <div className="card border-0 shadow-sm mb-4">
+              {/* Enhanced Search and Filters Bar */}
+              <div className="card border-0 shadow-lg mb-4" style={{ borderRadius: '20px', background: 'linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%)' }}>
+                <div className="card-header bg-success text-white" style={{ borderRadius: '20px 20px 0 0' }}>
+                  <h5 className="mb-0"><i className="bi bi-funnel me-2"></i>Search & Filter Products</h5>
+                </div>
                 <div className="card-body p-4">
-                  <div className="row g-3 align-items-center">
-                    <div className="col-md-4">
+                  <div className="row g-4">
+                    {/* Search Section */}
+                    <div className="col-lg-4">
+                      <label className="form-label fw-bold mb-2">Search Products</label>
                       <div className="input-group">
+                        <span className="input-group-text bg-success text-white">
+                          <i className="bi bi-search"></i>
+                        </span>
                         <input 
                           type="text" 
                           className="form-control" 
-                          placeholder="Search by name or code..."
+                          placeholder="Search by name, code, or category..."
                           value={searchTerm}
                           onChange={(e) => setSearchTerm(e.target.value)}
-                        />
-                        <button className="btn btn-outline-secondary" type="button">
-                          <i className="bi bi-search"></i>
-                        </button>
-                      </div>
-                    </div>
-                    <div className="col-md-4">
-                      <div className="d-flex align-items-center">
-                        <label className="form-label me-2 mb-0 small fw-bold">Price Range:</label>
-                        <span className="badge bg-primary px-3 py-2">LKR {priceRange.min} - LKR {priceRange.max}</span>
-                      </div>
-                      <div className="d-flex gap-2 mt-2">
-                        <input 
-                          type="range" 
-                          className="form-range"
-                          min="0" 
-                          max={maxPrice}
-                          value={priceRange.min}
-                          onChange={(e) => setPriceRange({...priceRange, min: +e.target.value})}
-                        />
-                        <input 
-                          type="range" 
-                          className="form-range"
-                          min="0" 
-                          max={maxPrice}
-                          value={priceRange.max}
-                          onChange={(e) => setPriceRange({...priceRange, max: +e.target.value})}
+                          style={{ borderRadius: '0 10px 10px 0' }}
                         />
                       </div>
                     </div>
-                    <div className="col-md-4">
-                      <div className="text-center">
-                        <small className="text-muted">Showing {getFilteredProducts().length} of {products.length} products</small>
+                    
+                    {/* Category Filter */}
+                    <div className="col-lg-3">
+                      <label className="form-label fw-bold mb-2">Category</label>
+                      <select 
+                        className="form-select" 
+                        value={selectedCategory} 
+                        onChange={(e) => setSelectedCategory(e.target.value)}
+                        style={{ borderRadius: '10px' }}
+                      >
+                        {categories.map(category => (
+                          <option key={category} value={category}>{category}</option>
+                        ))}
+                      </select>
+                    </div>
+                    
+                    {/* Price Range */}
+                    <div className="col-lg-5">
+                      <div className="d-flex justify-content-between align-items-center mb-2">
+                        <label className="form-label fw-bold mb-0">Price Range</label>
+                        <span className="badge bg-success px-3 py-2" style={{ borderRadius: '15px' }}>
+                          LKR {priceRange.min.toLocaleString()} - LKR {priceRange.max.toLocaleString()}
+                        </span>
                       </div>
+                      <div className="row g-2">
+                        <div className="col-6">
+                          <label className="form-label small">Min: LKR {priceRange.min.toLocaleString()}</label>
+                          <input 
+                            type="range" 
+                            className="form-range"
+                            min="0" 
+                            max={maxPrice}
+                            value={priceRange.min}
+                            onChange={(e) => setPriceRange({...priceRange, min: +e.target.value})}
+                          />
+                        </div>
+                        <div className="col-6">
+                          <label className="form-label small">Max: LKR {priceRange.max.toLocaleString()}</label>
+                          <input 
+                            type="range" 
+                            className="form-range"
+                            min="0" 
+                            max={maxPrice}
+                            value={priceRange.max}
+                            onChange={(e) => setPriceRange({...priceRange, max: +e.target.value})}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  {/* Filter Actions */}
+                  <div className="row mt-4">
+                    <div className="col-md-6">
+                      <div className="d-flex align-items-center gap-3">
+                        <span className="text-muted fw-bold">Results:</span>
+                        <span className="badge bg-primary px-3 py-2" style={{ fontSize: '0.9rem' }}>
+                          {getFilteredProducts().length} of {products.length} products
+                        </span>
+                      </div>
+                    </div>
+                    <div className="col-md-6 text-end">
+                      <button 
+                        className="btn btn-outline-success"
+                        onClick={() => {
+                          setSearchTerm('');
+                          setSelectedCategory('All');
+                          setPriceRange({ min: 0, max: maxPrice });
+                        }}
+                        style={{ borderRadius: '10px' }}
+                      >
+                        <i className="bi bi-arrow-clockwise me-2"></i>Clear All Filters
+                      </button>
                     </div>
                   </div>
                 </div>
@@ -1602,78 +1842,78 @@ export default function HomePage() {
             </div>
           </div>
           <div className="row">
-            {/* Left Hot Deals Sidebar */}
+            {/* Left Sidebar - Featured Categories */}
             <div className="col-lg-2 d-none d-lg-block">
               <div className="position-sticky" style={{top: '20px'}}>
-                {slides.length > 0 ? (
-                  <div id="leftDealsCarousel" className="carousel slide" data-bs-ride="carousel" data-bs-interval="3000">
-                    <div className="carousel-inner">
-                      {slides.slice(0, 3).map((slide, index) => (
-                        <div key={slide._id} className={`carousel-item ${index === 0 ? 'active' : ''}`}>
-                          <div className="card border-0 shadow-sm" style={{cursor: 'pointer', transition: 'all 0.3s ease'}} onClick={scrollToProducts}>
-                            <div className="card-header text-center" style={{background: `linear-gradient(135deg, ${getSaleTypeColor(slide.saleType)})`, color: 'white'}}>
-                              <h6 className="mb-0">{getSaleTypeIcon(slide.saleType)} {slide.title}</h6>
-                            </div>
-                            <div className="position-relative overflow-hidden">
-                              <img src={slide.image} alt={slide.title} className="card-img-top" style={{height: '120px', objectFit: 'cover'}} />
-                              {slide.discount > 0 && (
-                                <div className="position-absolute top-0 end-0 m-2">
-                                  <span className="badge bg-danger">{slide.discount}% OFF</span>
-                                </div>
-                              )}
-                            </div>
-                            <div className="card-body p-2">
-                              <h6 className="fw-bold mb-1" style={{fontSize: '0.8rem'}}>{slide.subtitle || slide.title}</h6>
-                              <div className="text-center">
-                                <small className="text-muted">Click to explore</small>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      ))}
+                <div className="sidebar-card" style={{
+                  background: 'linear-gradient(135deg, #22c55e, #16a34a)',
+                  borderRadius: '15px',
+                  padding: '20px',
+                  color: 'white',
+                  boxShadow: '0 10px 30px rgba(34, 197, 94, 0.3)'
+                }}>
+                  <h6 className="fw-bold mb-3 text-center">
+                    <i className="bi bi-star-fill me-2"></i>Featured
+                  </h6>
+                  <div className="featured-categories">
+                    {categories.slice(1, 4).map((category, index) => (
+                      <button
+                        key={category}
+                        className="btn btn-outline-light btn-sm w-100 mb-2"
+                        onClick={() => {
+                          setSelectedCategory(category);
+                          scrollToProducts();
+                        }}
+                        style={{
+                          borderRadius: '10px',
+                          fontSize: '0.8rem',
+                          padding: '8px 12px',
+                          border: '1px solid rgba(255,255,255,0.3)',
+                          transition: 'all 0.3s ease'
+                        }}
+                      >
+                        {category}
+                      </button>
+                    ))}
+                  </div>
+                  <div className="text-center mt-3 pt-3" style={{borderTop: '1px solid rgba(255,255,255,0.2)'}}>
+                    <small className="d-block mb-2">Special Offer</small>
+                    <div className="badge px-3 py-2" style={{
+                      background: 'rgba(255,255,255,0.2)',
+                      fontSize: '0.7rem',
+                      borderRadius: '12px'
+                    }}>
+                      🎁 Free Shipping
                     </div>
                   </div>
-                ) : (
-                  <div className="card border-0 shadow-sm">
-                    <div className="card-header text-center bg-primary text-white">
-                      <h6 className="mb-0">🔥 Hot Deals</h6>
-                    </div>
-                    <div className="card-body text-center p-3">
-                      <p className="small text-muted mb-0">Check back for amazing deals!</p>
-                    </div>
-                  </div>
-                )}
+                </div>
               </div>
             </div>
             
-            <div className="col-lg-8">
+            <div className="col-lg-10">
               <div className="text-center mb-5">
-                <h2 className="fw-bold mb-3" style={{color: 'var(--dark-color)', fontSize: '3rem'}}>Our Premium Collection</h2>
-                <div style={{width: '120px', height: '4px', background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', margin: '0 auto', borderRadius: '2px'}}></div>
-                <p className="mt-3 fs-5" style={{color: 'var(--gray-600)'}}>Discover our curated selection of premium fashion items</p>
-                <div className="mt-4 p-4 rounded" style={{background: 'linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%)', border: '1px solid rgba(102, 126, 234, 0.2)'}}>
-                  <div className="row g-3 text-center">
-                    <div className="col-md-3">
-                      <i className="bi bi-truck text-primary mb-2" style={{fontSize: '1.5rem'}}></i>
-                      <p className="small mb-0 fw-semibold">Free Shipping</p>
-                      <small className="text-muted">On orders over LKR 5000</small>
-                    </div>
-                    <div className="col-md-3">
-                      <i className="bi bi-shield-check text-success mb-2" style={{fontSize: '1.5rem'}}></i>
-                      <p className="small mb-0 fw-semibold">Quality Guarantee</p>
-                      <small className="text-muted">Premium materials only</small>
-                    </div>
-                    <div className="col-md-3">
-                      <i className="bi bi-arrow-clockwise text-info mb-2" style={{fontSize: '1.5rem'}}></i>
-                      <p className="small mb-0 fw-semibold">Easy Returns</p>
-                      <small className="text-muted">30-day return policy</small>
-                    </div>
-                    <div className="col-md-3">
-                      <i className="bi bi-headset text-warning mb-2" style={{fontSize: '1.5rem'}}></i>
-                      <p className="small mb-0 fw-semibold">24/7 Support</p>
-                      <small className="text-muted">Always here to help</small>
-                    </div>
-                  </div>
+                <div className="section-header mb-5">
+                  <span className="badge px-4 py-2 mb-3" style={{
+                    background: 'linear-gradient(135deg, #22c55e, #16a34a)',
+                    fontSize: '0.9rem',
+                    borderRadius: '25px',
+                    color: 'white'
+                  }}>FEATURED COLLECTION</span>
+                  <h2 className="display-4 fw-bold mb-4" style={{
+                    background: 'linear-gradient(135deg, #1a1a1a, #333333)',
+                    WebkitBackgroundClip: 'text',
+                    WebkitTextFillColor: 'transparent'
+                  }}>Premium Fashion Collection</h2>
+                  <div className="mx-auto mb-4" style={{
+                    width: '100px',
+                    height: '4px',
+                    background: 'linear-gradient(135deg, #22c55e, #16a34a)',
+                    borderRadius: '2px'
+                  }}></div>
+                  <p className="lead text-muted mx-auto" style={{maxWidth: '600px'}}>
+                    Discover our carefully curated selection of premium fashion items, 
+                    designed to elevate your style with quality and sophistication.
+                  </p>
                 </div>
               </div>
 
@@ -1712,8 +1952,20 @@ export default function HomePage() {
               ) : (
                 <div className="premium-products-grid" style={{minHeight: '600px'}}>
                   <div className="row g-4" style={{minHeight: '500px'}}>
-                    {getFilteredProducts().map(product => (
-                      <div key={product.id} className="col-xl-3 col-lg-4 col-md-6">
+                    <AnimatePresence mode="wait">
+                      {getFilteredProducts().map((product, index) => (
+                        <motion.div 
+                          key={product.id} 
+                          className="col-xl-3 col-lg-4 col-md-6"
+                          initial={{ opacity: 0, y: 20 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, y: -20 }}
+                          transition={{ 
+                            duration: 0.4, 
+                            delay: index * 0.1,
+                            ease: "easeOut"
+                          }}
+                        >
                         <div className={`premium-product-card ${product.status === 'outofstock' ? 'out-of-stock' : ''}`}
                              onMouseEnter={(e) => {
                                e.currentTarget.style.transform = 'translateY(-8px)';
@@ -2065,8 +2317,9 @@ export default function HomePage() {
                             }
                           </div>
                         </div>
-                      </div>
-                    ))}
+                        </motion.div>
+                      ))}
+                    </AnimatePresence>
                   </div>
                   
                   {/* No Products Found */}
@@ -2117,53 +2370,10 @@ export default function HomePage() {
                 </div>
               )}
             </div>
-            
-            {/* Right Hot Deals Sidebar */}
-            <div className="col-lg-2 d-none d-lg-block">
-              <div className="position-sticky" style={{top: '20px'}}>
-                {slides.length > 0 ? (
-                  <div id="rightDealsCarousel" className="carousel slide" data-bs-ride="carousel" data-bs-interval="4000">
-                    <div className="carousel-inner">
-                      {slides.slice(-3).map((slide, index) => (
-                        <div key={slide._id} className={`carousel-item ${index === 0 ? 'active' : ''}`}>
-                          <div className="card border-0 shadow-sm" style={{cursor: 'pointer'}} onClick={scrollToProducts}>
-                            <div className="card-header text-center" style={{background: `linear-gradient(135deg, ${getSaleTypeColor(slide.saleType)})`, color: 'white'}}>
-                              <h6 className="mb-0">{getSaleTypeIcon(slide.saleType)} {slide.title}</h6>
-                            </div>
-                            <div className="position-relative">
-                              <img src={slide.image} alt={slide.title} className="card-img-top" style={{height: '120px', objectFit: 'cover'}} />
-                              {slide.discount > 0 && (
-                                <div className="position-absolute top-0 end-0 m-2">
-                                  <span className="badge bg-danger">{slide.discount}% OFF</span>
-                                </div>
-                              )}
-                            </div>
-                            <div className="card-body p-2">
-                              <h6 className="fw-bold mb-1" style={{fontSize: '0.8rem'}}>{slide.subtitle || slide.title}</h6>
-                              <div className="text-center">
-                                <small className="text-muted">Click to explore</small>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                ) : (
-                  <div className="card border-0 shadow-sm">
-                    <div className="card-header text-center bg-warning text-dark">
-                      <h6 className="mb-0">💰 Special Offers</h6>
-                    </div>
-                    <div className="card-body text-center p-3">
-                      <p className="small text-muted mb-0">Amazing deals coming soon!</p>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
           </div>
         </div>
       </div>
+
 
       {/* Cart Modal */}
       {showCart && (

@@ -41,12 +41,14 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
     
     console.log('Updating product with data:', JSON.stringify(body, null, 2));
     
-    // Try to find by _id first, then by id field
-    let product = await Product.findByIdAndUpdate(id, body, { new: true, runValidators: true });
-    
-    if (!product) {
-      // Try finding by id field if _id doesn't work
+    // Check if id is numeric (custom id field) or ObjectId
+    let product;
+    if (/^\d+$/.test(id)) {
+      // Numeric ID - use custom id field
       product = await Product.findOneAndUpdate({ id: parseInt(id) }, body, { new: true, runValidators: true });
+    } else {
+      // ObjectId - use _id field
+      product = await Product.findByIdAndUpdate(id, body, { new: true, runValidators: true });
     }
     
     if (!product) {
@@ -75,12 +77,14 @@ export async function DELETE(request: NextRequest, { params }: { params: { id: s
     await dbConnect();
     const id = params.id;
     
-    // Try to delete by _id first, then by id field
-    let result = await Product.findByIdAndDelete(id);
-    
-    if (!result) {
-      // Try finding by id field if _id doesn't work
+    // Check if id is numeric (custom id field) or ObjectId
+    let result;
+    if (/^\d+$/.test(id)) {
+      // Numeric ID - use custom id field
       result = await Product.findOneAndDelete({ id: parseInt(id) });
+    } else {
+      // ObjectId - use _id field
+      result = await Product.findByIdAndDelete(id);
     }
     
     if (!result) {

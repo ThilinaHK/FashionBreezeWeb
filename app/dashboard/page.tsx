@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { Product } from '../types';
 import ImageWithFallback from '../components/ImageWithFallback';
+import TailorsSection from './tailors-section';
 // import { useSocket } from '../components/SocketProvider';
 
 export default function DashboardPage() {
@@ -27,6 +28,7 @@ export default function DashboardPage() {
     vat: 0,
     price: 0,
     category: '',
+    subcategory: '',
     brand: '',
     image: '',
     images: ['', '', '', ''] as string[],
@@ -143,6 +145,16 @@ export default function DashboardPage() {
     order: 1
   });
   const [savingSlide, setSavingSlide] = useState(false);
+  const [tailors, setTailors] = useState<any[]>([]);
+  const [loadingTailors, setLoadingTailors] = useState(false);
+  const [showSubcategoryModal, setShowSubcategoryModal] = useState(false);
+  const [editingSubcategory, setEditingSubcategory] = useState<any>(null);
+  const [subcategoryFormData, setSubcategoryFormData] = useState({
+    name: '',
+    categoryId: '',
+    description: ''
+  });
+  const [savingSubcategory, setSavingSubcategory] = useState(false);
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -173,6 +185,7 @@ export default function DashboardPage() {
           loadStockAlerts();
           loadTopProducts();
           loadSlides();
+          loadTailors();
         }, 200);
       } else {
         setIsLoggedIn(false);
@@ -224,7 +237,7 @@ export default function DashboardPage() {
   const loadCategories = async () => {
     setLoadingCategories(true);
     try {
-      const response = await fetch('/api/categories', {
+      const response = await fetch(`/api/categories?t=${Date.now()}`, {
         headers: { 'Cache-Control': 'no-cache' }
       });
       const categories = await response.json();
@@ -922,6 +935,107 @@ export default function DashboardPage() {
     return currentUser?.privileges?.[privilege] === true;
   };
 
+  const getSubcategories = (categoryName: string) => {
+    const category = categories.find(cat => cat.name === categoryName);
+    return category?.subcategories || [];
+  };
+
+  const openSubcategoryModal = (subcategory?: any, category?: any) => {
+    if (subcategory && category) {
+      setEditingSubcategory({...subcategory, categoryId: category._id});
+      setSubcategoryFormData({
+        name: subcategory.name,
+        categoryId: category._id,
+        description: subcategory.description || ''
+      });
+    } else {
+      setEditingSubcategory(null);
+      setSubcategoryFormData({ name: '', categoryId: '', description: '' });
+    }
+    setShowSubcategoryModal(true);
+  };
+
+  const saveSubcategory = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSavingSubcategory(true);
+    try {
+      const category = categories.find(cat => cat._id === subcategoryFormData.categoryId);
+      if (!category) return;
+      
+      let updatedSubcategories = [...(category.subcategories || [])];
+      
+      if (editingSubcategory) {
+        // Edit existing
+        const index = updatedSubcategories.findIndex(sub => sub.slug === editingSubcategory.slug);
+        if (index !== -1) {
+          updatedSubcategories[index] = {
+            ...updatedSubcategories[index],
+            name: subcategoryFormData.name,
+            description: subcategoryFormData.description
+          };
+        }
+      } else {
+        // Add new
+        updatedSubcategories.push({
+          name: subcategoryFormData.name,
+          slug: subcategoryFormData.name.toLowerCase().replace(/\s+/g, '-'),
+          description: subcategoryFormData.description,
+          isActive: true
+        });
+      }
+      
+      const response = await fetch('/api/categories', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: category._id,
+          subcategories: updatedSubcategories
+        })
+      });
+      
+      if (response.ok) {
+        loadCategories();
+        setShowSubcategoryModal(false);
+        setToast({message: editingSubcategory ? 'Subcategory updated successfully!' : 'Subcategory added successfully!', type: 'success'});
+        setTimeout(() => setToast(null), 3000);
+      }
+    } catch (error) {
+      setToast({message: 'Failed to save subcategory', type: 'error'});
+      setTimeout(() => setToast(null), 3000);
+    } finally {
+      setSavingSubcategory(false);
+    }
+  };
+
+  const deleteSubcategory = async (categoryId: string, subcategorySlug: string) => {
+    if (confirm('Are you sure you want to delete this subcategory?')) {
+      try {
+        const category = categories.find(cat => cat._id === categoryId);
+        if (!category) return;
+        
+        const updatedSubcategories = category.subcategories?.filter(sub => sub.slug !== subcategorySlug) || [];
+        
+        const response = await fetch('/api/categories', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            id: categoryId,
+            subcategories: updatedSubcategories
+          })
+        });
+        
+        if (response.ok) {
+          loadCategories();
+          setToast({message: 'Subcategory deleted successfully!', type: 'success'});
+          setTimeout(() => setToast(null), 3000);
+        }
+      } catch (error) {
+        setToast({message: 'Failed to delete subcategory', type: 'error'});
+        setTimeout(() => setToast(null), 3000);
+      }
+    }
+  };
+
   const generateProductCode = () => {
     const prefix = 'FB';
     const timestamp = Date.now().toString().slice(-6);
@@ -939,6 +1053,7 @@ export default function DashboardPage() {
         vat: product.vat || 0,
         price: product.price,
         category: product.category,
+        subcategory: product.subcategory || '',
         brand: (product as any).brand || '',
         image: product.image,
         images: Array.isArray((product as any).additionalImages) ? 
@@ -962,7 +1077,7 @@ export default function DashboardPage() {
       });
     } else {
       setEditingProduct(null);
-      setFormData({ name: '', code: generateProductCode(), cost: 0, vat: 0, price: 0, category: '', brand: '', image: '', images: ['', '', '', ''], status: 'instock', sizes: [], colors: [], description: '', specifications: { material: '', careInstructions: '', weight: '', origin: '' } });
+      setFormData({ name: '', code: generateProductCode(), cost: 0, vat: 0, price: 0, category: '', subcategory: '', brand: '', image: '', images: ['', '', '', ''], status: 'instock', sizes: [], colors: [], description: '', specifications: { material: '', careInstructions: '', weight: '', origin: '' } });
     }
     setShowModal(true);
   };
@@ -1011,6 +1126,7 @@ export default function DashboardPage() {
           vat: formData.vat,
           price: formData.price,
           category: formData.category,
+          subcategory: formData.subcategory,
           brand: formData.brand,
           image: formData.image,
           additionalImages: formData.images.filter(img => img && img.trim()),
@@ -1085,9 +1201,10 @@ export default function DashboardPage() {
 
   const openCategoryModal = (category?: any) => {
     console.log('Opening category modal with:', category);
+    console.log('Delivery cost from category:', category?.deliveryCost);
     setEditingCategory(category || null);
     setCategoryName(category?.name || '');
-    setCategoryDeliveryCost(category?.deliveryCost || 0);
+    setCategoryDeliveryCost(Number(category?.deliveryCost) || 300);
     setShowCategoryModal(true);
   };
 
@@ -1097,9 +1214,14 @@ export default function DashboardPage() {
     try {
       const method = editingCategory ? 'PUT' : 'POST';
       const categoryId = editingCategory?._id || editingCategory?.id;
-      const body = editingCategory ? { id: categoryId, name: categoryName, deliveryCost: categoryDeliveryCost } : { name: categoryName, deliveryCost: categoryDeliveryCost };
+      const deliveryCostValue = Number(categoryDeliveryCost) || 300;
+      
+      const body = editingCategory ? 
+        { _id: categoryId, id: categoryId, name: categoryName, deliveryCost: deliveryCostValue } : 
+        { name: categoryName, deliveryCost: deliveryCostValue };
       
       console.log('Saving category with data:', body);
+      console.log('Delivery cost value:', deliveryCostValue);
       console.log('Category ID being used:', categoryId);
       
       const currentUser = JSON.parse(localStorage.getItem('adminUser') || '{}');
@@ -1118,7 +1240,7 @@ export default function DashboardPage() {
         await loadCategories();
         setShowCategoryModal(false);
         setCategoryName('');
-        setCategoryDeliveryCost(0);
+        setCategoryDeliveryCost(300);
         setEditingCategory(null);
         
         // Trigger product refresh to update delivery costs
@@ -1594,6 +1716,41 @@ export default function DashboardPage() {
     }
   };
 
+  const loadTailors = async () => {
+    setLoadingTailors(true);
+    try {
+      const response = await fetch('/api/tailors');
+      const tailors = await response.json();
+      setTailors(Array.isArray(tailors) ? tailors : []);
+    } catch (error) {
+      console.error('Error loading tailors:', error);
+      setTailors([]);
+    } finally {
+      setLoadingTailors(false);
+    }
+  };
+
+  const updateTailorStatus = async (tailorId: string, status: string) => {
+    try {
+      const currentUser = JSON.parse(localStorage.getItem('adminUser') || '{}');
+      const response = await fetch('/api/tailors', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tailorId, status, approvedBy: currentUser.username })
+      });
+      
+      if (response.ok) {
+        loadTailors();
+        setToast({message: `Tailor ${status} successfully!`, type: 'success'});
+        setTimeout(() => setToast(null), 3000);
+      }
+    } catch (error) {
+      console.error('Error updating tailor status:', error);
+      setToast({message: 'Failed to update tailor status', type: 'error'});
+      setTimeout(() => setToast(null), 3000);
+    }
+  };
+
   const deleteSlide = async (slide: any) => {
     if (confirm('Are you sure you want to delete this slide?')) {
       try {
@@ -1662,15 +1819,8 @@ export default function DashboardPage() {
             <ul className="nav nav-tabs">
               {hasPrivilege('products') && (
                 <li className="nav-item">
-                  <a href="/dashboard/products" className="nav-link">
-                    <i className="bi bi-box-seam me-2"></i>Products
-                  </a>
-                </li>
-              )}
-              {hasPrivilege('products') && (
-                <li className="nav-item">
                   <button className={`nav-link ${activeTab === 'products' ? 'active' : ''}`} onClick={() => setActiveTab('products')}>
-                    <i className="bi bi-box-seam me-2"></i>Products (Old)
+                    <i className="bi bi-box-seam me-2"></i>Products
                   </button>
                 </li>
               )}
@@ -1741,6 +1891,23 @@ export default function DashboardPage() {
                 <li className="nav-item">
                   <button className={`nav-link ${activeTab === 'slideshow' ? 'active' : ''}`} onClick={() => setActiveTab('slideshow')}>
                     <i className="bi bi-images me-2"></i>Slideshow
+                  </button>
+                </li>
+              )}
+              <li className="nav-item">
+                <a href="/tailoring" className="nav-link">
+                  <i className="bi bi-scissors me-2"></i>Tailoring
+                </a>
+              </li>
+              <li className="nav-item">
+                <a href="/member" className="nav-link">
+                  <i className="bi bi-person me-2"></i>Member
+                </a>
+              </li>
+              {hasPrivilege('users') && (
+                <li className="nav-item">
+                  <button className={`nav-link ${activeTab === 'tailors' ? 'active' : ''}`} onClick={() => setActiveTab('tailors')}>
+                    <i className="bi bi-people me-2"></i>Tailors
                   </button>
                 </li>
               )}
@@ -1954,6 +2121,7 @@ export default function DashboardPage() {
                       <th>Code</th>
                       <th>Brand</th>
                       <th>Category</th>
+                      <th>Subcategory</th>
                       <th>Cost</th>
                       <th>Price</th>
                       <th>Profit</th>
@@ -1964,7 +2132,7 @@ export default function DashboardPage() {
                   <tbody>
                     {loadingProducts ? (
                       <tr>
-                        <td colSpan={10} className="text-center py-5">
+                        <td colSpan={11} className="text-center py-5">
                           <div className="d-flex flex-column align-items-center">
                             <div className="spinner-border text-primary mb-3" role="status">
                               <span className="visually-hidden">Loading...</span>
@@ -1976,7 +2144,7 @@ export default function DashboardPage() {
                       </tr>
                     ) : products.length === 0 ? (
                       <tr>
-                        <td colSpan={10} className="text-center py-5">
+                        <td colSpan={11} className="text-center py-5">
                           <div className="text-muted">
                             <i className="bi bi-box-seam display-4 mb-3"></i>
                             <p className="mb-0">No products found</p>
@@ -2001,6 +2169,7 @@ export default function DashboardPage() {
                         <td><span className="badge bg-secondary">{product.code}</span></td>
                         <td><span className="badge bg-primary">{(product as any).brand || 'N/A'}</span></td>
                         <td><span className="badge bg-info">{product.category}</span></td>
+                        <td><span className="badge bg-secondary">{product.subcategory || '-'}</span></td>
                         <td className="text-danger">LKR {product.cost || 0}</td>
                         <td className="fw-bold text-success">LKR {product.price}</td>
                         <td className="fw-bold text-primary">LKR {((product.price || 0) - (product.cost || 0) - (product.vat || 0)).toFixed(2)}</td>
@@ -2048,10 +2217,15 @@ export default function DashboardPage() {
         {activeTab === 'categories' && hasPrivilege('categories') && (
           <div className="card border-0 shadow-sm">
             <div className="card-header bg-success text-white d-flex justify-content-between align-items-center">
-              <h5 className="mb-0"><i className="bi bi-tags me-2"></i>Category Management</h5>
-              <button className="btn btn-light" onClick={() => openCategoryModal()}>
-                <i className="bi bi-plus-circle me-2"></i>Add Category
-              </button>
+              <h5 className="mb-0"><i className="bi bi-tags me-2"></i>Category & Subcategory Management</h5>
+              <div>
+                <button className="btn btn-light me-2" onClick={() => setShowSubcategoryModal(true)}>
+                  <i className="bi bi-plus-circle me-2"></i>Add Subcategory
+                </button>
+                <button className="btn btn-light" onClick={() => openCategoryModal()}>
+                  <i className="bi bi-plus-circle me-2"></i>Add Category
+                </button>
+              </div>
             </div>
             <div className="card-body">
               <div className="mb-3">
@@ -2069,6 +2243,7 @@ export default function DashboardPage() {
                     <tr>
                       <th>ID</th>
                       <th>Name</th>
+                      <th>Subcategories</th>
                       <th>Products</th>
                       <th>Delivery Cost</th>
                       <th>Actions</th>
@@ -2077,7 +2252,7 @@ export default function DashboardPage() {
                   <tbody>
                     {loadingCategories ? (
                       <tr>
-                        <td colSpan={5} className="text-center py-4">
+                        <td colSpan={6} className="text-center py-4">
                           <div className="spinner-border text-success" role="status">
                             <span className="visually-hidden">Loading...</span>
                           </div>
@@ -2090,6 +2265,32 @@ export default function DashboardPage() {
                       <tr key={category.id || category._id}>
                         <td>{category.id || category._id}</td>
                         <td className="fw-bold">{category.name}</td>
+                        <td>
+                          <div className="d-flex flex-wrap gap-1">
+                            {category.subcategories?.slice(0, 3).map((sub: any) => (
+                              <span key={sub.slug} className="badge bg-secondary" style={{fontSize: '0.7rem'}}>
+                                {sub.name}
+                                <button 
+                                  className="btn btn-sm ms-1 p-0" 
+                                  style={{fontSize: '0.6rem', color: 'white'}} 
+                                  onClick={() => openSubcategoryModal(sub, category)}
+                                >
+                                  <i className="bi bi-pencil"></i>
+                                </button>
+                                <button 
+                                  className="btn btn-sm ms-1 p-0" 
+                                  style={{fontSize: '0.6rem', color: 'white'}} 
+                                  onClick={() => deleteSubcategory(category._id, sub.slug)}
+                                >
+                                  <i className="bi bi-x"></i>
+                                </button>
+                              </span>
+                            ))}
+                            {category.subcategories?.length > 3 && (
+                              <span className="badge bg-light text-dark">+{category.subcategories.length - 3}</span>
+                            )}
+                          </div>
+                        </td>
                         <td><span className="badge bg-info">{category.productCount || 0}</span></td>
                         <td className="fw-bold text-success">LKR {(category.deliveryCost || 0).toFixed(2)}</td>
                         <td>
@@ -3074,6 +3275,72 @@ export default function DashboardPage() {
           </div>
         )}
 
+        {showSubcategoryModal && (
+          <div className="modal d-block" tabIndex={-1} style={{background: 'rgba(0,0,0,0.5)'}}>
+            <div className="modal-dialog">
+              <div className="modal-content">
+                <div className="modal-header bg-success text-white">
+                  <h5 className="modal-title">
+                    <i className={`bi ${editingSubcategory ? 'bi-pencil-square' : 'bi-plus-circle'} me-2`}></i>
+                    {editingSubcategory ? 'Edit Subcategory' : 'Add New Subcategory'}
+                  </h5>
+                  <button type="button" className="btn-close btn-close-white" onClick={() => setShowSubcategoryModal(false)}></button>
+                </div>
+                <form onSubmit={saveSubcategory}>
+                  <div className="modal-body">
+                    <div className="mb-3">
+                      <label className="form-label fw-bold">Subcategory Name *</label>
+                      <input 
+                        type="text" 
+                        className="form-control" 
+                        value={subcategoryFormData.name}
+                        onChange={(e) => setSubcategoryFormData({...subcategoryFormData, name: e.target.value})}
+                        required 
+                        placeholder="e.g., T-Shirts"
+                      />
+                    </div>
+                    <div className="mb-3">
+                      <label className="form-label fw-bold">Category *</label>
+                      <select 
+                        className="form-select" 
+                        value={subcategoryFormData.categoryId}
+                        onChange={(e) => setSubcategoryFormData({...subcategoryFormData, categoryId: e.target.value})}
+                        required
+                        disabled={!!editingSubcategory}
+                      >
+                        <option value="">Select Category</option>
+                        {categories.map(cat => (
+                          <option key={cat._id} value={cat._id}>{cat.name}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="mb-3">
+                      <label className="form-label fw-bold">Description</label>
+                      <textarea 
+                        className="form-control" 
+                        rows={3}
+                        value={subcategoryFormData.description}
+                        onChange={(e) => setSubcategoryFormData({...subcategoryFormData, description: e.target.value})}
+                        placeholder="Optional description for this subcategory"
+                      />
+                    </div>
+                  </div>
+                  <div className="modal-footer">
+                    <button type="button" className="btn btn-secondary" onClick={() => setShowSubcategoryModal(false)}>Cancel</button>
+                    <button type="submit" className="btn btn-success" disabled={savingSubcategory}>
+                      {savingSubcategory ? (
+                        <><i className="bi bi-hourglass-split me-2"></i>Saving...</>
+                      ) : (
+                        <><i className={`bi ${editingSubcategory ? 'bi-check-circle' : 'bi-plus-circle'} me-2`}></i>{editingSubcategory ? 'Update Subcategory' : 'Create Subcategory'}</>
+                      )}
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          </div>
+        )}
+
         {showSlideModal && (
           <div className="modal d-block" tabIndex={-1} style={{background: 'rgba(0,0,0,0.5)'}}>
             <div className="modal-dialog modal-lg">
@@ -3404,14 +3671,23 @@ export default function DashboardPage() {
                                   </button>
                                 </div>
                               </div>
-                              <div className="col-md-6">
+                              <div className="col-md-4">
                                 <label className="form-label fw-bold"><i className="bi bi-tags me-1"></i>Category *</label>
-                                <select className="form-select" value={formData.category} onChange={(e) => setFormData({...formData, category: e.target.value})} required>
+                                <select className="form-select" value={formData.category} onChange={(e) => setFormData({...formData, category: e.target.value, subcategory: ''})} required>
                                   <option value="">Select Category</option>
                                   {categories.map(category => (
                                     <option key={category.id || category._id} value={category.name}>
                                       {category.name}
                                     </option>
+                                  ))}
+                                </select>
+                              </div>
+                              <div className="col-md-4">
+                                <label className="form-label fw-bold"><i className="bi bi-tag me-1"></i>Subcategory</label>
+                                <select className="form-select" value={formData.subcategory || ''} onChange={(e) => setFormData({...formData, subcategory: e.target.value})} disabled={!formData.category}>
+                                  <option value="">Select Subcategory</option>
+                                  {getSubcategories(formData.category).map(sub => (
+                                    <option key={sub.slug} value={sub.name}>{sub.name}</option>
                                   ))}
                                 </select>
                               </div>
@@ -3943,6 +4219,59 @@ export default function DashboardPage() {
                       />
                       <small className="text-muted">Set delivery cost for products in this category</small>
                     </div>
+                    {editingCategory && (
+                      <div className="mb-3">
+                        <label className="form-label">Subcategories</label>
+                        <div className="border rounded p-3">
+                          {editingCategory.subcategories?.length > 0 ? (
+                            <div className="d-flex flex-wrap gap-2">
+                              {editingCategory.subcategories.map((sub: any) => (
+                                <span key={sub.slug} className="badge bg-secondary d-flex align-items-center">
+                                  {sub.name}
+                                  <button 
+                                    type="button"
+                                    className="btn btn-sm ms-1 p-0" 
+                                    style={{fontSize: '0.7rem', color: 'white'}} 
+                                    onClick={() => {
+                                      setShowCategoryModal(false);
+                                      openSubcategoryModal(sub, editingCategory);
+                                    }}
+                                    title="Edit subcategory"
+                                  >
+                                    <i className="bi bi-pencil"></i>
+                                  </button>
+                                  <button 
+                                    type="button"
+                                    className="btn btn-sm ms-1 p-0" 
+                                    style={{fontSize: '0.7rem', color: 'white'}} 
+                                    onClick={() => {
+                                      deleteSubcategory(editingCategory._id, sub.slug);
+                                      setShowCategoryModal(false);
+                                    }}
+                                    title="Delete subcategory"
+                                  >
+                                    <i className="bi bi-x"></i>
+                                  </button>
+                                </span>
+                              ))}
+                            </div>
+                          ) : (
+                            <p className="text-muted mb-0">No subcategories yet</p>
+                          )}
+                          <button 
+                            type="button" 
+                            className="btn btn-sm btn-outline-primary mt-2"
+                            onClick={() => {
+                              setShowCategoryModal(false);
+                              setSubcategoryFormData({name: '', categoryId: editingCategory._id, description: ''});
+                              setShowSubcategoryModal(true);
+                            }}
+                          >
+                            <i className="bi bi-plus me-1"></i>Add Subcategory
+                          </button>
+                        </div>
+                      </div>
+                    )}
                   </div>
                   <div className="modal-footer">
                     <button type="button" className="btn btn-secondary" onClick={() => setShowCategoryModal(false)}>Cancel</button>
@@ -4553,6 +4882,14 @@ export default function DashboardPage() {
               <button type="button" className="btn-close" onClick={() => setToast(null)}></button>
             </div>
           </div>
+        )}
+
+        {activeTab === 'tailors' && hasPrivilege('users') && (
+          <TailorsSection 
+            tailors={tailors}
+            loadingTailors={loadingTailors}
+            updateTailorStatus={updateTailorStatus}
+          />
         )}
       </div>
     </div>

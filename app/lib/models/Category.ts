@@ -49,11 +49,20 @@ const CategorySchema = new mongoose.Schema({
   },
   deliveryCost: {
     type: Number,
-    default: 0,
+    default: 300,
     min: 0,
   },
 }, {
   timestamps: true,
+});
+
+CategorySchema.set('toJSON', {
+  transform: function(doc, ret) {
+    if (ret.deliveryCost === undefined || ret.deliveryCost === null) {
+      ret.deliveryCost = 300;
+    }
+    return ret;
+  }
 });
 
 export default mongoose.models.Category || mongoose.model('Category', CategorySchema);

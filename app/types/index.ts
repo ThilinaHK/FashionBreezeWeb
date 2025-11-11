@@ -114,3 +114,21 @@ export interface Category {
   createdAt: Date;
   updatedAt: Date;
 }
+
+export interface TailoringDesign {
+  _id?: string;
+  name: string;
+  description: string;
+  images: string[];
+  fabricTypes: string[];
+  priceRange: {
+    min: number;
+    max: number;
+  };
+  measurements: string[];
+  category: string;
+  createdBy: string;
+  isActive: boolean;
+  createdAt?: Date;
+  updatedAt?: Date;
+}

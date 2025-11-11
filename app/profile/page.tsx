@@ -77,11 +77,15 @@ export default function ProfilePage() {
   const [reviewData, setReviewData] = useState({ productId: '', rating: 5, comment: '' });
   const [submittingReview, setSubmittingReview] = useState(false);
   const [toast, setToast] = useState<{message: string, type: string} | null>(null);
+  const [preOrders, setPreOrders] = useState<any[]>([]);
 
   useEffect(() => {
     loadProfile();
     loadAddresses();
-  }, []);
+    if (activeTab === 'preorders') {
+      loadPreOrders();
+    }
+  }, [activeTab]);
 
   // useEffect(() => {
   //   if (socket && isConnected) {
@@ -346,6 +350,17 @@ export default function ProfilePage() {
     setShowVerifyModal(true);
   };
 
+  const loadPreOrders = async () => {
+    try {
+      const response = await fetch('/api/member/pre-orders');
+      const data = await response.json();
+      setPreOrders(Array.isArray(data) ? data : []);
+    } catch (error) {
+      console.error('Error loading pre-orders:', error);
+      setPreOrders([]);
+    }
+  };
+
   const loadAddresses = async () => {
     try {
       const response = await fetch('/api/addresses?type=city');
@@ -545,13 +560,13 @@ export default function ProfilePage() {
   if (!isRegistered) {
     return (
       <div className="profile-page">
-        <nav className="navbar navbar-expand-lg navbar-dark shadow-lg" style={{background: 'var(--gradient-primary)'}}>
+        <nav className="navbar navbar-expand-lg navbar-dark shadow-lg" style={{background: 'linear-gradient(135deg, #000000 0%, #22c55e 50%, #1a1a1a 100%)'}}>
           <div className="container">
-            <a href="/" className="navbar-brand fw-bold fs-3">
+            <a href="/" className="navbar-brand fw-bold fs-3" style={{color: '#22c55e'}}>
               <img src="/logo.png" alt="Fashion Breeze" style={{height: '40px', marginRight: '10px'}} />
               Fashion Breeze
             </a>
-            <a href="/" className="btn btn-outline-light">
+            <a href="/" className="btn" style={{background: 'rgba(34, 197, 94, 0.2)', border: '2px solid #22c55e', color: '#22c55e', borderRadius: '12px', fontWeight: '600'}}>
               <i className="bi bi-arrow-left me-2"></i>Back to Shop
             </a>
           </div>
@@ -575,98 +590,123 @@ export default function ProfilePage() {
 
   return (
     <div className="profile-page">
-      <nav className="navbar navbar-expand-lg navbar-dark shadow-lg" style={{background: 'var(--gradient-primary)'}}>
+      <nav className="navbar navbar-expand-lg navbar-dark shadow-lg" style={{background: 'linear-gradient(135deg, #000000 0%, #22c55e 50%, #1a1a1a 100%)'}}>
         <div className="container">
-          <a href="/" className="navbar-brand fw-bold fs-3">
+          <a href="/" className="navbar-brand fw-bold fs-3" style={{color: '#22c55e'}}>
             <img src="/logo.png" alt="Fashion Breeze" style={{height: '40px', marginRight: '10px'}} />
             Fashion Breeze
           </a>
           <div className="d-flex align-items-center gap-3">
-            <a href="/" className="btn btn-outline-light">
+            <a href="/" className="btn" style={{background: 'rgba(34, 197, 94, 0.2)', border: '2px solid #22c55e', color: '#22c55e', borderRadius: '12px', fontWeight: '600'}}>
               <i className="bi bi-arrow-left me-2"></i>Back to Shop
             </a>
-            <button onClick={logout} className="btn btn-outline-danger">
+            <button onClick={logout} className="btn" style={{background: 'rgba(220, 38, 38, 0.2)', border: '2px solid #dc2626', color: '#dc2626', borderRadius: '12px', fontWeight: '600'}}>
               <i className="bi bi-box-arrow-right me-2"></i>Logout
             </button>
           </div>
         </div>
       </nav>
 
-      <div className="container py-5">
-        <div className="row justify-content-center">
-          <div className={`${activeTab === 'orders' ? 'col-12' : 'col-lg-8'}`}>
-            <div className="text-center mb-5">
-              <h1 className="display-4 fw-bold mb-3">My Profile</h1>
-              <div style={{width: '100px', height: '4px', background: 'var(--gradient-primary)', margin: '0 auto', borderRadius: '2px'}}></div>
+      <div className="container-fluid py-5">
+        <div className="row">
+          <div className="col-12">
+            <div className="text-center mb-4">
+              <h1 className="display-5 fw-bold mb-3" style={{background: 'linear-gradient(135deg, #22c55e 0%, #000000 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text'}}>My Profile</h1>
+              <div style={{width: '100px', height: '4px', background: 'linear-gradient(135deg, #22c55e 0%, #000000 100%)', margin: '0 auto', borderRadius: '2px'}}></div>
             </div>
 
-            <div className="row mb-5">
+            <div className="row mb-4">
               <div className="col-12">
-                <div className="nav-tabs-container p-2 rounded-4" style={{background: 'linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%)', border: '1px solid #dee2e6'}}>
-                  <ul className="nav nav-pills justify-content-center" style={{gap: '0.5rem'}}>
+                <div className="nav-tabs-container p-3 rounded-4 shadow-sm" style={{background: 'linear-gradient(135deg, #000000 0%, #22c55e 20%, #1a1a1a 80%, #000000 100%)', border: '2px solid #22c55e'}}>
+                  <ul className="nav justify-content-center flex-wrap" style={{gap: '1rem'}}>
                     <li className="nav-item">
                       <button className={`nav-link ${activeTab === 'profile' ? 'active' : ''}`} onClick={() => setActiveTab('profile')} style={{
-                        borderRadius: '12px',
+                        borderRadius: '15px',
                         fontWeight: '600',
-                        padding: '0.75rem 1.5rem',
-                        border: 'none',
-                        background: activeTab === 'profile' ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' : 'transparent',
-                        color: activeTab === 'profile' ? 'white' : '#6c757d',
-                        boxShadow: activeTab === 'profile' ? '0 4px 15px rgba(102, 126, 234, 0.3)' : 'none'
+                        padding: '1rem 2rem',
+                        border: '2px solid rgba(255,255,255,0.2)',
+                        background: activeTab === 'profile' ? 'linear-gradient(135deg, #22c55e 0%, #16a34a 100%)' : 'rgba(255,255,255,0.9)',
+                        color: activeTab === 'profile' ? 'white' : '#000000',
+                        boxShadow: activeTab === 'profile' ? '0 8px 25px rgba(0,0,0,0.15)' : 'none',
+                        backdropFilter: 'blur(10px)',
+                        transition: 'all 0.3s ease'
                       }}>
                         <i className="bi bi-person-circle me-2"></i>Personal Info
                       </button>
                     </li>
                     <li className="nav-item">
                       <button className={`nav-link ${activeTab === 'orders' ? 'active' : ''}`} onClick={() => setActiveTab('orders')} style={{
-                        borderRadius: '12px',
+                        borderRadius: '15px',
                         fontWeight: '600',
-                        padding: '0.75rem 1.5rem',
-                        border: 'none',
-                        background: activeTab === 'orders' ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' : 'transparent',
-                        color: activeTab === 'orders' ? 'white' : '#6c757d',
-                        boxShadow: activeTab === 'orders' ? '0 4px 15px rgba(102, 126, 234, 0.3)' : 'none'
+                        padding: '1rem 2rem',
+                        border: '2px solid rgba(255,255,255,0.2)',
+                        background: activeTab === 'orders' ? 'linear-gradient(135deg, #22c55e 0%, #16a34a 100%)' : 'rgba(255,255,255,0.9)',
+                        color: activeTab === 'orders' ? 'white' : '#000000',
+                        boxShadow: activeTab === 'orders' ? '0 8px 25px rgba(0,0,0,0.15)' : 'none',
+                        backdropFilter: 'blur(10px)',
+                        transition: 'all 0.3s ease'
                       }}>
                         <i className="bi bi-clock-history me-2"></i>Order History
-                        <span className={`badge ms-2 ${activeTab === 'orders' ? 'bg-light text-dark' : 'bg-primary'}`} style={{fontSize: '0.7rem', fontWeight: 'bold'}}>{orders.length}</span>
+                        <span className={`badge ms-2`} style={{fontSize: '0.7rem', fontWeight: 'bold', background: activeTab === 'orders' ? '#ffffff' : '#22c55e', color: activeTab === 'orders' ? '#000000' : '#ffffff'}}>2</span>
                       </button>
                     </li>
                     <li className="nav-item">
                       <button className={`nav-link ${activeTab === 'returns' ? 'active' : ''}`} onClick={() => setActiveTab('returns')} style={{
-                        borderRadius: '12px',
+                        borderRadius: '15px',
                         fontWeight: '600',
-                        padding: '0.75rem 1.5rem',
-                        border: 'none',
-                        background: activeTab === 'returns' ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' : 'transparent',
-                        color: activeTab === 'returns' ? 'white' : '#6c757d',
-                        boxShadow: activeTab === 'returns' ? '0 4px 15px rgba(102, 126, 234, 0.3)' : 'none'
+                        padding: '1rem 2rem',
+                        border: '2px solid rgba(255,255,255,0.2)',
+                        background: activeTab === 'returns' ? 'linear-gradient(135deg, #22c55e 0%, #16a34a 100%)' : 'rgba(255,255,255,0.9)',
+                        color: activeTab === 'returns' ? 'white' : '#000000',
+                        boxShadow: activeTab === 'returns' ? '0 8px 25px rgba(0,0,0,0.15)' : 'none',
+                        backdropFilter: 'blur(10px)',
+                        transition: 'all 0.3s ease'
                       }}>
                         <i className="bi bi-arrow-return-left me-2"></i>My Returns
-                        <span className={`badge ms-2 ${activeTab === 'returns' ? 'bg-white text-warning' : 'bg-warning'}`} style={{fontSize: '0.7rem'}}>{returns.length}</span>
+                        <span className={`badge ms-2`} style={{fontSize: '0.7rem', fontWeight: 'bold', background: activeTab === 'returns' ? '#ffffff' : '#22c55e', color: activeTab === 'returns' ? '#000000' : '#ffffff'}}>0</span>
                       </button>
                     </li>
                     <li className="nav-item">
                       <button className={`nav-link ${activeTab === 'delivery' ? 'active' : ''}`} onClick={() => setActiveTab('delivery')} style={{
-                        borderRadius: '12px',
+                        borderRadius: '15px',
                         fontWeight: '600',
-                        padding: '0.75rem 1.5rem',
-                        border: 'none',
-                        background: activeTab === 'delivery' ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' : 'transparent',
-                        color: activeTab === 'delivery' ? 'white' : '#6c757d',
-                        boxShadow: activeTab === 'delivery' ? '0 4px 15px rgba(102, 126, 234, 0.3)' : 'none'
+                        padding: '1rem 2rem',
+                        border: '2px solid rgba(255,255,255,0.2)',
+                        background: activeTab === 'delivery' ? 'linear-gradient(135deg, #22c55e 0%, #16a34a 100%)' : 'rgba(255,255,255,0.9)',
+                        color: activeTab === 'delivery' ? 'white' : '#000000',
+                        boxShadow: activeTab === 'delivery' ? '0 8px 25px rgba(0,0,0,0.15)' : 'none',
+                        backdropFilter: 'blur(10px)',
+                        transition: 'all 0.3s ease'
                       }}>
                         <i className="bi bi-geo-alt me-2"></i>Delivery Address
                       </button>
                     </li>
                     <li className="nav-item">
-                      <button className={`nav-link ${activeTab === 'chat' ? 'active' : ''}`} onClick={() => setActiveTab('chat')} style={{
-                        borderRadius: '12px',
+                      <button className={`nav-link ${activeTab === 'preorders' ? 'active' : ''}`} onClick={() => setActiveTab('preorders')} style={{
+                        borderRadius: '15px',
                         fontWeight: '600',
-                        padding: '0.75rem 1.5rem',
-                        border: 'none',
-                        background: activeTab === 'chat' ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' : 'transparent',
-                        color: activeTab === 'chat' ? 'white' : '#6c757d',
-                        boxShadow: activeTab === 'chat' ? '0 4px 15px rgba(102, 126, 234, 0.3)' : 'none'
+                        padding: '1rem 2rem',
+                        border: '2px solid rgba(255,255,255,0.2)',
+                        background: activeTab === 'preorders' ? 'linear-gradient(135deg, #22c55e 0%, #16a34a 100%)' : 'rgba(255,255,255,0.9)',
+                        color: activeTab === 'preorders' ? 'white' : '#000000',
+                        boxShadow: activeTab === 'preorders' ? '0 8px 25px rgba(0,0,0,0.15)' : 'none',
+                        backdropFilter: 'blur(10px)',
+                        transition: 'all 0.3s ease'
+                      }}>
+                        <i className="bi bi-scissors me-2"></i>Pre-Orders
+                      </button>
+                    </li>
+                    <li className="nav-item">
+                      <button className={`nav-link ${activeTab === 'chat' ? 'active' : ''}`} onClick={() => setActiveTab('chat')} style={{
+                        borderRadius: '15px',
+                        fontWeight: '600',
+                        padding: '1rem 2rem',
+                        border: '2px solid rgba(255,255,255,0.2)',
+                        background: activeTab === 'chat' ? 'linear-gradient(135deg, #22c55e 0%, #16a34a 100%)' : 'rgba(255,255,255,0.9)',
+                        color: activeTab === 'chat' ? 'white' : '#000000',
+                        boxShadow: activeTab === 'chat' ? '0 8px 25px rgba(0,0,0,0.15)' : 'none',
+                        backdropFilter: 'blur(10px)',
+                        transition: 'all 0.3s ease'
                       }}>
                         <i className="bi bi-whatsapp me-2"></i>WhatsApp Support
                       </button>
@@ -678,7 +718,7 @@ export default function ProfilePage() {
 
             {activeTab === 'profile' && (
               <div className="card border-0" style={{borderRadius: '20px', boxShadow: '0 20px 60px rgba(0,0,0,0.1)'}}>
-                <div className="card-header" style={{background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', color: 'white', borderRadius: '20px 20px 0 0', padding: '2rem', border: 'none'}}>
+                <div className="card-header" style={{background: 'linear-gradient(135deg, #000000 0%, #22c55e 50%, #1a1a1a 100%)', color: 'white', borderRadius: '20px 20px 0 0', padding: '2rem', border: 'none'}}>
                   <div className="d-flex justify-content-between align-items-center">
                     <div className="d-flex align-items-center">
                       <div className="bg-white bg-opacity-20 rounded-circle p-3 me-3">
@@ -704,7 +744,7 @@ export default function ProfilePage() {
                           </button>
                         </>
                       ) : (
-                        <button className="btn btn-light" onClick={toggleEditMode} style={{borderRadius: '12px', fontWeight: '600', color: '#667eea'}}>
+                        <button className="btn btn-light" onClick={toggleEditMode} style={{borderRadius: '12px', fontWeight: '600', color: '#22c55e', background: 'rgba(34, 197, 94, 0.1)', border: '2px solid #22c55e'}}>
                           <i className="bi bi-pencil me-1"></i>Edit Profile
                         </button>
                       )}
@@ -844,7 +884,7 @@ export default function ProfilePage() {
 
             {activeTab === 'orders' && (
             <div className="card border-0" style={{borderRadius: '20px', boxShadow: '0 20px 60px rgba(0,0,0,0.1)'}}>
-              <div className="card-header" style={{background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', color: 'white', borderRadius: '20px 20px 0 0', padding: '2rem', border: 'none'}}>
+              <div className="card-header" style={{background: 'linear-gradient(135deg, #000000 0%, #22c55e 50%, #1a1a1a 100%)', color: 'white', borderRadius: '20px 20px 0 0', padding: '2rem', border: 'none'}}>
                 <div className="d-flex justify-content-between align-items-center">
                   <div className="d-flex align-items-center">
                     <div className="bg-white bg-opacity-20 rounded-circle p-3 me-3">
@@ -856,8 +896,8 @@ export default function ProfilePage() {
                     </div>
                   </div>
                   <div className="bg-white bg-opacity-20 rounded-3 px-3 py-2">
-                    <span className="fw-bold">{getFilteredOrders().length}</span>
-                    <small className="ms-1 opacity-75">orders</small>
+                    <span className="fw-bold text-white">{getFilteredOrders().length}</span>
+                    <small className="ms-1 opacity-75 text-white">orders</small>
                   </div>
                 </div>
               </div>
@@ -1141,6 +1181,39 @@ export default function ProfilePage() {
                 )}
               </div>
             </div>
+            )}
+
+            {activeTab === 'preorders' && (
+              <div className="card border-0" style={{borderRadius: '20px', boxShadow: '0 20px 60px rgba(0,0,0,0.1)'}}>
+                <div className="card-header" style={{background: 'linear-gradient(135deg, #000000 0%, #22c55e 50%, #1a1a1a 100%)', color: 'white', borderRadius: '20px 20px 0 0', padding: '2rem', border: 'none'}}>
+                  <div className="d-flex justify-content-between align-items-center">
+                    <div className="d-flex align-items-center">
+                      <div className="bg-white bg-opacity-20 rounded-circle p-3 me-3">
+                        <i className="bi bi-scissors" style={{fontSize: '1.5rem'}}></i>
+                      </div>
+                      <div>
+                        <h4 className="mb-1 fw-bold">Tailoring Pre-Orders</h4>
+                        <p className="mb-0 opacity-75">Manage your custom tailoring orders</p>
+                      </div>
+                    </div>
+                    <a href="/tailoring/browse" className="btn btn-light">
+                      <i className="bi bi-plus-circle me-2"></i>New Pre-Order
+                    </a>
+                  </div>
+                </div>
+                <div className="card-body" style={{padding: '2rem'}}>
+                  <div className="text-center py-5">
+                    <div className="mb-4">
+                      <i className="bi bi-scissors" style={{fontSize: '4rem', color: '#22c55e'}}></i>
+                    </div>
+                    <h5 className="mb-3">No Pre-Orders Yet</h5>
+                    <p className="text-muted mb-4">You haven't placed any tailoring pre-orders yet.</p>
+                    <a href="/tailoring/browse" className="btn btn-lg" style={{background: 'linear-gradient(135deg, #22c55e 0%, #16a34a 100%)', border: 'none', borderRadius: '12px', color: 'white', fontWeight: '600'}}>
+                      <i className="bi bi-plus-circle me-2"></i>Browse Designs
+                    </a>
+                  </div>
+                </div>
+              </div>
             )}
 
             {activeTab === 'returns' && (
