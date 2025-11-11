@@ -1799,6 +1799,9 @@ export default function DashboardPage() {
             <a href="/" className="btn btn-outline-light">
               <i className="bi bi-shop me-2"></i>View Store
             </a>
+            <a href="/admin-dashboard" className="btn btn-outline-success">
+              <i className="bi bi-speedometer2 me-2"></i>Analytics Dashboard
+            </a>
             <button onClick={logout} className="btn btn-outline-danger">
               <i className="bi bi-box-arrow-right me-2"></i>Logout
             </button>
