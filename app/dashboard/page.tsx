@@ -1053,7 +1053,7 @@ export default function DashboardPage() {
         vat: product.vat || 0,
         price: product.price,
         category: product.category,
-        subcategory: product.subcategory || '',
+        subcategory: (product as any).subcategory || '',
         brand: (product as any).brand || '',
         image: product.image,
         images: Array.isArray((product as any).additionalImages) ? 
