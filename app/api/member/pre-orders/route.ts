@@ -9,7 +9,7 @@ export async function GET(request: NextRequest) {
     // In a real app, get customer ID from session/auth
     const customerId = 'customer@email.com'; // Placeholder
     
-    const orders = await mongoose.connection.db
+    const orders = await mongoose.connection.db!
       .collection('tailoring_orders')
       .find({ 'customerInfo.email': customerId })
       .sort({ createdAt: -1 })
