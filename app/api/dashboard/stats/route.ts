@@ -1,27 +1,29 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { connectToDatabase } from '../../../lib/mongodb';
+import mongoose from 'mongoose';
+
+const MONGODB_URI = process.env.MONGODB_URI || 'mongodb+srv://fashionbreeze:fashionbreeze123@cluster0.mongodb.net/fashionBreeze?retryWrites=true&w=majority';
 
 export async function GET() {
   try {
-    const { db } = await connectToDatabase();
+    await mongoose.connect(MONGODB_URI);
     
-    const totalOrders = await db.collection('orders').countDocuments();
-    const totalCustomers = await db.collection('customers').countDocuments();
-    const totalProducts = await db.collection('products').countDocuments();
+    const totalOrders = await mongoose.connection.db.collection('orders').countDocuments();
+    const totalCustomers = await mongoose.connection.db.collection('customers').countDocuments();
+    const totalProducts = await mongoose.connection.db.collection('products').countDocuments();
     
-    const revenueResult = await db.collection('orders').aggregate([
+    const revenueResult = await mongoose.connection.db.collection('orders').aggregate([
       { $match: { status: { $ne: 'cancelled' } } },
       { $group: { _id: null, total: { $sum: '$total' } } }
     ]).toArray();
     const totalRevenue = revenueResult[0]?.total || 0;
     
-    const recentOrders = await db.collection('orders')
+    const recentOrders = await mongoose.connection.db.collection('orders')
       .find({})
       .sort({ createdAt: -1 })
       .limit(10)
       .toArray();
     
-    const topProducts = await db.collection('products')
+    const topProducts = await mongoose.connection.db.collection('products')
       .find({})
       .sort({ sales: -1 })
       .limit(5)
