@@ -7,23 +7,25 @@ export async function GET() {
   try {
     await mongoose.connect(MONGODB_URI);
     
-    const totalOrders = await mongoose.connection.db.collection('orders').countDocuments();
-    const totalCustomers = await mongoose.connection.db.collection('customers').countDocuments();
-    const totalProducts = await mongoose.connection.db.collection('products').countDocuments();
+    const db = mongoose.connection.db!;
     
-    const revenueResult = await mongoose.connection.db.collection('orders').aggregate([
+    const totalOrders = await db.collection('orders').countDocuments();
+    const totalCustomers = await db.collection('customers').countDocuments();
+    const totalProducts = await db.collection('products').countDocuments();
+    
+    const revenueResult = await db.collection('orders').aggregate([
       { $match: { status: { $ne: 'cancelled' } } },
       { $group: { _id: null, total: { $sum: '$total' } } }
     ]).toArray();
     const totalRevenue = revenueResult[0]?.total || 0;
     
-    const recentOrders = await mongoose.connection.db.collection('orders')
+    const recentOrders = await db.collection('orders')
       .find({})
       .sort({ createdAt: -1 })
       .limit(10)
       .toArray();
     
-    const topProducts = await mongoose.connection.db.collection('products')
+    const topProducts = await db.collection('products')
       .find({})
       .sort({ sales: -1 })
       .limit(5)
