@@ -22,7 +22,7 @@ export async function GET() {
     await mongoose.connect(MONGODB_URI);
     
     // Get the For Men category directly
-    const forMenCategory = await Category.findOne({ name: 'For Men' }).lean();
+    const forMenCategory = await Category.findOne({ name: 'For Men' }).lean() as any;
     
     return NextResponse.json({
       forMenCategory,
