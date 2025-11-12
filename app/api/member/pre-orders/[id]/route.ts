@@ -7,7 +7,7 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
   try {
     await dbConnect();
     
-    const order = await mongoose.connection.db
+    const order = await mongoose.connection.db!
       .collection('tailoring_orders')
       .findOne({ _id: new ObjectId(params.id) });
     
