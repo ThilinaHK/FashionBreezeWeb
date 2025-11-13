@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Product, Category } from '../../types';
+import { Product, Category } from '../../types/index';
 
 export default function ProductsPage() {
   const [products, setProducts] = useState<Product[]>([]);
@@ -19,7 +19,7 @@ export default function ProductsPage() {
     subcategory: '',
     image: '',
     sizes: { S: 0, M: 0, L: 0, XL: 0 },
-    status: 'instock' as const,
+    status: 'instock' as 'active' | 'inactive' | 'draft' | 'outofstock' | 'instock',
     rating: 4.0,
     reviewCount: 0
   });
@@ -130,7 +130,18 @@ export default function ProductsPage() {
       category: typeof product.category === 'string' ? product.category : product.category.name,
       subcategory: product.subcategory || '',
       image: product.image,
-      sizes: typeof product.sizes === 'object' ? product.sizes : { S: 0, M: 0, L: 0, XL: 0 },
+      sizes: (() => {
+        if (typeof product.sizes === 'object' && product.sizes && !Array.isArray(product.sizes)) {
+          const sizes = product.sizes as { [key: string]: number };
+          return {
+            S: sizes.S || 0,
+            M: sizes.M || 0,
+            L: sizes.L || 0,
+            XL: sizes.XL || 0
+          };
+        }
+        return { S: 0, M: 0, L: 0, XL: 0 };
+      })(),
       status: product.status,
       rating: typeof product.rating === 'number' ? product.rating : product.rating?.average || 4.0,
       reviewCount: product.reviewCount || 0

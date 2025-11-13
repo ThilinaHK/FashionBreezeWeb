@@ -11,10 +11,13 @@ export default function OrderDetails() {
   const [showSlideshow, setShowSlideshow] = useState(false);
 
   useEffect(() => {
-    fetchOrder();
-  }, [params.id]);
+    if (params?.id) {
+      fetchOrder();
+    }
+  }, [params?.id]);
 
   const fetchOrder = async () => {
+    if (!params?.id) return;
     try {
       const response = await fetch(`/api/member/pre-orders/${params.id}`);
       const data = await response.json();

@@ -30,10 +30,13 @@ export default function DesignDetails() {
   const [selectedFabric, setSelectedFabric] = useState('');
 
   useEffect(() => {
-    fetchDesign();
-  }, [params.id]);
+    if (params?.id) {
+      fetchDesign();
+    }
+  }, [params?.id]);
 
   const fetchDesign = async () => {
+    if (!params?.id) return;
     const response = await fetch(`/api/designs/${params.id}`);
     const data = await response.json();
     setDesign(data);
@@ -41,11 +44,11 @@ export default function DesignDetails() {
 
   const handleOrder = async () => {
     const finalOrderData = {
-      designId: params.id,
+      designId: params?.id,
       designName: design.name,
+      ...orderData,
       designCode: orderData.designCode || design.name,
       designType: orderData.designType || design.category,
-      ...orderData,
       selectedFabric: orderData.fabricOption === 'purchase' ? selectedFabric : null,
       customerInfo: {
         name: 'Customer Name',
