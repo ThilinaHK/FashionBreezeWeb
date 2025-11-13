@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { TailoringDesign } from '@/app/types';
+import { TailoringDesign } from '../../types';
 
 export default function BrowseDesigns() {
   const [designs, setDesigns] = useState<TailoringDesign[]>([]);

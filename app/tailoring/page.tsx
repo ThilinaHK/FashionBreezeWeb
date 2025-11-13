@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { TailoringDesign } from '@/app/types';
+import { TailoringDesign } from '../types';
 import AnalyticsSection from './analytics-section';
 
 export default function TailoringDashboard() {
