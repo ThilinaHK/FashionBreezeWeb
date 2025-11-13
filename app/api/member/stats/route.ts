@@ -9,7 +9,12 @@ export async function GET() {
     // In a real app, get customer ID from session/auth
     const customerId = 'customer@email.com'; // Placeholder
     
-    const orders = await mongoose.connection.db
+    const db = mongoose.connection.db;
+    if (!db) {
+      throw new Error('Database connection not established');
+    }
+    
+    const orders = await db
       .collection('tailoring_orders')
       .find({ 'customerInfo.email': customerId })
       .toArray();
