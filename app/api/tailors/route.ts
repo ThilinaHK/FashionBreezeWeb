@@ -6,7 +6,11 @@ import { ObjectId } from 'mongodb';
 export async function GET() {
   try {
     await dbConnect();
-    const tailors = await mongoose.connection.db.collection('tailors').find({}).sort({ createdAt: -1 }).toArray();
+    const db = mongoose.connection.db;
+    if (!db) {
+      throw new Error('Database connection not established');
+    }
+    const tailors = await db.collection('tailors').find({}).sort({ createdAt: -1 }).toArray();
     return NextResponse.json(tailors);
   } catch (error) {
     return NextResponse.json({ error: 'Failed to fetch tailors' }, { status: 500 });
@@ -16,6 +20,10 @@ export async function GET() {
 export async function PUT(request: NextRequest) {
   try {
     await dbConnect();
+    const db = mongoose.connection.db;
+    if (!db) {
+      throw new Error('Database connection not established');
+    }
     const { tailorId, status, approvedBy } = await request.json();
     
     const updateData: any = { 
@@ -28,7 +36,7 @@ export async function PUT(request: NextRequest) {
       updateData.approvedBy = approvedBy;
     }
     
-    await mongoose.connection.db.collection('tailors').updateOne(
+    await db.collection('tailors').updateOne(
       { _id: new ObjectId(tailorId) },
       { $set: updateData }
     );

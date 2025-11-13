@@ -6,8 +6,12 @@ import { ObjectId } from 'mongodb';
 export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
   try {
     await dbConnect();
+    const db = mongoose.connection.db;
+    if (!db) {
+      throw new Error('Database connection not established');
+    }
     
-    const order = await mongoose.connection.db!
+    const order = await db
       .collection('tailoring_orders')
       .findOne({ _id: new ObjectId(params.id) });
     

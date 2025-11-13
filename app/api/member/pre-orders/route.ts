@@ -5,11 +5,15 @@ import mongoose from 'mongoose';
 export async function GET(request: NextRequest) {
   try {
     await dbConnect();
+    const db = mongoose.connection.db;
+    if (!db) {
+      throw new Error('Database connection not established');
+    }
     
     // In a real app, get customer ID from session/auth
     const customerId = 'customer@email.com'; // Placeholder
     
-    const orders = await mongoose.connection.db!
+    const orders = await db
       .collection('tailoring_orders')
       .find({ 'customerInfo.email': customerId })
       .sort({ createdAt: -1 })
