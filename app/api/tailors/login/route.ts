@@ -5,9 +5,13 @@ import mongoose from 'mongoose';
 export async function POST(request: NextRequest) {
   try {
     await dbConnect();
+    const db = mongoose.connection.db;
+    if (!db) {
+      throw new Error('Database connection not established');
+    }
     const { email, password } = await request.json();
     
-    const tailor = await mongoose.connection.db.collection('tailors').findOne({ email, password });
+    const tailor = await db.collection('tailors').findOne({ email, password });
     
     if (!tailor) {
       return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 });
