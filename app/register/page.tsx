@@ -8,6 +8,8 @@ export default function RegisterPage() {
   const [formData, setFormData] = useState({
     name: '',
     email: '',
+    password: '',
+    confirmPassword: '',
     phone: '',
     country: '',
     address: {
@@ -20,12 +22,47 @@ export default function RegisterPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
+  const checkEmailExists = async (email: string) => {
+    try {
+      const response = await fetch('/api/auth/check-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email })
+      });
+      const data = await response.json();
+      return data.exists;
+    } catch (error) {
+      return false;
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError('');
     
     try {
+      // Validate passwords match
+      if (formData.password !== formData.confirmPassword) {
+        setError('Passwords do not match.');
+        setLoading(false);
+        return;
+      }
+      
+      if (formData.password.length < 6) {
+        setError('Password must be at least 6 characters long.');
+        setLoading(false);
+        return;
+      }
+      
+      // Check if email already exists
+      const emailExists = await checkEmailExists(formData.email);
+      if (emailExists) {
+        setError('Email address is already registered. Please use a different email.');
+        setLoading(false);
+        return;
+      }
+
       const response = await fetch('/api/auth/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -37,8 +74,14 @@ export default function RegisterPage() {
       if (data.success) {
         localStorage.setItem('userRegistered', 'true');
         localStorage.setItem('userName', data.user.name);
-        localStorage.setItem('userId', data.user.id);
+        localStorage.setItem('userId', data.userId);
         localStorage.setItem('userEmail', data.user.email);
+        localStorage.setItem('userPhone', data.user.phone);
+        localStorage.setItem('userCountry', data.user.country);
+        if (data.user.address) {
+          localStorage.setItem('userAddress', JSON.stringify(data.user.address));
+        }
+        document.cookie = `userId=${data.userId}; path=/; max-age=86400`;
         router.push('/');
       } else {
         setError(data.error || 'Registration failed');
@@ -122,7 +165,33 @@ export default function RegisterPage() {
                         value={formData.email}
                         onChange={handleInputChange}
                         required 
-                        placeholder="Enter your email" 
+                        placeholder="Enter your email"
+                      />
+                    </div>
+                    <div className="col-md-6">
+                      <label className="form-label fw-bold">Password *</label>
+                      <input 
+                        type="password" 
+                        className="form-control" 
+                        name="password"
+                        value={formData.password}
+                        onChange={handleInputChange}
+                        required 
+                        minLength={6}
+                        placeholder="Enter password (min 6 characters)"
+                      />
+                    </div>
+                    <div className="col-md-6">
+                      <label className="form-label fw-bold">Confirm Password *</label>
+                      <input 
+                        type="password" 
+                        className="form-control" 
+                        name="confirmPassword"
+                        value={formData.confirmPassword}
+                        onChange={handleInputChange}
+                        required 
+                        minLength={6}
+                        placeholder="Confirm your password"
                       />
                     </div>
                     <div className="col-md-6">
@@ -193,7 +262,8 @@ export default function RegisterPage() {
                       </button>
                     </div>
                     <div className="col-12 text-center">
-                      <p className="mb-0">Already have an account? <a href="/login" className="text-primary">Login here</a></p>
+                      <p className="mb-2">Already have an account? <a href="/login" className="text-primary">Login here</a></p>
+                      <p className="mb-0"><a href="/forgot-password" className="text-muted">Forgot your password?</a></p>
                     </div>
                   </div>
                 </form>

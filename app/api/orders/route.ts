@@ -1,172 +1,288 @@
 import { NextRequest, NextResponse } from 'next/server';
 import dbConnect from '../../lib/mongodb';
 import Order from '../../lib/models/Order';
-import Cart from '../../lib/models/Cart';
+import OrderHistory from '../../lib/models/OrderHistory';
 
-export async function POST(request: NextRequest) {
-  const { MongoClient } = require('mongodb');
-  let client;
-  
+export async function GET(request: NextRequest) {
   try {
-    const { userId, customerInfo } = await request.json();
-    console.log('=== ORDER REQUEST ===');
-    console.log('UserId:', userId);
-    console.log('CustomerInfo:', customerInfo);
+    await dbConnect();
+    const { searchParams } = new URL(request.url);
+    const userId = searchParams.get('userId');
     
-    const mongoUri = process.env.MONGODB_URI || 'mongodb://localhost:27017';
-    console.log('MongoDB URI exists:', !!process.env.MONGODB_URI);
-    
-    client = new MongoClient(mongoUri);
-    await client.connect();
-    console.log('Connected to MongoDB');
-    
-    const db = client.db('fashionBreeze');
-    
-    // Test connection
-    const collections = await db.listCollections().toArray();
-    console.log('Available collections:', collections.map(c => c.name));
-    
-    // Get cart items
-    const cart = await db.collection('carts').findOne({ userId: userId });
-    console.log('Cart query result:', cart);
-    
-    let orderItems = [];
-    let orderTotal = 0;
-    
-    if (cart && cart.items && cart.items.length > 0) {
-      orderItems = cart.items.map((item: any) => ({
-        productId: item.id || item.productId,
-        name: item.name,
-        price: item.price,
-        quantity: item.quantity,
-        size: item.size,
-        image: item.image,
-        code: item.code
-      }));
-      orderTotal = cart.total || orderItems.reduce((sum: number, item: any) => sum + (item.price * item.quantity), 0);
+    let orders;
+    if (userId) {
+      orders = await Order.find({ userId }).sort({ createdAt: -1 }).lean();
     } else {
-      // Fallback test data
-      orderItems = [{
-        productId: 1,
-        name: 'Test Product',
-        price: 1000,
-        quantity: 1,
-        size: 'M',
-        image: 'https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=400&h=400&fit=crop',
-        code: 'TEST001'
-      }];
-      orderTotal = 1000;
+      orders = await Order.find({}).sort({ createdAt: -1 }).lean();
     }
     
-    const orderData = {
-      userId: userId,
-      items: orderItems,
-      total: orderTotal,
-      customerInfo: customerInfo,
-      status: 'confirmed',
-      createdAt: new Date()
-    };
+    // Debug: Check if paymentSlip data exists
+    const ordersWithSlips = orders.filter(order => order.paymentSlip);
+    console.log(`Found ${ordersWithSlips.length} orders with payment slips out of ${orders.length} total orders`);
     
-    console.log('Creating order in placeorder collection:', orderData);
-    const result = await db.collection('placeorder').insertOne(orderData);
-    console.log('Order saved with ID:', result.insertedId);
-    
-    if (!result.insertedId) {
-      throw new Error('Failed to save order');
+    // Debug specific order
+    const debugOrder = orders.find(o => o.orderNumber === 'FB000004');
+    if (debugOrder) {
+      console.log('=== DEBUG ORDER FB000004 ===');
+      console.log('Has paymentSlip:', !!debugOrder.paymentSlip);
+      console.log('PaymentSlip data:', debugOrder.paymentSlip);
+      console.log('=== END DEBUG ===');
     }
     
-    // Clear cart after successful order
-    if (cart && cart.items && cart.items.length > 0) {
-      await db.collection('carts').deleteOne({ userId: userId });
-      console.log('Cart cleared after order');
-    }
-    
-    return NextResponse.json({ success: true, orderId: result.insertedId });
-    
+    return NextResponse.json(orders);
   } catch (error) {
-    console.error('=== ORDER ERROR ===');
-    console.error('Error details:', error);
-    return NextResponse.json({ success: true, orderId: Date.now().toString() });
-  } finally {
-    if (client) {
-      await client.close();
-      console.log('MongoDB connection closed');
-    }
+    console.error('Error loading orders:', error);
+    return NextResponse.json([]);
   }
 }
 
-export async function GET(request: NextRequest) {
-  const { MongoClient } = require('mongodb');
-  let client;
-  
+export async function POST(request: NextRequest) {
   try {
-    const userId = request.nextUrl.searchParams.get('userId');
-    console.log('=== GET ORDERS REQUEST ===');
-    console.log('Requested userId:', userId);
+    await dbConnect();
+    const { userId, items: fallbackItems, total: fallbackTotal, customerInfo, paymentMethod, paymentStatus } = await request.json();
     
-    const mongoUri = process.env.MONGODB_URI || 'mongodb://localhost:27017';
-    console.log('Fetching orders - MongoDB URI exists:', !!process.env.MONGODB_URI);
-    
-    client = new MongoClient(mongoUri);
-    await client.connect();
-    console.log('Connected to MongoDB for orders fetch');
-    
-    const db = client.db('fashionBreeze');
-    
-    // List collections to verify placeorder exists
-    const collections = await db.listCollections().toArray();
-    console.log('Available collections:', collections.map(c => c.name));
-    
-    const query = userId ? { userId: userId } : {};
-    console.log('Querying placeorder collection with:', query);
-    
-    const orders = await db.collection('placeorder').find(query).sort({ createdAt: -1 }).toArray();
-    console.log('Found orders count:', orders.length);
-    console.log('Orders data:', orders);
-    
-    return NextResponse.json(orders);
-    
-  } catch (error) {
-    console.error('=== ORDERS FETCH ERROR ===');
-    console.error('Error details:', error);
-    return NextResponse.json([]);
-  } finally {
-    if (client) {
-      await client.close();
-      console.log('MongoDB connection closed for orders fetch');
+    if (!userId) {
+      return NextResponse.json({ success: false, error: 'User ID required' }, { status: 400 });
     }
+    
+    // Get cart items from MongoDB, use fallback if not found
+    const Cart = require('../../lib/models/Cart').default;
+    const cart = await Cart.findOne({ userId });
+    
+    console.log('Order API - userId:', userId);
+    console.log('Order API - cart found:', cart);
+    console.log('Order API - cart items:', cart?.items?.length || 0);
+    console.log('Order API - fallback items:', fallbackItems?.length || 0);
+    
+    let orderItems, orderTotal;
+    if (cart && cart.items && cart.items.length > 0) {
+      orderItems = cart.items;
+      orderTotal = cart.total;
+    } else if (fallbackItems && fallbackItems.length > 0) {
+      orderItems = fallbackItems;
+      orderTotal = fallbackTotal;
+    } else {
+      return NextResponse.json({ success: false, error: 'Cart is empty' }, { status: 400 });
+    }
+    
+    // Auto-generate order number and ID
+    const lastOrder = await Order.findOne().sort({ id: -1 }).select('id');
+    const orderId = lastOrder ? lastOrder.id + 1 : 1;
+    const orderNumber = `FB${orderId.toString().padStart(6, '0')}`;
+    
+    // Reduce inventory for each item
+    const Product = require('../../lib/models/Product').default;
+    
+    for (const item of orderItems) {
+      try {
+        const product = await Product.findById(item.productId || item._id || item.id);
+        if (product) {
+          // Reduce size-specific stock if size is selected
+          if (item.size && product.sizes && typeof product.sizes === 'object') {
+            if (product.sizes[item.size] !== undefined && product.sizes[item.size] >= item.quantity) {
+              product.sizes[item.size] -= item.quantity;
+            }
+          }
+          
+          // Calculate total stock from sizes
+          const totalStock = typeof product.sizes === 'object' ? 
+            Object.values(product.sizes).reduce((sum: number, stock: any) => sum + (stock || 0), 0) : 0;
+          
+          // Update inventory if exists
+          if (product.inventory) {
+            product.inventory.totalStock = totalStock;
+          }
+          
+          // Update product status if out of stock
+          if (totalStock <= 0) {
+            product.status = 'outofstock';
+          }
+          
+          await product.save();
+        }
+      } catch (productError) {
+        console.error('Error updating product inventory:', productError);
+        // Continue with order creation even if inventory update fails
+      }
+    }
+    
+    // Calculate delivery cost
+    let deliveryCost = 0;
+    let finalTotal = orderTotal;
+    
+    try {
+      const deliveryResponse = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/api/delivery/calculate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          subtotal: orderTotal,
+          location: customerInfo?.address || '',
+          items: orderItems
+        })
+      });
+      
+      if (deliveryResponse.ok) {
+        const deliveryData = await deliveryResponse.json();
+        deliveryCost = deliveryData.deliveryCost || 0;
+        finalTotal = deliveryData.total || orderTotal;
+      }
+    } catch (deliveryError) {
+      console.error('Delivery calculation failed, using default:', deliveryError);
+      deliveryCost = 300; // Default delivery cost
+      finalTotal = orderTotal + deliveryCost;
+    }
+    
+    const order = await Order.create({
+      id: orderId,
+      orderNumber,
+      userId,
+      customerInfo,
+      items: orderItems,
+      subtotal: orderTotal,
+      deliveryCost,
+      total: finalTotal,
+      status: 'pending',
+      paymentMethod: paymentMethod || 'cash_on_delivery',
+      paymentStatus: paymentStatus || 'pending'
+    });
+    
+    // Send real-time notification to admin dashboard
+    try {
+      await fetch(`${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/api/notifications/socket`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: 'newOrder',
+          data: {
+            orderId: order._id,
+            orderNumber,
+            customerName: customerInfo?.name || 'Customer',
+            total: orderTotal,
+            itemCount: orderItems.length
+          }
+        })
+      });
+    } catch (notificationError) {
+      console.error('Failed to send new order notification:', notificationError);
+    }
+    
+    // Clear cart after successful order
+    try {
+      await Cart.findOneAndDelete({ userId });
+    } catch (cartError) {
+      console.error('Failed to clear cart:', cartError);
+      // Don't fail order creation if cart clearing fails
+    }
+    
+    return NextResponse.json({ success: true, orderId: order._id, order });
+  } catch (error: any) {
+    console.error('Order creation error:', error);
+    return NextResponse.json({ success: false, error: 'Failed to create order' }, { status: 500 });
   }
 }
 
 export async function PUT(request: NextRequest) {
-  const { MongoClient } = require('mongodb');
-  let client;
-  
   try {
-    const { orderId, status } = await request.json();
-    console.log('Updating order status:', orderId, status);
+    await dbConnect();
+    const { orderId, status, isActive, paymentStatus, paymentMethod, paymentSlip } = await request.json();
+    const userId = request.headers.get('x-user-id');
+    const username = request.headers.get('x-user-name');
     
-    const mongoUri = process.env.MONGODB_URI || 'mongodb://localhost:27017';
-    client = new MongoClient(mongoUri);
-    await client.connect();
-    
-    const db = client.db('fashionBreeze');
-    const { ObjectId } = require('mongodb');
-    
-    const result = await db.collection('placeorder').updateOne(
-      { _id: new ObjectId(orderId) },
-      { $set: { status: status, updatedAt: new Date() } }
-    );
-    
-    console.log('Order status updated:', result.modifiedCount);
-    return NextResponse.json({ success: true });
-    
-  } catch (error) {
-    console.error('Order status update error:', error);
-    return NextResponse.json({ success: true });
-  } finally {
-    if (client) {
-      await client.close();
+    // Find existing order first
+    let existingOrder = await Order.findById(orderId);
+    if (!existingOrder) {
+      const numericId = parseInt(orderId);
+      if (!isNaN(numericId)) {
+        existingOrder = await Order.findOne({ id: numericId });
+      }
     }
+    if (!existingOrder) {
+      existingOrder = await Order.findOne({ orderNumber: orderId });
+    }
+    
+    if (!existingOrder) {
+      return NextResponse.json({ error: 'Order not found' }, { status: 404 });
+    }
+    
+    const updateData: any = {};
+    if (status !== undefined) updateData.status = status;
+    if (isActive !== undefined) updateData.isActive = isActive;
+    if (paymentStatus !== undefined) updateData.paymentStatus = paymentStatus;
+    if (paymentMethod !== undefined) updateData.paymentMethod = paymentMethod;
+    if (paymentSlip !== undefined) {
+      updateData['paymentSlip.status'] = paymentSlip.status;
+    }
+    
+    // Handle inventory restoration for cancelled orders
+    if (status === 'cancelled' && existingOrder.status !== 'cancelled') {
+      const Product = require('../../lib/models/Product').default;
+      
+      for (const item of existingOrder.items) {
+        const product = await Product.findById(item.productId);
+        if (product) {
+          // Restore total stock
+          product.inventory.totalStock += item.quantity;
+          
+          // Restore size-specific stock if size was selected
+          if (item.size && product.sizes) {
+            const sizeIndex = product.sizes.findIndex((s: any) => s.size === item.size);
+            if (sizeIndex !== -1) {
+              product.sizes[sizeIndex].stock += item.quantity;
+            }
+          }
+          
+          // Update product status if back in stock
+          if (product.status === 'outofstock' && product.inventory.totalStock > 0) {
+            product.status = 'active';
+          }
+          
+          await product.save();
+        }
+      }
+    }
+    
+    // Track status change in history
+    if (status !== undefined && status !== existingOrder.status) {
+      try {
+        const historyRecord = await OrderHistory.create({
+          orderId: existingOrder._id,
+          previousStatus: existingOrder.status,
+          newStatus: status,
+          changedBy: {
+            userId: userId || 'system',
+            username: username || 'System'
+          },
+          timestamp: new Date()
+        });
+      } catch (historyError) {
+        console.error('Failed to create order history:', historyError);
+      }
+    }
+    
+    // Track payment slip status change in history
+    if (paymentSlip !== undefined && paymentSlip.status !== existingOrder.paymentSlip?.status) {
+      try {
+        await OrderHistory.create({
+          orderId: existingOrder._id,
+          previousStatus: existingOrder.paymentSlip?.status || 'none',
+          newStatus: `payment_${paymentSlip.status}`,
+          changedBy: {
+            userId: userId || 'system',
+            username: username || 'System'
+          },
+          timestamp: new Date()
+        });
+      } catch (historyError) {
+        console.error('Failed to create payment history:', historyError);
+      }
+    }
+    
+    const order = await Order.findByIdAndUpdate(existingOrder._id, updateData, { new: true });
+    
+    return NextResponse.json({ success: true, order });
+  } catch (error: any) {
+    console.error('Order update error:', error);
+    return NextResponse.json({ error: 'Failed to update order: ' + error.message }, { status: 500 });
   }
 }
+
