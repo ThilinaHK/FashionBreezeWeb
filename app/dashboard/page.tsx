@@ -1605,6 +1605,15 @@ export default function DashboardPage() {
       setShowOrderModal(true);
     };
 
+    const printInvoice = () => {
+      const printContent = document.getElementById('invoice-content');
+      const originalContent = document.body.innerHTML;
+      document.body.innerHTML = printContent?.innerHTML || '';
+      window.print();
+      document.body.innerHTML = originalContent;
+      window.location.reload();
+    };
+
     return (
       <div className="card">
         <div className="card-header">
@@ -1802,6 +1811,25 @@ export default function DashboardPage() {
                   <button type="button" className="btn-close" onClick={() => setShowOrderModal(false)}></button>
                 </div>
                 <div className="modal-body">
+                  <div id="invoice-content">
+                    <style>
+                      {`
+                        @media print {
+                          body { font-family: Arial, sans-serif; }
+                          .invoice-header { text-align: center; margin-bottom: 30px; }
+                          .invoice-details { margin-bottom: 20px; }
+                          table { width: 100%; border-collapse: collapse; }
+                          th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+                          th { background-color: #f2f2f2; }
+                          .total-row { font-weight: bold; }
+                        }
+                      `}
+                    </style>
+                    <div className="invoice-header">
+                      <h2>Fashion Breeze</h2>
+                      <p>Invoice #{selectedOrder._id?.slice(-8)}</p>
+                      <p>Date: {new Date(selectedOrder.createdAt).toLocaleDateString()}</p>
+                    </div>
                   <div className="row">
                     {/* Customer Information */}
                     <div className="col-md-6 mb-4">
@@ -1897,8 +1925,12 @@ export default function DashboardPage() {
                       </div>
                     </div>
                   </div>
+                  </div>
                 </div>
                 <div className="modal-footer">
+                  <button type="button" className="btn btn-success" onClick={printInvoice}>
+                    <i className="bi bi-printer me-2"></i>Print Invoice
+                  </button>
                   <button type="button" className="btn btn-secondary" onClick={() => setShowOrderModal(false)}>Close</button>
                   <div className="dropdown">
                     <button className="btn btn-primary dropdown-toggle" type="button" data-bs-toggle="dropdown">
