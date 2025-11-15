@@ -1042,14 +1042,14 @@ export default function HomePage() {
 
   const loadSlides = async () => {
     try {
-      const response = await fetch('/api/slideshow');
+      const response = await fetch('/api/banners');
       if (response.ok) {
-        const slidesData = await response.json();
-        const activeSlides = slidesData.filter((slide: any) => slide.isActive);
-        setSlides(activeSlides);
+        const bannersData = await response.json();
+        const activeBanners = bannersData.filter((banner: any) => banner.isActive);
+        setSlides(activeBanners);
       }
     } catch (error) {
-      console.error('Error loading slides:', error);
+      console.error('Error loading banners:', error);
     }
   };
 
@@ -1492,17 +1492,6 @@ export default function HomePage() {
                             objectFit: 'cover'
                           }}
                         />
-                        {slide.discount > 0 && (
-                          <div className="position-absolute top-0 end-0 m-3">
-                            <span className="badge px-3 py-2" style={{
-                              background: 'linear-gradient(135deg, #ff6b6b, #ee5a24)',
-                              fontSize: '1rem',
-                              borderRadius: '15px'
-                            }}>
-                              🔥 {slide.discount}% OFF
-                            </span>
-                          </div>
-                        )}
                       </div>
                     ))}
                   </div>

@@ -163,6 +163,7 @@ export default function LoginPage() {
                   </button>
                   <div className="text-center">
                     <p className="mb-2">Don't have an account? <a href="/register" className="text-primary">Register here</a></p>
+                    <p className="mb-0"><a href="/forgot-password" className="text-muted">Forgot your password?</a></p>
                   </div>
                 </form>
               </div>

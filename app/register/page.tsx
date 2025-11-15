@@ -262,7 +262,8 @@ export default function RegisterPage() {
                       </button>
                     </div>
                     <div className="col-12 text-center">
-                      <p className="mb-0">Already have an account? <a href="/login" className="text-primary">Login here</a></p>
+                      <p className="mb-2">Already have an account? <a href="/login" className="text-primary">Login here</a></p>
+                      <p className="mb-0"><a href="/forgot-password" className="text-muted">Forgot your password?</a></p>
                     </div>
                   </div>
                 </form>

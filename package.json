@@ -12,6 +12,7 @@
     "seed-categories": "node scripts/seedCategories.js"
   },
   "dependencies": {
+    "@types/nodemailer": "^7.0.3",
     "bcryptjs": "^2.4.3",
     "bootstrap": "^5.3.3",
     "bootstrap-icons": "^1.11.3",
@@ -22,6 +23,7 @@
     "mongodb": "^6.3.0",
     "mongoose": "^8.0.0",
     "next": "^13.0.0",
+    "nodemailer": "^7.0.10",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-hot-toast": "^2.4.1",

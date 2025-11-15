@@ -18,6 +18,7 @@ export default function DashboardPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
+  const [banners, setBanners] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [toast, setToast] = useState<{message: string, type: 'success' | 'error'} | null>(null);
 
@@ -57,21 +58,24 @@ export default function DashboardPage() {
 
   const loadData = async () => {
     try {
-      const [productsRes, categoriesRes, ordersRes] = await Promise.all([
+      const [productsRes, categoriesRes, ordersRes, bannersRes] = await Promise.all([
         fetch('/api/products'),
         fetch('/api/categories'),
-        fetch('/api/orders')
+        fetch('/api/orders'),
+        fetch('/api/banners')
       ]);
       
-      const [productsData, categoriesData, ordersData] = await Promise.all([
+      const [productsData, categoriesData, ordersData, bannersData] = await Promise.all([
         productsRes.json(),
         categoriesRes.json(),
-        ordersRes.json()
+        ordersRes.json(),
+        bannersRes.json()
       ]);
       
       setProducts(productsData);
       setCategories(categoriesData);
       setOrders(ordersData);
+      setBanners(bannersData);
     } catch (error) {
       console.error('Error loading data:', error);
     }
@@ -193,6 +197,14 @@ export default function DashboardPage() {
             </button>
           </li>
           <li className="nav-item" role="presentation">
+            <button 
+              className={`nav-link ${activeTab === 'banners' ? 'active' : ''}`}
+              onClick={() => setActiveTab('banners')}
+            >
+              <i className="bi bi-images me-2"></i>Banners
+            </button>
+          </li>
+          <li className="nav-item" role="presentation">
             <a href="/admin-dashboard" className="nav-link text-success">
               <i className="bi bi-speedometer2 me-2"></i>Full Dashboard
             </a>
@@ -245,6 +257,7 @@ export default function DashboardPage() {
         {activeTab === 'categories' && <CategoryManagement />}
         {activeTab === 'subcategories' && <SubcategoryManagement />}
         {activeTab === 'orders' && <OrderManagement />}
+        {activeTab === 'banners' && <BannerManagement />}
 
         {toast && (
           <div className={`alert alert-${toast.type === 'success' ? 'success' : 'danger'} alert-dismissible fade show position-fixed`} 
@@ -1899,6 +1912,232 @@ export default function DashboardPage() {
                 <strong>New Arrivals:</strong> Sent when new products are added<br/>
                 <strong>Order Confirmation:</strong> Sent when order is placed
               </small>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Banner Management Component
+  function BannerManagement() {
+    const [showAddBanner, setShowAddBanner] = useState(false);
+    const [bannerForm, setBannerForm] = useState({ title: '', image: '', isActive: true, order: 0 });
+    const [editingBanner, setEditingBanner] = useState<any>(null);
+    const [bannerLoading, setBannerLoading] = useState(false);
+
+    const handleImageUpload = async (file: File) => {
+      if (file && file.type.startsWith('image/')) {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          const base64 = e.target?.result as string;
+          setBannerForm({...bannerForm, image: base64});
+        };
+        reader.readAsDataURL(file);
+      }
+    };
+
+    const handleBannerSubmit = async (e: React.FormEvent) => {
+      e.preventDefault();
+      setBannerLoading(true);
+      try {
+        const url = '/api/banners';
+        const method = editingBanner ? 'PUT' : 'POST';
+        const body = editingBanner ? {...bannerForm, id: editingBanner._id} : bannerForm;
+        
+        const response = await fetch(url, {
+          method,
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body)
+        });
+
+        if (response.ok) {
+          loadData();
+          resetBannerForm();
+          showToast(editingBanner ? 'Banner updated!' : 'Banner added!', 'success');
+        } else {
+          showToast('Failed to save banner', 'error');
+        }
+      } catch (error) {
+        showToast('Error saving banner', 'error');
+      } finally {
+        setBannerLoading(false);
+      }
+    };
+
+    const resetBannerForm = () => {
+      setBannerForm({ title: '', image: '', isActive: true, order: 0 });
+      setEditingBanner(null);
+      setShowAddBanner(false);
+    };
+
+    const startEditBanner = (banner: any) => {
+      setEditingBanner(banner);
+      setBannerForm({
+        title: banner.title,
+        image: banner.image,
+        isActive: banner.isActive,
+        order: banner.order
+      });
+      setShowAddBanner(true);
+    };
+
+    const handleDeleteBanner = async (bannerId: string) => {
+      if (confirm('Are you sure you want to delete this banner?')) {
+        try {
+          const response = await fetch(`/api/banners?id=${bannerId}`, { method: 'DELETE' });
+          if (response.ok) {
+            loadData();
+            showToast('Banner deleted!', 'success');
+          } else {
+            showToast('Failed to delete banner', 'error');
+          }
+        } catch (error) {
+          showToast('Error deleting banner', 'error');
+        }
+      }
+    };
+
+    return (
+      <div>
+        {showAddBanner && (
+          <div className="card mb-4">
+            <div className="card-header">
+              <h5 className="mb-0">{editingBanner ? 'Edit Banner' : 'Add New Banner'}</h5>
+            </div>
+            <div className="card-body">
+              <form onSubmit={handleBannerSubmit}>
+                <div className="row">
+                  <div className="col-md-6 mb-3">
+                    <label className="form-label">Banner Title</label>
+                    <input
+                      type="text"
+                      className="form-control"
+                      value={bannerForm.title}
+                      onChange={(e) => setBannerForm({...bannerForm, title: e.target.value})}
+                      required
+                    />
+                  </div>
+                  <div className="col-md-3 mb-3">
+                    <label className="form-label">Order</label>
+                    <input
+                      type="number"
+                      className="form-control"
+                      value={bannerForm.order}
+                      onChange={(e) => setBannerForm({...bannerForm, order: Number(e.target.value)})}
+                    />
+                  </div>
+                  <div className="col-md-3 mb-3">
+                    <label className="form-label">Status</label>
+                    <select
+                      className="form-select"
+                      value={bannerForm.isActive.toString()}
+                      onChange={(e) => setBannerForm({...bannerForm, isActive: e.target.value === 'true'})}
+                    >
+                      <option value="true">Active</option>
+                      <option value="false">Inactive</option>
+                    </select>
+                  </div>
+                </div>
+                <div className="mb-3">
+                  <label className="form-label">Banner Image</label>
+                  <div className="border rounded p-3 text-center" style={{minHeight: '200px'}}>
+                    {bannerForm.image ? (
+                      <div>
+                        <img 
+                          src={bannerForm.image} 
+                          alt="Banner" 
+                          style={{width: '100%', maxHeight: '300px', objectFit: 'cover'}} 
+                          className="mb-2 rounded"
+                        />
+                        <button 
+                          type="button" 
+                          className="btn btn-outline-danger d-block mx-auto"
+                          onClick={() => setBannerForm({...bannerForm, image: ''})}
+                        >
+                          Remove Image
+                        </button>
+                      </div>
+                    ) : (
+                      <div>
+                        <i className="bi bi-cloud-upload display-4 text-muted mb-2"></i>
+                        <p className="text-muted mb-2">Upload Banner Image</p>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          className="form-control"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file) handleImageUpload(file);
+                          }}
+                        />
+                      </div>
+                    )}
+                  </div>
+                </div>
+                <div className="d-flex gap-2">
+                  <button type="submit" className="btn btn-success" disabled={bannerLoading}>
+                    {bannerLoading ? 'Saving...' : (editingBanner ? 'Update Banner' : 'Add Banner')}
+                  </button>
+                  <button type="button" className="btn btn-secondary" onClick={resetBannerForm}>
+                    Cancel
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+
+        <div className="card">
+          <div className="card-header d-flex justify-content-between align-items-center">
+            <h5 className="mb-0">Banner Management ({banners.length})</h5>
+            <button className="btn btn-primary" onClick={() => setShowAddBanner(true)}>
+              <i className="bi bi-plus-circle me-2"></i>Add New Banner
+            </button>
+          </div>
+          <div className="card-body">
+            <div className="table-responsive">
+              <table className="table table-striped">
+                <thead>
+                  <tr>
+                    <th>Image</th>
+                    <th>Title</th>
+                    <th>Order</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {banners.map((banner) => (
+                    <tr key={banner._id}>
+                      <td>
+                        <img src={banner.image} alt={banner.title} style={{width: '80px', height: '50px', objectFit: 'cover'}} className="rounded" />
+                      </td>
+                      <td>{banner.title}</td>
+                      <td>{banner.order}</td>
+                      <td>
+                        <span className={`badge ${banner.isActive ? 'bg-success' : 'bg-secondary'}`}>
+                          {banner.isActive ? 'Active' : 'Inactive'}
+                        </span>
+                      </td>
+                      <td>
+                        <button 
+                          className="btn btn-sm btn-outline-primary me-2"
+                          onClick={() => startEditBanner(banner)}
+                        >
+                          <i className="bi bi-pencil"></i>
+                        </button>
+                        <button 
+                          className="btn btn-sm btn-outline-danger"
+                          onClick={() => handleDeleteBanner(banner._id)}
+                        >
+                          <i className="bi bi-trash"></i>
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           </div>
         </div>
