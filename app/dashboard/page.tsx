@@ -21,6 +21,8 @@ export default function DashboardPage() {
   const [banners, setBanners] = useState<any[]>([]);
   const [customers, setCustomers] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
+  const [searchLoading, setSearchLoading] = useState(false);
+  const [deleteLoading, setDeleteLoading] = useState<string | null>(null);
   const [toast, setToast] = useState<{message: string, type: 'success' | 'error'} | null>(null);
 
   // Category form state
@@ -58,6 +60,7 @@ export default function DashboardPage() {
   }, [activeTab]);
 
   const loadData = async () => {
+    setSearchLoading(true);
     try {
       const [productsRes, categoriesRes, ordersRes, bannersRes, customersRes] = await Promise.all([
         fetch('/api/products'),
@@ -82,6 +85,8 @@ export default function DashboardPage() {
       setCustomers(customersData);
     } catch (error) {
       console.error('Error loading data:', error);
+    } finally {
+      setSearchLoading(false);
     }
   };
 
@@ -375,10 +380,17 @@ export default function DashboardPage() {
       
       setProductLoading(true);
       try {
+        const sizesArray = Object.entries(productForm.sizes).map(([size, stock]) => ({
+          size,
+          stock: Number(stock),
+          price: productForm.price
+        }));
+        
         const productData = {
           ...productForm,
           image: productForm.images[0] || '',
-          images: productForm.images.filter(img => img !== '')
+          images: productForm.images.filter(img => img !== ''),
+          sizes: sizesArray
         };
         
         const url = editingProduct ? `/api/products/${editingProduct._id || editingProduct.id}` : '/api/products';
@@ -458,7 +470,15 @@ export default function DashboardPage() {
         subcategory: product.subcategory || '',
         images: Array.isArray(product.images) ? [...product.images, '', '', '', ''].slice(0, 4) : [product.image || '', '', '', ''],
         sizes: (() => {
-          if (typeof product.sizes === 'object' && product.sizes && !Array.isArray(product.sizes)) {
+          if (Array.isArray(product.sizes)) {
+            const sizesObj = { S: 0, M: 0, L: 0, XL: 0 };
+            product.sizes.forEach((sizeItem: any) => {
+              if (sizesObj.hasOwnProperty(sizeItem.size)) {
+                sizesObj[sizeItem.size as keyof typeof sizesObj] = sizeItem.stock || 0;
+              }
+            });
+            return sizesObj;
+          } else if (typeof product.sizes === 'object' && product.sizes && !Array.isArray(product.sizes)) {
             const sizes = product.sizes as { [key: string]: number };
             return {
               S: sizes.S || 0,
@@ -1210,6 +1230,7 @@ export default function DashboardPage() {
 
     const handleDeleteCategory = async (categoryId: string) => {
       if (confirm('Are you sure? This will delete all subcategories too.')) {
+        setDeleteLoading(categoryId);
         try {
           const response = await fetch(`/api/categories/${categoryId}`, { method: 'DELETE' });
           if (response.ok) {
@@ -1220,6 +1241,8 @@ export default function DashboardPage() {
           }
         } catch (error) {
           showToast('Error deleting category', 'error');
+        } finally {
+          setDeleteLoading(null);
         }
       }
     };
@@ -1321,8 +1344,12 @@ export default function DashboardPage() {
                           <button 
                             className="btn btn-sm btn-outline-danger"
                             onClick={() => handleDeleteCategory(category._id)}
+                            disabled={deleteLoading === category._id}
                           >
-                            <i className="bi bi-trash"></i>
+                            {deleteLoading === category._id ? 
+                              <i className="bi bi-hourglass-split"></i> : 
+                              <i className="bi bi-trash"></i>
+                            }
                           </button>
                         </td>
                       </tr>
@@ -2179,6 +2206,7 @@ export default function DashboardPage() {
 
     const handleDeleteBanner = async (bannerId: string) => {
       if (confirm('Are you sure you want to delete this banner?')) {
+        setDeleteLoading(bannerId);
         try {
           const response = await fetch(`/api/banners?id=${bannerId}`, { method: 'DELETE' });
           if (response.ok) {
@@ -2189,6 +2217,8 @@ export default function DashboardPage() {
           }
         } catch (error) {
           showToast('Error deleting banner', 'error');
+        } finally {
+          setDeleteLoading(null);
         }
       }
     };
@@ -2325,8 +2355,12 @@ export default function DashboardPage() {
                         <button 
                           className="btn btn-sm btn-outline-danger"
                           onClick={() => handleDeleteBanner(banner._id)}
+                          disabled={deleteLoading === banner._id}
                         >
-                          <i className="bi bi-trash"></i>
+                          {deleteLoading === banner._id ? 
+                            <i className="bi bi-hourglass-split"></i> : 
+                            <i className="bi bi-trash"></i>
+                          }
                         </button>
                       </td>
                     </tr>
@@ -2390,6 +2424,7 @@ export default function DashboardPage() {
 
     const handleDeleteCustomer = async (customerId: string) => {
       if (confirm('Are you sure? This will delete the customer and all their orders.')) {
+        setDeleteLoading(customerId);
         try {
           const response = await fetch(`/api/customers?id=${customerId}`, { method: 'DELETE' });
           if (response.ok) {
@@ -2400,6 +2435,8 @@ export default function DashboardPage() {
           }
         } catch (error) {
           showToast('Error deleting customer', 'error');
+        } finally {
+          setDeleteLoading(null);
         }
       }
     };
@@ -2590,8 +2627,12 @@ export default function DashboardPage() {
                         <button 
                           className="btn btn-sm btn-outline-danger"
                           onClick={() => handleDeleteCustomer(customer._id)}
+                          disabled={deleteLoading === customer._id}
                         >
-                          <i className="bi bi-trash"></i>
+                          {deleteLoading === customer._id ? 
+                            <i className="bi bi-hourglass-split"></i> : 
+                            <i className="bi bi-trash"></i>
+                          }
                         </button>
                       </td>
                     </tr>
