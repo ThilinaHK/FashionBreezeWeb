@@ -1693,6 +1693,7 @@ export default function DashboardPage() {
                     <td>
                       <div>
                         <strong>{order.customerInfo?.name}</strong><br/>
+                        <small className="text-muted">{order.customerInfo?.email}</small><br/>
                         <small className="text-muted">{order.customerInfo?.phone}</small>
                       </div>
                     </td>

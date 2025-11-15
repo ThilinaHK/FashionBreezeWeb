@@ -5,7 +5,7 @@ import { motion } from 'framer-motion';
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState('');
-  const [role, setRole] = useState('customer');
+
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
@@ -20,7 +20,7 @@ export default function ForgotPasswordPage() {
       const response = await fetch('/api/forgot-password', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, role })
+        body: JSON.stringify({ email })
       });
 
       const data = await response.json();
@@ -73,18 +73,7 @@ export default function ForgotPasswordPage() {
                   )}
 
                   <form onSubmit={handleSubmit}>
-                    <div className="mb-3">
-                      <label className="form-label fw-semibold">User Role</label>
-                      <select
-                        className="form-select"
-                        value={role}
-                        onChange={(e) => setRole(e.target.value)}
-                        style={{ borderRadius: '12px' }}
-                      >
-                        <option value="customer">Customer</option>
-                        <option value="admin">Admin</option>
-                      </select>
-                    </div>
+
 
                     <div className="mb-4">
                       <label className="form-label fw-semibold">Email Address</label>

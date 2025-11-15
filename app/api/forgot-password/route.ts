@@ -6,25 +6,16 @@ import nodemailer from 'nodemailer';
 export async function POST(request: NextRequest) {
   try {
     await dbConnect();
-    const { email, role } = await request.json();
+    const { email } = await request.json();
     
     if (!email) {
       return NextResponse.json({ error: 'Email is required' }, { status: 400 });
     }
 
-    // Find user by email and role
-    let user;
-    if (role === 'admin') {
-      // Check admin credentials (you can modify this based on your admin storage)
-      const adminEmail = 'admin@fashionbreeze.lk';
-      const adminPassword = 'admin123';
-      if (email === adminEmail) {
-        user = { email: adminEmail, password: adminPassword, role: 'admin' };
-      }
-    } else {
-      // Check regular users in database
-      user = await User.findOne({ email });
-    }
+    // Find customer by email
+    const user = await User.findOne({ email });
+    console.log('Looking for user with email:', email);
+    console.log('Found user:', user ? 'Yes' : 'No');
 
     if (!user) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
@@ -57,7 +48,7 @@ export async function POST(request: NextRequest) {
             <div style="background: white; padding: 20px; border-radius: 8px; border-left: 4px solid #667eea;">
               <p><strong>Email:</strong> ${email}</p>
               <p><strong>Password:</strong> ${user.password}</p>
-              <p><strong>Role:</strong> ${role || 'Customer'}</p>
+              <p><strong>Role:</strong> Customer</p>
             </div>
             <p style="margin-top: 20px;">For security reasons, please consider changing your password after logging in.</p>
             <div style="text-align: center; margin-top: 30px;">
