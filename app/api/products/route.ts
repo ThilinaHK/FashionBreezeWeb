@@ -89,6 +89,26 @@ export async function POST(request: NextRequest) {
       };
     }
     
+    // Handle details
+    if (!body.details) {
+      body.details = {
+        color: '',
+        brand: '',
+        style: '',
+        sleeveType: '',
+        neckline: '',
+        patternType: '',
+        sleeveLength: '',
+        fitType: '',
+        fabric: '',
+        material: '',
+        composition: '',
+        careInstructions: '',
+        pockets: 'No',
+        sheer: 'No'
+      };
+    }
+    
     // Handle category - for now, store as string since dashboard sends string
     // In a full implementation, you'd look up the category ObjectId
     

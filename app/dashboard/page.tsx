@@ -267,7 +267,7 @@ export default function DashboardPage() {
               <div className="card border-0 shadow-sm h-100 bg-warning text-white">
                 <div className="card-body text-center p-4">
                   <i className="bi bi-currency-rupee display-4 mb-3"></i>
-                  <h5 className="fw-bold">₹{orders.reduce((sum, order) => sum + (order.total || 0), 0).toLocaleString()}</h5>
+                  <h5 className="fw-bold">LKR {orders.reduce((sum, order) => sum + (order.total || 0), 0).toLocaleString()}</h5>
                   <p className="mb-0">Total Revenue</p>
                 </div>
               </div>
@@ -338,9 +338,17 @@ export default function DashboardPage() {
     const [imageFiles, setImageFiles] = useState<File[]>([]);
     const [productLoading, setProductLoading] = useState(false);
     const [deletingProductId, setDeletingProductId] = useState<string | null>(null);
+    const [validationErrors, setValidationErrors] = useState<{[key: string]: string}>({});
     const [showRestockModal, setShowRestockModal] = useState(false);
     const [restockingProduct, setRestockingProduct] = useState<Product | null>(null);
     const [restockSizes, setRestockSizes] = useState({ S: 0, M: 0, L: 0, XL: 0 });
+    const [productFilters, setProductFilters] = useState({
+      category: '',
+      subcategory: '',
+      code: '',
+      name: '',
+      status: ''
+    });
 
     const generateProductCode = () => {
       const timestamp = Date.now().toString().slice(-6);
@@ -363,18 +371,30 @@ export default function DashboardPage() {
 
     const handleProductSubmit = async (e: React.FormEvent) => {
       e.preventDefault();
+      setValidationErrors({});
       
-      // Validation
+      // Client-side validation
+      const errors: {[key: string]: string} = {};
+      
       if (!productForm.name.trim()) {
-        showToast('Product name is required', 'error');
-        return;
+        errors.name = 'Product name is required';
       }
       if (!productForm.images[0]) {
-        showToast('At least one product image is required', 'error');
-        return;
+        errors.images = 'At least one product image is required';
       }
       if (!productForm.category) {
-        showToast('Category is required', 'error');
+        errors.category = 'Category is required';
+      }
+      if (productForm.price <= 0) {
+        errors.price = 'Price must be greater than 0';
+      }
+      if (!productForm.code.trim()) {
+        errors.code = 'Product code is required';
+      }
+      
+      if (Object.keys(errors).length > 0) {
+        setValidationErrors(errors);
+        showToast('Please fix validation errors', 'error');
         return;
       }
       
@@ -390,7 +410,10 @@ export default function DashboardPage() {
           ...productForm,
           image: productForm.images[0] || '',
           images: productForm.images.filter(img => img !== ''),
-          sizes: sizesArray
+          sizes: sizesArray,
+          details: productForm.details,
+          specifications: productForm.specifications,
+          status: productForm.status
         };
         
         const url = editingProduct ? `/api/products/${editingProduct._id || editingProduct.id}` : '/api/products';
@@ -408,6 +431,20 @@ export default function DashboardPage() {
           showToast(editingProduct ? 'Product updated successfully!' : 'Product added successfully!', 'success');
         } else {
           const errorData = await response.json();
+          
+          // Parse validation errors from server
+          if (errorData.error && errorData.error.includes('validation failed')) {
+            const serverErrors: {[key: string]: string} = {};
+            const errorMessage = errorData.error;
+            
+            if (errorMessage.includes('name')) serverErrors.name = 'Product name validation failed';
+            if (errorMessage.includes('price')) serverErrors.price = 'Price validation failed';
+            if (errorMessage.includes('category')) serverErrors.category = 'Category validation failed';
+            if (errorMessage.includes('code')) serverErrors.code = 'Product code already exists or invalid';
+            
+            setValidationErrors(serverErrors);
+          }
+          
           showToast(errorData.error || 'Failed to save product', 'error');
         }
       } catch (error) {
@@ -458,6 +495,7 @@ export default function DashboardPage() {
       setEditingProduct(null);
       setShowAddProduct(false);
       setImageFiles([]);
+      setValidationErrors({});
     };
 
     const startEditProduct = (product: Product) => {
@@ -583,6 +621,26 @@ export default function DashboardPage() {
       setShowAddProduct(true);
     };
 
+    const filteredProducts = products.filter(product => {
+      return (
+        (!productFilters.category || (typeof product.category === 'string' ? product.category : product.category?.name)?.toLowerCase().includes(productFilters.category.toLowerCase())) &&
+        (!productFilters.subcategory || product.subcategory?.toLowerCase().includes(productFilters.subcategory.toLowerCase())) &&
+        (!productFilters.code || product.code?.toLowerCase().includes(productFilters.code.toLowerCase())) &&
+        (!productFilters.name || product.name?.toLowerCase().includes(productFilters.name.toLowerCase())) &&
+        (!productFilters.status || product.status === productFilters.status)
+      );
+    });
+
+    const clearProductFilters = () => {
+      setProductFilters({
+        category: '',
+        subcategory: '',
+        code: '',
+        name: '',
+        status: ''
+      });
+    };
+
     return (
       <div>
         {showAddProduct && (
@@ -597,21 +655,27 @@ export default function DashboardPage() {
                     <label className="form-label">Product Name</label>
                     <input
                       type="text"
-                      className="form-control"
+                      className={`form-control ${validationErrors.name ? 'is-invalid' : ''}`}
                       value={productForm.name}
                       onChange={(e) => setProductForm({...productForm, name: e.target.value})}
                       required
                     />
+                    {validationErrors.name && (
+                      <div className="invalid-feedback">{validationErrors.name}</div>
+                    )}
                   </div>
                   <div className="col-md-6 mb-3">
                     <label className="form-label">Product Code (Auto-generated)</label>
                     <div className="input-group">
                       <input
                         type="text"
-                        className="form-control"
+                        className={`form-control ${validationErrors.code ? 'is-invalid' : ''}`}
                         value={productForm.code}
                         readOnly
                       />
+                      {validationErrors.code && (
+                        <div className="invalid-feedback">{validationErrors.code}</div>
+                      )}
                       <button type="button" className="btn btn-outline-secondary" onClick={() => setProductForm({...productForm, code: generateProductCode()})}>
                         <i className="bi bi-arrow-clockwise"></i>
                       </button>
@@ -623,20 +687,24 @@ export default function DashboardPage() {
                   <div className="col-md-4 mb-3">
                     <label className="form-label">Price</label>
                     <div className="input-group">
-                      <span className="input-group-text">₹</span>
+                      <span className="input-group-text">LKR</span>
                       <input
                         type="number"
-                        className="form-control"
+                        className={`form-control ${validationErrors.price ? 'is-invalid' : ''}`}
                         value={productForm.price}
                         onChange={(e) => setProductForm({...productForm, price: Number(e.target.value)})}
                         required
                       />
                     </div>
+                    {validationErrors.price && (
+                      <div className="invalid-feedback d-block">{validationErrors.price}</div>
+                    )}
+                    </div>
                   </div>
                   <div className="col-md-4 mb-3">
                     <label className="form-label">Category</label>
                     <select
-                      className="form-select"
+                      className={`form-select ${validationErrors.category ? 'is-invalid' : ''}`}
                       value={productForm.category}
                       onChange={(e) => setProductForm({...productForm, category: e.target.value, subcategory: ''})}
                       required
@@ -646,6 +714,9 @@ export default function DashboardPage() {
                         <option key={cat._id} value={cat.name}>{cat.name}</option>
                       ))}
                     </select>
+                    {validationErrors.category && (
+                      <div className="invalid-feedback">{validationErrors.category}</div>
+                    )}
                   </div>
                   <div className="col-md-4 mb-3">
                     <label className="form-label">Subcategory</label>
@@ -709,6 +780,9 @@ export default function DashboardPage() {
                     ))}
                   </div>
                 </div>
+                {validationErrors.images && (
+                  <div className="alert alert-danger">{validationErrors.images}</div>
+                )}
 
                 <div className="row">
                   <div className="col-md-3 mb-3">
@@ -779,7 +853,7 @@ export default function DashboardPage() {
 
                 {/* Pricing & Discount Section */}
                 <div className="card mb-3">
-                  <div className="card-header">
+                  <div className="card-header bg-success text-white">
                     <h6 className="mb-0"><i className="bi bi-percent me-2"></i>Pricing & Discounts</h6>
                   </div>
                   <div className="card-body">
@@ -787,7 +861,7 @@ export default function DashboardPage() {
                       <div className="col-md-4 mb-3">
                         <label className="form-label">Original Price</label>
                         <div className="input-group">
-                          <span className="input-group-text">₹</span>
+                          <span className="input-group-text">LKR</span>
                           <input
                             type="number"
                             className="form-control"
@@ -815,7 +889,7 @@ export default function DashboardPage() {
                       <div className="col-md-4 mb-3">
                         <label className="form-label">Final Price</label>
                         <div className="input-group">
-                          <span className="input-group-text">₹</span>
+                          <span className="input-group-text">LKR</span>
                           <input
                             type="number"
                             className="form-control"
@@ -837,7 +911,7 @@ export default function DashboardPage() {
                       <div className="col-md-6 mb-3">
                         <label className="form-label">Savings</label>
                         <div className="form-control bg-light">
-                          ₹{((productForm.originalPrice || productForm.price) - productForm.price).toFixed(2)} 
+                          LKR {((productForm.originalPrice || productForm.price) - productForm.price).toFixed(2)} 
                           ({productForm.discount}% off)
                         </div>
                       </div>
@@ -847,7 +921,7 @@ export default function DashboardPage() {
 
                 {/* Product Details Section */}
                 <div className="card mb-3">
-                  <div className="card-header">
+                  <div className="card-header bg-info text-white">
                     <h6 className="mb-0"><i className="bi bi-info-circle me-2"></i>Product Details</h6>
                   </div>
                   <div className="card-body">
@@ -957,7 +1031,7 @@ export default function DashboardPage() {
 
                 {/* Product Specifications Section */}
                 <div className="card mb-3">
-                  <div className="card-header">
+                  <div className="card-header bg-warning text-dark">
                     <h6 className="mb-0"><i className="bi bi-gear me-2"></i>Product Specifications</h6>
                   </div>
                   <div className="card-body">
@@ -1017,17 +1091,79 @@ export default function DashboardPage() {
 
         <div className="card">
           <div className="card-header d-flex justify-content-between align-items-center">
-            <h5 className="mb-0">Product Management</h5>
+            <h5 className="mb-0">Product Management ({filteredProducts.length} of {products.length})</h5>
             <div className="d-flex gap-2">
               <button className="btn btn-primary" onClick={startAddProduct}>
                 <i className="bi bi-plus-circle me-2"></i>Add New Product
               </button>
-              <a href="/dashboard/products" className="btn btn-outline-primary">
-                <i className="bi bi-list me-2"></i>View All Products
-              </a>
             </div>
           </div>
           <div className="card-body">
+            {/* Filter Section */}
+            <div className="row mb-4 p-3 bg-light rounded">
+              <div className="col-md-2 mb-2">
+                <label className="form-label small">Category</label>
+                <select
+                  className="form-select form-select-sm"
+                  value={productFilters.category}
+                  onChange={(e) => setProductFilters({...productFilters, category: e.target.value})}
+                >
+                  <option value="">All Categories</option>
+                  {categories.map(cat => (
+                    <option key={cat._id} value={cat.name}>{cat.name}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="col-md-2 mb-2">
+                <label className="form-label small">Subcategory</label>
+                <input
+                  type="text"
+                  className="form-control form-control-sm"
+                  placeholder="Search subcategory"
+                  value={productFilters.subcategory}
+                  onChange={(e) => setProductFilters({...productFilters, subcategory: e.target.value})}
+                />
+              </div>
+              <div className="col-md-2 mb-2">
+                <label className="form-label small">Product Code</label>
+                <input
+                  type="text"
+                  className="form-control form-control-sm"
+                  placeholder="Search code"
+                  value={productFilters.code}
+                  onChange={(e) => setProductFilters({...productFilters, code: e.target.value})}
+                />
+              </div>
+              <div className="col-md-2 mb-2">
+                <label className="form-label small">Product Name</label>
+                <input
+                  type="text"
+                  className="form-control form-control-sm"
+                  placeholder="Search name"
+                  value={productFilters.name}
+                  onChange={(e) => setProductFilters({...productFilters, name: e.target.value})}
+                />
+              </div>
+              <div className="col-md-2 mb-2">
+                <label className="form-label small">Status</label>
+                <select
+                  className="form-select form-select-sm"
+                  value={productFilters.status}
+                  onChange={(e) => setProductFilters({...productFilters, status: e.target.value})}
+                >
+                  <option value="">All Status</option>
+                  <option value="instock">In Stock</option>
+                  <option value="outofstock">Out of Stock</option>
+                  <option value="active">Active</option>
+                  <option value="inactive">Inactive</option>
+                </select>
+              </div>
+              <div className="col-md-2 mb-2 d-flex align-items-end">
+                <button className="btn btn-outline-secondary btn-sm" onClick={clearProductFilters}>
+                  <i className="bi bi-x-circle me-1"></i>Clear
+                </button>
+              </div>
+            </div>
             <div className="table-responsive">
               <table className="table table-striped">
                 <thead>
@@ -1044,7 +1180,7 @@ export default function DashboardPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {products.slice(0, 5).map((product) => (
+                  {filteredProducts.slice(0, 10).map((product) => (
                     <tr key={product.id}>
                       <td>
                         <div className="d-flex gap-1">
@@ -1067,11 +1203,11 @@ export default function DashboardPage() {
                         <div>
                           {product.originalPrice && product.originalPrice > product.price ? (
                             <>
-                              <span className="text-decoration-line-through text-muted small">₹{product.originalPrice}</span><br/>
-                              <span className="fw-bold text-success">₹{product.price.toLocaleString()}</span>
+                              <span className="text-decoration-line-through text-muted small">LKR {product.originalPrice}</span><br/>
+                              <span className="fw-bold text-success">LKR {product.price.toLocaleString()}</span>
                             </>
                           ) : (
-                            <span>₹{product.price.toLocaleString()}</span>
+                            <span>LKR {product.price.toLocaleString()}</span>
                           )}
                         </div>
                       </td>
@@ -1755,7 +1891,7 @@ export default function DashboardPage() {
                         <small className="text-muted">+{(order.items?.length || 0) - 2} more</small>
                       )}
                     </td>
-                    <td>₹{order.total}</td>
+                    <td>LKR {order.total}</td>
                     <td>
                       <div className="d-flex flex-column gap-1">
                         <div className="d-flex align-items-center gap-1">
@@ -1918,8 +2054,8 @@ export default function DashboardPage() {
                                 <td>{item.name}</td>
                                 <td>{item.size || 'N/A'}</td>
                                 <td>{item.quantity}</td>
-                                <td>₹{item.price.toLocaleString()}</td>
-                                <td>₹{(item.price * item.quantity).toLocaleString()}</td>
+                                <td>LKR {item.price.toLocaleString()}</td>
+                                <td>LKR {(item.price * item.quantity).toLocaleString()}</td>
                               </tr>
                             ))}
                           </tbody>
@@ -1934,10 +2070,10 @@ export default function DashboardPage() {
                         <div className="card-body">
                           <div className="row">
                             <div className="col-md-6">
-                              <p className="mb-2"><strong>Subtotal:</strong> ₹{(selectedOrder.total - (selectedOrder.deliveryCost || 0)).toLocaleString()}</p>
-                              <p className="mb-2"><strong>Delivery Cost:</strong> ₹{(selectedOrder.deliveryCost || 0).toLocaleString()}</p>
+                              <p className="mb-2"><strong>Subtotal:</strong> LKR {(selectedOrder.total - (selectedOrder.deliveryCost || 0)).toLocaleString()}</p>
+                              <p className="mb-2"><strong>Delivery Cost:</strong> LKR {(selectedOrder.deliveryCost || 0).toLocaleString()}</p>
                               <hr/>
-                              <p className="mb-0 fs-5"><strong>Total Amount:</strong> <span className="text-success">₹{selectedOrder.total.toLocaleString()}</span></p>
+                              <p className="mb-0 fs-5"><strong>Total Amount:</strong> <span className="text-success">LKR {selectedOrder.total.toLocaleString()}</span></p>
                             </div>
                             <div className="col-md-6">
                               {selectedOrder.notes && (
@@ -2567,7 +2703,7 @@ export default function DashboardPage() {
                       <tr key={order._id}>
                         <td>#{order._id?.slice(-6)}</td>
                         <td>{order.items?.length || 0} items</td>
-                        <td>₹{order.total}</td>
+                        <td>LKR {order.total}</td>
                         <td>
                           <span className={`badge ${order.status === 'delivered' ? 'bg-success' : order.status === 'cancelled' ? 'bg-danger' : 'bg-warning'}`}>
                             {order.status}
@@ -2616,7 +2752,7 @@ export default function DashboardPage() {
                           {customer.orderCount} orders
                         </button>
                       </td>
-                      <td>₹{customer.totalSpent?.toLocaleString() || 0}</td>
+                      <td>LKR {customer.totalSpent?.toLocaleString() || 0}</td>
                       <td>
                         <button 
                           className="btn btn-sm btn-outline-primary me-2"
