@@ -22,7 +22,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Create email transporter with better configuration
-    const transporter = nodemailer.createTransport({
+    const transporter = nodemailer.createTransporter({
       host: 'smtp.gmail.com',
       port: 587,
       secure: false,
