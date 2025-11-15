@@ -217,6 +217,11 @@ export default function DashboardPage() {
             </button>
           </li>
           <li className="nav-item" role="presentation">
+            <a href="/reports" className="nav-link text-info">
+              <i className="bi bi-graph-up me-2"></i>Reports
+            </a>
+          </li>
+          <li className="nav-item" role="presentation">
             <a href="/admin-dashboard" className="nav-link text-success">
               <i className="bi bi-speedometer2 me-2"></i>Full Dashboard
             </a>
