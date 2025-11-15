@@ -19,7 +19,7 @@ export async function POST() {
     // Create admin user
     const admin = new User({
       id: 1,
-      name: 'Admin User',
+      username: 'admin',
       email: 'admin@fashionbreeze.com',
       password: hashedPassword,
       role: 'admin',

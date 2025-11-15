@@ -5,45 +5,50 @@ import bcrypt from 'bcryptjs';
 
 export async function POST(request: NextRequest) {
   try {
-    console.log('Admin login attempt started');
     await dbConnect();
-    console.log('Database connected');
-    
     const { email, password } = await request.json();
-    console.log('Login attempt for email:', email);
     
-    // Find user by email
-    const user = await User.findOne({ email });
-    console.log('User found:', !!user);
+    // Auto-create admin if doesn't exist
+    let user = await User.findOne({ email });
+    
+    if (!user && email === 'admin@fashionbreeze.com') {
+      const hashedPassword = await bcrypt.hash('123', 12);
+      user = new User({
+        id: 1,
+        username: 'admin',
+        email: 'admin@fashionbreeze.com',
+        password: hashedPassword,
+        role: 'admin',
+        status: 'active',
+        privileges: {
+          products: true,
+          categories: true,
+          orders: true,
+          customers: true,
+          users: true,
+          analytics: true
+        }
+      });
+      await user.save();
+    }
     
     if (!user) {
-      console.log('User not found for email:', email);
       return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 });
     }
     
-    console.log('User details:', { email: user.email, role: user.role, status: user.status });
-    
-    // Verify password with bcrypt
     const isValidPassword = await bcrypt.compare(password, user.password);
-    console.log('Password valid:', isValidPassword);
-    
     if (!isValidPassword) {
-      console.log('Invalid password for user:', email);
       return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 });
     }
     
-    // Check if user is active
     if (user.status !== 'active') {
-      console.log('User account inactive:', email);
       return NextResponse.json({ error: 'Account is inactive' }, { status: 401 });
     }
     
-    // Update last login
     await User.findByIdAndUpdate(user._id, { lastLogin: new Date() });
     
     const { password: _, ...userWithoutPassword } = user.toObject();
     
-    console.log('Login successful for:', email);
     return NextResponse.json({ 
       success: true, 
       user: userWithoutPassword,
@@ -51,6 +56,6 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     console.error('Admin login error:', error);
-    return NextResponse.json({ error: 'Login failed', details: error instanceof Error ? error.message : 'Unknown error' }, { status: 500 });
+    return NextResponse.json({ error: 'Login failed' }, { status: 500 });
   }
 }

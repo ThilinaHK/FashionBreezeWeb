@@ -49,10 +49,10 @@ export default function DashboardPage() {
 
   // Initialize Bootstrap dropdowns
   useEffect(() => {
-    if (typeof window !== 'undefined' && window.bootstrap) {
+    if (typeof window !== 'undefined' && (window as any).bootstrap) {
       const dropdowns = document.querySelectorAll('.dropdown-toggle');
       dropdowns.forEach(dropdown => {
-        new window.bootstrap.Dropdown(dropdown);
+        new (window as any).bootstrap.Dropdown(dropdown);
       });
     }
   }, [activeTab]);
@@ -1954,165 +1954,7 @@ export default function DashboardPage() {
     );
   }
 
-  // Email Configuration Component
-  function EmailConfiguration() {
-    const [testEmail, setTestEmail] = useState('');
-    const [emailLoading, setEmailLoading] = useState(false);
 
-    const saveEmailConfig = async (e: React.FormEvent) => {
-      e.preventDefault();
-      setEmailLoading(true);
-      try {
-        const response = await fetch('/api/email/config', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(emailConfig)
-        });
-
-        if (response.ok) {
-          showToast('Email configuration saved!', 'success');
-        } else {
-          showToast('Failed to save email config', 'error');
-        }
-      } catch (error) {
-        showToast('Error saving email config', 'error');
-      } finally {
-        setEmailLoading(false);
-      }
-    };
-
-    const sendTestEmail = async () => {
-      if (!testEmail) {
-        showToast('Please enter test email address', 'error');
-        return;
-      }
-      setEmailLoading(true);
-      try {
-        const response = await fetch('/api/email/test', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email: testEmail })
-        });
-
-        if (response.ok) {
-          showToast('Test email sent successfully!', 'success');
-        } else {
-          showToast('Failed to send test email', 'error');
-        }
-      } catch (error) {
-        showToast('Error sending test email', 'error');
-      } finally {
-        setEmailLoading(false);
-      }
-    };
-
-    return (
-      <div className="row">
-        <div className="col-md-8">
-          <div className="card">
-            <div className="card-header">
-              <h5 className="mb-0"><i className="bi bi-gear me-2"></i>Email Configuration</h5>
-            </div>
-            <div className="card-body">
-              <form onSubmit={saveEmailConfig}>
-                <div className="row">
-                  <div className="col-md-6 mb-3">
-                    <label className="form-label">SMTP Host</label>
-                    <input type="text" className="form-control" placeholder="smtp.gmail.com" 
-                           value={emailConfig.smtpHost} 
-                           onChange={(e) => setEmailConfig({...emailConfig, smtpHost: e.target.value})} required />
-                  </div>
-                  <div className="col-md-6 mb-3">
-                    <label className="form-label">SMTP Port</label>
-                    <input type="number" className="form-control" 
-                           value={emailConfig.smtpPort} 
-                           onChange={(e) => setEmailConfig({...emailConfig, smtpPort: Number(e.target.value)})} required />
-                  </div>
-                  <div className="col-md-6 mb-3">
-                    <label className="form-label">SMTP Username</label>
-                    <input type="email" className="form-control" 
-                           value={emailConfig.smtpUser} 
-                           onChange={(e) => setEmailConfig({...emailConfig, smtpUser: e.target.value})} required />
-                  </div>
-                  <div className="col-md-6 mb-3">
-                    <label className="form-label">SMTP Password</label>
-                    <input type="password" className="form-control" 
-                           value={emailConfig.smtpPass} 
-                           onChange={(e) => setEmailConfig({...emailConfig, smtpPass: e.target.value})} required />
-                  </div>
-                  <div className="col-md-6 mb-3">
-                    <label className="form-label">From Email</label>
-                    <input type="email" className="form-control" 
-                           value={emailConfig.fromEmail} 
-                           onChange={(e) => setEmailConfig({...emailConfig, fromEmail: e.target.value})} required />
-                  </div>
-                  <div className="col-md-6 mb-3">
-                    <label className="form-label">From Name</label>
-                    <input type="text" className="form-control" 
-                           value={emailConfig.fromName} 
-                           onChange={(e) => setEmailConfig({...emailConfig, fromName: e.target.value})} required />
-                  </div>
-                </div>
-                
-                <div className="mb-3">
-                  <h6>Email Notifications</h6>
-                  <div className="form-check">
-                    <input className="form-check-input" type="checkbox" 
-                           checked={emailConfig.orderStatusEnabled} 
-                           onChange={(e) => setEmailConfig({...emailConfig, orderStatusEnabled: e.target.checked})} />
-                    <label className="form-check-label">Order Status Change Notifications</label>
-                  </div>
-                  <div className="form-check">
-                    <input className="form-check-input" type="checkbox" 
-                           checked={emailConfig.newArrivalsEnabled} 
-                           onChange={(e) => setEmailConfig({...emailConfig, newArrivalsEnabled: e.target.checked})} />
-                    <label className="form-check-label">New Arrivals Notifications</label>
-                  </div>
-                </div>
-
-                <button type="submit" className="btn btn-success" disabled={emailLoading}>
-                  {emailLoading ? 'Saving...' : 'Save Configuration'}
-                </button>
-              </form>
-            </div>
-          </div>
-        </div>
-        
-        <div className="col-md-4">
-          <div className="card">
-            <div className="card-header">
-              <h6 className="mb-0"><i className="bi bi-envelope-check me-2"></i>Test Email</h6>
-            </div>
-            <div className="card-body">
-              <div className="mb-3">
-                <label className="form-label">Test Email Address</label>
-                <input type="email" className="form-control" 
-                       value={testEmail} 
-                       onChange={(e) => setTestEmail(e.target.value)} 
-                       placeholder="test@example.com" />
-              </div>
-              <button className="btn btn-primary w-100" onClick={sendTestEmail} disabled={emailLoading}>
-                {emailLoading ? 'Sending...' : 'Send Test Email'}
-              </button>
-            </div>
-          </div>
-          
-          <div className="card mt-3">
-            <div className="card-header">
-              <h6 className="mb-0"><i className="bi bi-info-circle me-2"></i>Email Templates</h6>
-            </div>
-            <div className="card-body">
-              <small className="text-muted">
-                <strong>Order Status:</strong> Sent when order status changes<br/>
-                <strong>New Arrivals:</strong> Sent when new products are added<br/>
-                <strong>Order Confirmation:</strong> Sent when order is placed
-              </small>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
 
   // Banner Management Component
   function BannerManagement() {
