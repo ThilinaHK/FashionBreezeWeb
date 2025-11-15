@@ -1486,6 +1486,8 @@ export default function DashboardPage() {
       status: '',
       paymentStatus: ''
     });
+    const [showOrderModal, setShowOrderModal] = useState(false);
+    const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
 
     const filteredOrders = orders.filter(order => {
       return (
@@ -1596,6 +1598,11 @@ export default function DashboardPage() {
         digital_wallet: 'bi-wallet2'
       };
       return icons[method] || 'bi-currency-dollar';
+    };
+
+    const viewOrderDetails = (order: Order) => {
+      setSelectedOrder(order);
+      setShowOrderModal(true);
     };
 
     return (
@@ -1732,6 +1739,13 @@ export default function DashboardPage() {
                     <td>{new Date(order.createdAt).toLocaleDateString()}</td>
                     <td>
                       <div className="d-flex gap-1">
+                        <button 
+                          className="btn btn-sm btn-outline-info me-1" 
+                          title="View Details"
+                          onClick={() => viewOrderDetails(order)}
+                        >
+                          <i className="bi bi-eye"></i>
+                        </button>
                         <div className="dropdown">
                           <button className="btn btn-sm btn-outline-primary dropdown-toggle" 
                                   type="button" data-bs-toggle="dropdown">
@@ -1774,6 +1788,136 @@ export default function DashboardPage() {
             </table>
           </div>
         </div>
+
+        {/* Order Details Modal */}
+        {showOrderModal && selectedOrder && (
+          <div className="modal show d-block" style={{backgroundColor: 'rgba(0,0,0,0.5)'}}>
+            <div className="modal-dialog modal-lg">
+              <div className="modal-content">
+                <div className="modal-header">
+                  <h5 className="modal-title">
+                    <i className="bi bi-receipt me-2"></i>
+                    Order Details - #{selectedOrder._id?.slice(-8)}
+                  </h5>
+                  <button type="button" className="btn-close" onClick={() => setShowOrderModal(false)}></button>
+                </div>
+                <div className="modal-body">
+                  <div className="row">
+                    {/* Customer Information */}
+                    <div className="col-md-6 mb-4">
+                      <h6 className="fw-bold mb-3"><i className="bi bi-person me-2"></i>Customer Information</h6>
+                      <div className="card bg-light">
+                        <div className="card-body">
+                          <p className="mb-2"><strong>Name:</strong> {selectedOrder.customerInfo?.name}</p>
+                          <p className="mb-2"><strong>Email:</strong> {selectedOrder.customerInfo?.email}</p>
+                          <p className="mb-2"><strong>Phone:</strong> {selectedOrder.customerInfo?.phone}</p>
+                          <p className="mb-0"><strong>Address:</strong> {selectedOrder.customerInfo?.address}</p>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Order Information */}
+                    <div className="col-md-6 mb-4">
+                      <h6 className="fw-bold mb-3"><i className="bi bi-info-circle me-2"></i>Order Information</h6>
+                      <div className="card bg-light">
+                        <div className="card-body">
+                          <p className="mb-2"><strong>Order Date:</strong> {new Date(selectedOrder.createdAt).toLocaleString()}</p>
+                          <p className="mb-2">
+                            <strong>Status:</strong> 
+                            <span className={`badge ms-2 ${getStatusBadge(selectedOrder.status)}`}>
+                              {selectedOrder.status}
+                            </span>
+                          </p>
+                          <p className="mb-2">
+                            <strong>Payment Method:</strong> 
+                            <i className={`${getPaymentMethodIcon(selectedOrder.paymentMethod)} ms-2 me-1`}></i>
+                            {selectedOrder.paymentMethod?.replace('_', ' ')}
+                          </p>
+                          <p className="mb-0">
+                            <strong>Payment Status:</strong> 
+                            <span className={`badge ms-2 ${getPaymentBadge(selectedOrder.paymentStatus)}`}>
+                              {selectedOrder.paymentStatus}
+                            </span>
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Order Items */}
+                    <div className="col-12 mb-4">
+                      <h6 className="fw-bold mb-3"><i className="bi bi-bag me-2"></i>Order Items</h6>
+                      <div className="table-responsive">
+                        <table className="table table-bordered">
+                          <thead className="table-dark">
+                            <tr>
+                              <th>Product</th>
+                              <th>Size</th>
+                              <th>Quantity</th>
+                              <th>Price</th>
+                              <th>Total</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {selectedOrder.items?.map((item: OrderItem, index: number) => (
+                              <tr key={index}>
+                                <td>{item.name}</td>
+                                <td>{item.size || 'N/A'}</td>
+                                <td>{item.quantity}</td>
+                                <td>₹{item.price.toLocaleString()}</td>
+                                <td>₹{(item.price * item.quantity).toLocaleString()}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+
+                    {/* Order Summary */}
+                    <div className="col-12">
+                      <h6 className="fw-bold mb-3"><i className="bi bi-calculator me-2"></i>Order Summary</h6>
+                      <div className="card bg-light">
+                        <div className="card-body">
+                          <div className="row">
+                            <div className="col-md-6">
+                              <p className="mb-2"><strong>Subtotal:</strong> ₹{(selectedOrder.total - (selectedOrder.deliveryCost || 0)).toLocaleString()}</p>
+                              <p className="mb-2"><strong>Delivery Cost:</strong> ₹{(selectedOrder.deliveryCost || 0).toLocaleString()}</p>
+                              <hr/>
+                              <p className="mb-0 fs-5"><strong>Total Amount:</strong> <span className="text-success">₹{selectedOrder.total.toLocaleString()}</span></p>
+                            </div>
+                            <div className="col-md-6">
+                              {selectedOrder.notes && (
+                                <div>
+                                  <p className="mb-2"><strong>Notes:</strong></p>
+                                  <p className="text-muted">{selectedOrder.notes}</p>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div className="modal-footer">
+                  <button type="button" className="btn btn-secondary" onClick={() => setShowOrderModal(false)}>Close</button>
+                  <div className="dropdown">
+                    <button className="btn btn-primary dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                      Update Status
+                    </button>
+                    <ul className="dropdown-menu">
+                      <li><button className="dropdown-item" onClick={() => {updateOrderStatus(selectedOrder._id, 'confirmed'); setShowOrderModal(false);}}>Confirmed</button></li>
+                      <li><button className="dropdown-item" onClick={() => {updateOrderStatus(selectedOrder._id, 'processing'); setShowOrderModal(false);}}>Processing</button></li>
+                      <li><button className="dropdown-item" onClick={() => {updateOrderStatus(selectedOrder._id, 'shipped'); setShowOrderModal(false);}}>Shipped</button></li>
+                      <li><button className="dropdown-item" onClick={() => {updateOrderStatus(selectedOrder._id, 'delivered'); setShowOrderModal(false);}}>Delivered</button></li>
+                      <li><hr className="dropdown-divider"/></li>
+                      <li><button className="dropdown-item text-danger" onClick={() => {updateOrderStatus(selectedOrder._id, 'cancelled'); setShowOrderModal(false);}}>Cancel</button></li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     );
   }
