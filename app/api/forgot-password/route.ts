@@ -21,32 +21,18 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
-    // Create email transporter with better configuration
+    // Create email transporter
     const transporter = nodemailer.createTransporter({
-      host: 'smtp.gmail.com',
-      port: 587,
-      secure: false,
+      service: 'gmail',
       auth: {
-        user: 'fashionbreezesrilanka@gmail.com',
-        pass: 'fashionbreeze$$$123'
-      },
-      tls: {
-        rejectUnauthorized: false
+        user: process.env.EMAIL_USER || 'fashionbreezesrilanka@gmail.com',
+        pass: process.env.EMAIL_PASS || 'fashionbreeze$$$123'
       }
     });
 
-    // Verify transporter
-    try {
-      await transporter.verify();
-      console.log('Email transporter verified successfully');
-    } catch (verifyError) {
-      console.error('Email transporter verification failed:', verifyError);
-      // Continue anyway, sometimes verify fails but sending works
-    }
-
     // Email template
     const mailOptions = {
-      from: 'fashionbreezesrilanka@gmail.com',
+      from: process.env.EMAIL_USER || 'fashionbreezesrilanka@gmail.com',
       to: email,
       subject: 'Fashion Breeze - Password Recovery',
       html: `
@@ -81,23 +67,12 @@ export async function POST(request: NextRequest) {
     };
 
     // Send email
-    try {
-      const info = await transporter.sendMail(mailOptions);
-      console.log('Email sent successfully:', info.messageId);
-      
-      return NextResponse.json({ 
-        success: true, 
-        message: 'Password sent to your email successfully!' 
-      });
-    } catch (emailError) {
-      console.error('Email sending failed:', emailError);
-      
-      // Return success anyway to avoid exposing email issues
-      return NextResponse.json({ 
-        success: true, 
-        message: 'If the email exists, password has been sent to your email.' 
-      });
-    }
+    await transporter.sendMail(mailOptions);
+
+    return NextResponse.json({ 
+      success: true, 
+      message: 'Password sent to your email successfully!' 
+    });
 
   } catch (error) {
     console.error('Forgot password error:', error);
