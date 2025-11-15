@@ -1,123 +1,65 @@
 import { NextRequest, NextResponse } from 'next/server';
 import dbConnect from '../../lib/mongodb';
-import Customer from '../../lib/models/Customer';
+import User from '../../lib/models/User';
+import Order from '../../lib/models/Order';
 
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
     await dbConnect();
-    const { searchParams } = new URL(request.url);
-    const id = searchParams.get('id');
+    const customers = await User.find({}).sort({ createdAt: -1 });
     
-    if (id) {
-      // Get specific customer by ID
-      let customer = await Customer.findById(id).lean();
-      if (!customer) {
-        customer = await Customer.findOne({ id: parseInt(id) }).lean();
-      }
-      if (!customer) {
-        return NextResponse.json({ error: 'Customer not found' }, { status: 404 });
-      }
-      return NextResponse.json([customer]); // Return as array for compatibility
-    } else {
-      // Get all customers
-      const customers = await Customer.find({}).sort({ createdAt: -1 }).lean();
-      return NextResponse.json(customers);
-    }
+    // Get order counts for each customer
+    const customersWithOrders = await Promise.all(
+      customers.map(async (customer) => {
+        const orderCount = await Order.countDocuments({ userId: customer._id });
+        const totalSpent = await Order.aggregate([
+          { $match: { userId: customer._id } },
+          { $group: { _id: null, total: { $sum: '$total' } } }
+        ]);
+        
+        return {
+          ...customer.toObject(),
+          orderCount,
+          totalSpent: totalSpent[0]?.total || 0
+        };
+      })
+    );
+    
+    return NextResponse.json(customersWithOrders);
   } catch (error) {
-    console.error('Error loading customers:', error);
-    return NextResponse.json([
-      {
-        _id: '1',
-        id: 1,
-        name: 'John Doe',
-        email: 'john@example.com',
-        phone: '+1234567890',
-        country: 'USA',
-        address: {
-          line1: '123 Main Street',
-          line2: 'Apt 4B',
-          line3: 'New York, NY 10001'
-        },
-        status: 'active',
-        createdAt: new Date().toISOString()
-      }
-    ]);
+    return NextResponse.json({ error: 'Failed to fetch customers' }, { status: 500 });
   }
 }
 
 export async function PUT(request: NextRequest) {
   try {
     await dbConnect();
-    const { customerId, status, name, email, phone, country, address } = await request.json();
+    const { id, name, email, phone, country, address } = await request.json();
     
-    const updateData: any = {};
-    if (status !== undefined) updateData.status = status;
-    if (name !== undefined) updateData.name = name;
-    if (email !== undefined) updateData.email = email;
-    if (phone !== undefined) updateData.phone = phone;
-    if (country !== undefined) updateData.country = country;
-    if (address !== undefined) updateData.address = address;
-    
-    let customer = await Customer.findByIdAndUpdate(customerId, updateData, { new: true });
-    
-    if (!customer) {
-      customer = await Customer.findOneAndUpdate({ id: parseInt(customerId) }, updateData, { new: true });
-    }
-    
-    if (!customer) {
-      return NextResponse.json({ error: 'Customer not found' }, { status: 404 });
-    }
+    const customer = await User.findByIdAndUpdate(id, {
+      name, email, phone, country, address
+    }, { new: true });
     
     return NextResponse.json({ success: true, customer });
-  } catch (error: any) {
+  } catch (error) {
     return NextResponse.json({ error: 'Failed to update customer' }, { status: 500 });
-  }
-}
-
-export async function POST(request: NextRequest) {
-  try {
-    await dbConnect();
-    const body = await request.json();
-    
-    // Auto-generate ID
-    if (!body.id) {
-      const lastCustomer = await Customer.findOne().sort({ id: -1 }).select('id');
-      body.id = lastCustomer ? lastCustomer.id + 1 : 1;
-    }
-    
-    const customer = await Customer.create(body);
-    return NextResponse.json({ success: true, customer }, { status: 201 });
-  } catch (error: any) {
-    if (error.code === 11000) {
-      return NextResponse.json({ error: 'Email already exists' }, { status: 400 });
-    }
-    return NextResponse.json({ error: 'Failed to create customer' }, { status: 500 });
   }
 }
 
 export async function DELETE(request: NextRequest) {
   try {
     await dbConnect();
-    const body = await request.json();
-    const { customerId } = body;
+    const { searchParams } = new URL(request.url);
+    const id = searchParams.get('id');
     
-    if (!customerId) {
-      return NextResponse.json({ error: 'Customer ID is required' }, { status: 400 });
-    }
-    
-    let result = await Customer.findByIdAndDelete(customerId);
-    
-    if (!result) {
-      result = await Customer.findOneAndDelete({ id: parseInt(customerId) });
-    }
-    
-    if (!result) {
-      return NextResponse.json({ error: 'Customer not found' }, { status: 404 });
-    }
+    // Delete customer and their orders
+    await Promise.all([
+      User.findByIdAndDelete(id),
+      Order.deleteMany({ userId: id })
+    ]);
     
     return NextResponse.json({ success: true });
-  } catch (error: any) {
-    console.error('Customer delete error:', error);
-    return NextResponse.json({ error: error.message || 'Failed to delete customer' }, { status: 500 });
+  } catch (error) {
+    return NextResponse.json({ error: 'Failed to delete customer' }, { status: 500 });
   }
 }

@@ -19,6 +19,7 @@ export default function DashboardPage() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
   const [banners, setBanners] = useState<any[]>([]);
+  const [customers, setCustomers] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [toast, setToast] = useState<{message: string, type: 'success' | 'error'} | null>(null);
 
@@ -58,24 +59,27 @@ export default function DashboardPage() {
 
   const loadData = async () => {
     try {
-      const [productsRes, categoriesRes, ordersRes, bannersRes] = await Promise.all([
+      const [productsRes, categoriesRes, ordersRes, bannersRes, customersRes] = await Promise.all([
         fetch('/api/products'),
         fetch('/api/categories'),
         fetch('/api/orders'),
-        fetch('/api/banners')
+        fetch('/api/banners'),
+        fetch('/api/customers')
       ]);
       
-      const [productsData, categoriesData, ordersData, bannersData] = await Promise.all([
+      const [productsData, categoriesData, ordersData, bannersData, customersData] = await Promise.all([
         productsRes.json(),
         categoriesRes.json(),
         ordersRes.json(),
-        bannersRes.json()
+        bannersRes.json(),
+        customersRes.json()
       ]);
       
       setProducts(productsData);
       setCategories(categoriesData);
       setOrders(ordersData);
       setBanners(bannersData);
+      setCustomers(customersData);
     } catch (error) {
       console.error('Error loading data:', error);
     }
@@ -205,6 +209,14 @@ export default function DashboardPage() {
             </button>
           </li>
           <li className="nav-item" role="presentation">
+            <button 
+              className={`nav-link ${activeTab === 'customers' ? 'active' : ''}`}
+              onClick={() => setActiveTab('customers')}
+            >
+              <i className="bi bi-people me-2"></i>Customers
+            </button>
+          </li>
+          <li className="nav-item" role="presentation">
             <a href="/admin-dashboard" className="nav-link text-success">
               <i className="bi bi-speedometer2 me-2"></i>Full Dashboard
             </a>
@@ -258,6 +270,7 @@ export default function DashboardPage() {
         {activeTab === 'subcategories' && <SubcategoryManagement />}
         {activeTab === 'orders' && <OrderManagement />}
         {activeTab === 'banners' && <BannerManagement />}
+        {activeTab === 'customers' && <CustomerManagement />}
 
         {toast && (
           <div className={`alert alert-${toast.type === 'success' ? 'success' : 'danger'} alert-dismissible fade show position-fixed`} 
@@ -2130,6 +2143,271 @@ export default function DashboardPage() {
                         <button 
                           className="btn btn-sm btn-outline-danger"
                           onClick={() => handleDeleteBanner(banner._id)}
+                        >
+                          <i className="bi bi-trash"></i>
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Customer Management Component
+  function CustomerManagement() {
+    const [showEditCustomer, setShowEditCustomer] = useState(false);
+    const [editingCustomer, setEditingCustomer] = useState<any>(null);
+    const [customerForm, setCustomerForm] = useState({
+      name: '', email: '', phone: '', country: '',
+      address: { line1: '', line2: '', line3: '' }
+    });
+    const [showCustomerOrders, setShowCustomerOrders] = useState(false);
+    const [customerOrders, setCustomerOrders] = useState<any[]>([]);
+    const [selectedCustomerId, setSelectedCustomerId] = useState('');
+
+    const startEditCustomer = (customer: any) => {
+      setEditingCustomer(customer);
+      setCustomerForm({
+        name: customer.name,
+        email: customer.email,
+        phone: customer.phone,
+        country: customer.country,
+        address: customer.address || { line1: '', line2: '', line3: '' }
+      });
+      setShowEditCustomer(true);
+    };
+
+    const handleCustomerSubmit = async (e: React.FormEvent) => {
+      e.preventDefault();
+      setLoading(true);
+      try {
+        const response = await fetch('/api/customers', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: editingCustomer._id, ...customerForm })
+        });
+
+        if (response.ok) {
+          loadData();
+          setShowEditCustomer(false);
+          showToast('Customer updated successfully!', 'success');
+        } else {
+          showToast('Failed to update customer', 'error');
+        }
+      } catch (error) {
+        showToast('Error updating customer', 'error');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    const handleDeleteCustomer = async (customerId: string) => {
+      if (confirm('Are you sure? This will delete the customer and all their orders.')) {
+        try {
+          const response = await fetch(`/api/customers?id=${customerId}`, { method: 'DELETE' });
+          if (response.ok) {
+            loadData();
+            showToast('Customer deleted successfully!', 'success');
+          } else {
+            showToast('Failed to delete customer', 'error');
+          }
+        } catch (error) {
+          showToast('Error deleting customer', 'error');
+        }
+      }
+    };
+
+    const viewCustomerOrders = async (customerId: string) => {
+      try {
+        const response = await fetch(`/api/orders?userId=${customerId}`);
+        const orders = await response.json();
+        setCustomerOrders(orders);
+        setSelectedCustomerId(customerId);
+        setShowCustomerOrders(true);
+      } catch (error) {
+        showToast('Error loading customer orders', 'error');
+      }
+    };
+
+    return (
+      <div>
+        {showEditCustomer && (
+          <div className="card mb-4">
+            <div className="card-header">
+              <h5 className="mb-0">Edit Customer</h5>
+            </div>
+            <div className="card-body">
+              <form onSubmit={handleCustomerSubmit}>
+                <div className="row">
+                  <div className="col-md-6 mb-3">
+                    <label className="form-label">Name</label>
+                    <input
+                      type="text"
+                      className="form-control"
+                      value={customerForm.name}
+                      onChange={(e) => setCustomerForm({...customerForm, name: e.target.value})}
+                      required
+                    />
+                  </div>
+                  <div className="col-md-6 mb-3">
+                    <label className="form-label">Email</label>
+                    <input
+                      type="email"
+                      className="form-control"
+                      value={customerForm.email}
+                      onChange={(e) => setCustomerForm({...customerForm, email: e.target.value})}
+                      required
+                    />
+                  </div>
+                  <div className="col-md-6 mb-3">
+                    <label className="form-label">Phone</label>
+                    <input
+                      type="text"
+                      className="form-control"
+                      value={customerForm.phone}
+                      onChange={(e) => setCustomerForm({...customerForm, phone: e.target.value})}
+                    />
+                  </div>
+                  <div className="col-md-6 mb-3">
+                    <label className="form-label">Country</label>
+                    <input
+                      type="text"
+                      className="form-control"
+                      value={customerForm.country}
+                      onChange={(e) => setCustomerForm({...customerForm, country: e.target.value})}
+                    />
+                  </div>
+                  <div className="col-12 mb-3">
+                    <label className="form-label">Address Line 1</label>
+                    <input
+                      type="text"
+                      className="form-control"
+                      value={customerForm.address.line1}
+                      onChange={(e) => setCustomerForm({...customerForm, address: {...customerForm.address, line1: e.target.value}})}
+                    />
+                  </div>
+                  <div className="col-md-6 mb-3">
+                    <label className="form-label">Address Line 2</label>
+                    <input
+                      type="text"
+                      className="form-control"
+                      value={customerForm.address.line2}
+                      onChange={(e) => setCustomerForm({...customerForm, address: {...customerForm.address, line2: e.target.value}})}
+                    />
+                  </div>
+                  <div className="col-md-6 mb-3">
+                    <label className="form-label">Address Line 3</label>
+                    <input
+                      type="text"
+                      className="form-control"
+                      value={customerForm.address.line3}
+                      onChange={(e) => setCustomerForm({...customerForm, address: {...customerForm.address, line3: e.target.value}})}
+                    />
+                  </div>
+                </div>
+                <div className="d-flex gap-2">
+                  <button type="submit" className="btn btn-success" disabled={loading}>
+                    {loading ? 'Updating...' : 'Update Customer'}
+                  </button>
+                  <button type="button" className="btn btn-secondary" onClick={() => setShowEditCustomer(false)}>
+                    Cancel
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {showCustomerOrders && (
+          <div className="card mb-4">
+            <div className="card-header d-flex justify-content-between align-items-center">
+              <h5 className="mb-0">Customer Orders ({customerOrders.length})</h5>
+              <button className="btn btn-secondary" onClick={() => setShowCustomerOrders(false)}>
+                Close
+              </button>
+            </div>
+            <div className="card-body">
+              <div className="table-responsive">
+                <table className="table table-striped">
+                  <thead>
+                    <tr>
+                      <th>Order ID</th>
+                      <th>Items</th>
+                      <th>Total</th>
+                      <th>Status</th>
+                      <th>Date</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {customerOrders.map((order) => (
+                      <tr key={order._id}>
+                        <td>#{order._id?.slice(-6)}</td>
+                        <td>{order.items?.length || 0} items</td>
+                        <td>₹{order.total}</td>
+                        <td>
+                          <span className={`badge ${order.status === 'delivered' ? 'bg-success' : order.status === 'cancelled' ? 'bg-danger' : 'bg-warning'}`}>
+                            {order.status}
+                          </span>
+                        </td>
+                        <td>{new Date(order.createdAt).toLocaleDateString()}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        )}
+
+        <div className="card">
+          <div className="card-header">
+            <h5 className="mb-0">Customer Management ({customers.length})</h5>
+          </div>
+          <div className="card-body">
+            <div className="table-responsive">
+              <table className="table table-striped">
+                <thead>
+                  <tr>
+                    <th>Name</th>
+                    <th>Email</th>
+                    <th>Phone</th>
+                    <th>Country</th>
+                    <th>Orders</th>
+                    <th>Total Spent</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {customers.map((customer) => (
+                    <tr key={customer._id}>
+                      <td>{customer.name}</td>
+                      <td>{customer.email}</td>
+                      <td>{customer.phone}</td>
+                      <td>{customer.country}</td>
+                      <td>
+                        <button 
+                          className="btn btn-sm btn-outline-info"
+                          onClick={() => viewCustomerOrders(customer._id)}
+                        >
+                          {customer.orderCount} orders
+                        </button>
+                      </td>
+                      <td>₹{customer.totalSpent?.toLocaleString() || 0}</td>
+                      <td>
+                        <button 
+                          className="btn btn-sm btn-outline-primary me-2"
+                          onClick={() => startEditCustomer(customer)}
+                        >
+                          <i className="bi bi-pencil"></i>
+                        </button>
+                        <button 
+                          className="btn btn-sm btn-outline-danger"
+                          onClick={() => handleDeleteCustomer(customer._id)}
                         >
                           <i className="bi bi-trash"></i>
                         </button>
