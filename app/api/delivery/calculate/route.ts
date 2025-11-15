@@ -16,7 +16,7 @@ export async function POST(request: NextRequest) {
     
     let deliveryCost = 0;
     
-    // Free delivery for orders above LKR 5000
+    // Free delivery for orders above ₹5000
     if (subtotal >= 5000) {
       deliveryCost = 0;
     } else {
@@ -87,12 +87,12 @@ export async function POST(request: NextRequest) {
       // Weight-based additional charges
       if (weight && weight > 2) {
         const extraWeight = weight - 2;
-        deliveryCost += Math.ceil(extraWeight) * 50; // LKR 50 per kg above 2kg
+        deliveryCost += Math.ceil(extraWeight) * 50; // ₹50 per kg above 2kg
       }
       
       // Item count based charges (for bulk orders)
       if (items && items.length > 5) {
-        deliveryCost += (items.length - 5) * 25; // LKR 25 per additional item above 5
+        deliveryCost += (items.length - 5) * 25; // ₹25 per additional item above 5
       }
     }
     
@@ -102,12 +102,12 @@ export async function POST(request: NextRequest) {
     // Determine delivery message
     let deliveryMessage = '';
     if (deliveryCost === 0) {
-      deliveryMessage = 'FREE Delivery (Order above LKR 5,000)';
+      deliveryMessage = 'FREE Delivery (Order above ₹5,000)';
     } else {
-      deliveryMessage = `Delivery: LKR ${deliveryCost}`;
+      deliveryMessage = `Delivery: ₹${deliveryCost}`;
       if (subtotal < 5000) {
         const remaining = 5000 - subtotal;
-        deliveryMessage += ` (Add LKR ${remaining} more for FREE delivery)`;
+        deliveryMessage += ` (Add ₹${remaining} more for FREE delivery)`;
       }
       // Add category-based delivery note if applicable
       if (items && items.length > 0) {
