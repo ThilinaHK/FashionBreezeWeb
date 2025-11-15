@@ -2738,7 +2738,7 @@ export default function DashboardPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {customers.length > 0 ? customers.map((customer) => (
+                  {customers.map((customer) => (
                     <tr key={customer._id}>
                       <td>{customer.name}</td>
                       <td>{customer.email}</td>
@@ -2772,14 +2772,7 @@ export default function DashboardPage() {
                         </button>
                       </td>
                     </tr>
-                  )) : (
-                    <tr>
-                      <td colSpan="7" className="text-center py-4">
-                        <i className="bi bi-people display-4 text-muted mb-3"></i>
-                        <p className="text-muted">No customers found</p>
-                      </td>
-                    </tr>
-                  )}
+                  ))}
                 </tbody>
               </table>
             </div>
