@@ -1,11 +1,33 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Product } from '../types';
+import { Product, Category, Order } from '../types';
+
+interface OrderItem {
+  productId: string;
+  name: string;
+  price: number;
+  quantity: number;
+  size?: string;
+}
 
 export default function DashboardPage() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [currentUser, setCurrentUser] = useState<any>(null);
+  const [activeTab, setActiveTab] = useState('overview');
+  const [products, setProducts] = useState<Product[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [toast, setToast] = useState<{message: string, type: 'success' | 'error'} | null>(null);
+
+  // Category form state
+  const [categoryForm, setCategoryForm] = useState({ name: '', description: '', image: '' });
+  const [editingCategory, setEditingCategory] = useState<Category | null>(null);
+  
+  // Subcategory form state
+  const [subcategoryForm, setSubcategoryForm] = useState({ name: '', description: '', categoryId: '' });
+  const [editingSubcategory, setEditingSubcategory] = useState<any>(null);
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -16,11 +38,49 @@ export default function DashboardPage() {
         const user = JSON.parse(userData);
         setCurrentUser(user);
         setIsLoggedIn(true);
+        loadData();
       } else {
         setIsLoggedIn(false);
       }
     }
   }, []);
+
+  // Initialize Bootstrap dropdowns
+  useEffect(() => {
+    if (typeof window !== 'undefined' && window.bootstrap) {
+      const dropdowns = document.querySelectorAll('.dropdown-toggle');
+      dropdowns.forEach(dropdown => {
+        new window.bootstrap.Dropdown(dropdown);
+      });
+    }
+  }, [activeTab]);
+
+  const loadData = async () => {
+    try {
+      const [productsRes, categoriesRes, ordersRes] = await Promise.all([
+        fetch('/api/products'),
+        fetch('/api/categories'),
+        fetch('/api/orders')
+      ]);
+      
+      const [productsData, categoriesData, ordersData] = await Promise.all([
+        productsRes.json(),
+        categoriesRes.json(),
+        ordersRes.json()
+      ]);
+      
+      setProducts(productsData);
+      setCategories(categoriesData);
+      setOrders(ordersData);
+    } catch (error) {
+      console.error('Error loading data:', error);
+    }
+  };
+
+  const showToast = (message: string, type: 'success' | 'error') => {
+    setToast({ message, type });
+    setTimeout(() => setToast(null), 3000);
+  };
 
   const logout = () => {
     if (typeof window !== 'undefined') {
@@ -62,7 +122,7 @@ export default function DashboardPage() {
               <i className="bi bi-shop me-2"></i>View Store
             </a>
             <a href="/admin-dashboard" className="btn btn-outline-success">
-              <i className="bi bi-speedometer2 me-2"></i>Analytics Dashboard
+              <i className="bi bi-speedometer2 me-2"></i>Full Admin Dashboard
             </a>
             <button onClick={logout} className="btn btn-outline-danger">
               <i className="bi bi-box-arrow-right me-2"></i>Logout
@@ -79,119 +139,1573 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        <div className="row g-4">
-          <div className="col-md-6 col-lg-4">
-            <div className="card border-0 shadow-sm h-100">
-              <div className="card-body text-center p-4">
-                <i className="bi bi-box-seam display-4 text-primary mb-3"></i>
-                <h5 className="fw-bold">Product Management</h5>
-                <p className="text-muted mb-3">Manage your product catalog</p>
-                <a href="/dashboard/products" className="btn btn-primary">
-                  <i className="bi bi-arrow-right me-2"></i>Manage Products
-                </a>
-              </div>
-            </div>
+        {/* Quick Access to Full Dashboard */}
+        <div className="alert alert-info d-flex justify-content-between align-items-center mb-4">
+          <div>
+            <i className="bi bi-info-circle me-2"></i>
+            <strong>New!</strong> Access the comprehensive admin dashboard with advanced features
           </div>
-
-          <div className="col-md-6 col-lg-4">
-            <div className="card border-0 shadow-sm h-100">
-              <div className="card-body text-center p-4">
-                <i className="bi bi-scissors display-4 text-success mb-3"></i>
-                <h5 className="fw-bold">Tailoring Services</h5>
-                <p className="text-muted mb-3">Manage custom tailoring orders</p>
-                <a href="/tailoring" className="btn btn-success">
-                  <i className="bi bi-arrow-right me-2"></i>View Tailoring
-                </a>
-              </div>
-            </div>
-          </div>
-
-          <div className="col-md-6 col-lg-4">
-            <div className="card border-0 shadow-sm h-100">
-              <div className="card-body text-center p-4">
-                <i className="bi bi-person display-4 text-info mb-3"></i>
-                <h5 className="fw-bold">Member Portal</h5>
-                <p className="text-muted mb-3">Customer member dashboard</p>
-                <a href="/member" className="btn btn-info">
-                  <i className="bi bi-arrow-right me-2"></i>Member Area
-                </a>
-              </div>
-            </div>
-          </div>
-
-          <div className="col-md-6 col-lg-4">
-            <div className="card border-0 shadow-sm h-100">
-              <div className="card-body text-center p-4">
-                <i className="bi bi-palette display-4 text-warning mb-3"></i>
-                <h5 className="fw-bold">Design Management</h5>
-                <p className="text-muted mb-3">Manage tailoring designs</p>
-                <a href="/dashboard/designs" className="btn btn-warning">
-                  <i className="bi bi-arrow-right me-2"></i>Manage Designs
-                </a>
-              </div>
-            </div>
-          </div>
-
-          <div className="col-md-6 col-lg-4">
-            <div className="card border-0 shadow-sm h-100">
-              <div className="card-body text-center p-4">
-                <i className="bi bi-speedometer2 display-4 text-danger mb-3"></i>
-                <h5 className="fw-bold">Analytics Dashboard</h5>
-                <p className="text-muted mb-3">View detailed analytics</p>
-                <a href="/admin-dashboard" className="btn btn-danger">
-                  <i className="bi bi-arrow-right me-2"></i>View Analytics
-                </a>
-              </div>
-            </div>
-          </div>
-
-          <div className="col-md-6 col-lg-4">
-            <div className="card border-0 shadow-sm h-100">
-              <div className="card-body text-center p-4">
-                <i className="bi bi-shop display-4 text-secondary mb-3"></i>
-                <h5 className="fw-bold">View Store</h5>
-                <p className="text-muted mb-3">Visit the main store</p>
-                <a href="/" className="btn btn-secondary">
-                  <i className="bi bi-arrow-right me-2"></i>Go to Store
-                </a>
-              </div>
-            </div>
-          </div>
+          <a href="/admin-dashboard" className="btn btn-primary">
+            <i className="bi bi-speedometer2 me-2"></i>Go to Full Admin Dashboard
+          </a>
         </div>
 
-        <div className="row mt-5">
-          <div className="col-12">
-            <div className="card border-0 shadow-sm">
-              <div className="card-body text-center p-5">
-                <h3 className="fw-bold mb-3">Welcome to Fashion Breeze Admin</h3>
-                <p className="lead text-muted mb-4">
-                  Manage your e-commerce store and tailoring services from this central dashboard.
-                </p>
-                <div className="row g-3">
-                  <div className="col-md-4">
-                    <div className="d-flex align-items-center justify-content-center">
-                      <i className="bi bi-check-circle text-success me-2"></i>
-                      <span>Product Management</span>
-                    </div>
+        {/* Navigation Tabs */}
+        <ul className="nav nav-pills mb-4" role="tablist">
+          <li className="nav-item" role="presentation">
+            <button 
+              className={`nav-link ${activeTab === 'overview' ? 'active' : ''}`}
+              onClick={() => setActiveTab('overview')}
+            >
+              <i className="bi bi-house me-2"></i>Overview
+            </button>
+          </li>
+          <li className="nav-item" role="presentation">
+            <button 
+              className={`nav-link ${activeTab === 'products' ? 'active' : ''}`}
+              onClick={() => setActiveTab('products')}
+            >
+              <i className="bi bi-box-seam me-2"></i>Products
+            </button>
+          </li>
+          <li className="nav-item" role="presentation">
+            <button 
+              className={`nav-link ${activeTab === 'categories' ? 'active' : ''}`}
+              onClick={() => setActiveTab('categories')}
+            >
+              <i className="bi bi-tags me-2"></i>Categories
+            </button>
+          </li>
+          <li className="nav-item" role="presentation">
+            <button 
+              className={`nav-link ${activeTab === 'subcategories' ? 'active' : ''}`}
+              onClick={() => setActiveTab('subcategories')}
+            >
+              <i className="bi bi-tag me-2"></i>Subcategories
+            </button>
+          </li>
+          <li className="nav-item" role="presentation">
+            <button 
+              className={`nav-link ${activeTab === 'orders' ? 'active' : ''}`}
+              onClick={() => setActiveTab('orders')}
+            >
+              <i className="bi bi-cart-check me-2"></i>Orders
+            </button>
+          </li>
+          <li className="nav-item" role="presentation">
+            <a href="/admin-dashboard" className="nav-link text-success">
+              <i className="bi bi-speedometer2 me-2"></i>Full Dashboard
+            </a>
+          </li>
+        </ul>
+
+        {/* Tab Content */}
+        {activeTab === 'overview' && (
+          <div className="row g-4">
+            <div className="col-md-6 col-lg-3">
+              <div className="card border-0 shadow-sm h-100 bg-primary text-white">
+                <div className="card-body text-center p-4">
+                  <i className="bi bi-box-seam display-4 mb-3"></i>
+                  <h5 className="fw-bold">{products.length}</h5>
+                  <p className="mb-0">Total Products</p>
+                </div>
+              </div>
+            </div>
+            <div className="col-md-6 col-lg-3">
+              <div className="card border-0 shadow-sm h-100 bg-success text-white">
+                <div className="card-body text-center p-4">
+                  <i className="bi bi-tags display-4 mb-3"></i>
+                  <h5 className="fw-bold">{categories.length}</h5>
+                  <p className="mb-0">Categories</p>
+                </div>
+              </div>
+            </div>
+            <div className="col-md-6 col-lg-3">
+              <div className="card border-0 shadow-sm h-100 bg-info text-white">
+                <div className="card-body text-center p-4">
+                  <i className="bi bi-cart-check display-4 mb-3"></i>
+                  <h5 className="fw-bold">{orders.length}</h5>
+                  <p className="mb-0">Total Orders</p>
+                </div>
+              </div>
+            </div>
+            <div className="col-md-6 col-lg-3">
+              <div className="card border-0 shadow-sm h-100 bg-warning text-white">
+                <div className="card-body text-center p-4">
+                  <i className="bi bi-currency-rupee display-4 mb-3"></i>
+                  <h5 className="fw-bold">₹{orders.reduce((sum, order) => sum + (order.total || 0), 0).toLocaleString()}</h5>
+                  <p className="mb-0">Total Revenue</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'products' && <ProductManagement />}
+        {activeTab === 'categories' && <CategoryManagement />}
+        {activeTab === 'subcategories' && <SubcategoryManagement />}
+        {activeTab === 'orders' && <OrderManagement />}
+
+        {toast && (
+          <div className={`alert alert-${toast.type === 'success' ? 'success' : 'danger'} alert-dismissible fade show position-fixed`} 
+               style={{top: '20px', right: '20px', zIndex: 1050}} role="alert">
+            <i className={`bi ${toast.type === 'success' ? 'bi-check-circle' : 'bi-exclamation-triangle'} me-2`}></i>
+            {toast.message}
+            <button type="button" className="btn-close" onClick={() => setToast(null)}></button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+
+  // Product Management Component
+  function ProductManagement() {
+    const [showAddProduct, setShowAddProduct] = useState(false);
+    const [productForm, setProductForm] = useState({
+      name: '',
+      code: '',
+      price: 0,
+      category: '',
+      subcategory: '',
+      images: ['', '', '', ''],
+      sizes: { S: 0, M: 0, L: 0, XL: 0 },
+      status: 'instock' as 'active' | 'inactive' | 'draft' | 'outofstock' | 'instock',
+      rating: 4.0,
+      reviewCount: 0,
+      details: {
+        color: '',
+        brand: '',
+        style: '',
+        sleeveType: '',
+        neckline: '',
+        patternType: '',
+        sleeveLength: '',
+        fitType: '',
+        fabric: '',
+        material: '',
+        composition: '',
+        careInstructions: '',
+        pockets: 'No',
+        sheer: 'No'
+      },
+      specifications: {
+        material: '',
+        care: '',
+        weight: '',
+        origin: 'Sri Lanka'
+      }
+    });
+    const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+    const [imageFiles, setImageFiles] = useState<File[]>([]);
+    const [productLoading, setProductLoading] = useState(false);
+    const [deletingProductId, setDeletingProductId] = useState<string | null>(null);
+
+    const generateProductCode = () => {
+      const timestamp = Date.now().toString().slice(-6);
+      const random = Math.random().toString(36).substring(2, 5).toUpperCase();
+      return `FB${timestamp}${random}`;
+    };
+
+    const handleImageUpload = async (file: File, index: number) => {
+      if (file && file.type.startsWith('image/')) {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          const base64 = e.target?.result as string;
+          const newImages = [...productForm.images];
+          newImages[index] = base64;
+          setProductForm({...productForm, images: newImages});
+        };
+        reader.readAsDataURL(file);
+      }
+    };
+
+    const handleProductSubmit = async (e: React.FormEvent) => {
+      e.preventDefault();
+      
+      // Validation
+      if (!productForm.name.trim()) {
+        showToast('Product name is required', 'error');
+        return;
+      }
+      if (!productForm.images[0]) {
+        showToast('At least one product image is required', 'error');
+        return;
+      }
+      if (!productForm.category) {
+        showToast('Category is required', 'error');
+        return;
+      }
+      
+      setProductLoading(true);
+      try {
+        const productData = {
+          ...productForm,
+          image: productForm.images[0] || '',
+          images: productForm.images.filter(img => img !== '')
+        };
+        
+        const url = editingProduct ? `/api/products/${editingProduct._id || editingProduct.id}` : '/api/products';
+        const method = editingProduct ? 'PUT' : 'POST';
+        
+        const response = await fetch(url, {
+          method,
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(productData)
+        });
+
+        if (response.ok) {
+          loadData();
+          resetProductForm();
+          showToast(editingProduct ? 'Product updated successfully!' : 'Product added successfully!', 'success');
+        } else {
+          const errorData = await response.json();
+          showToast(errorData.error || 'Failed to save product', 'error');
+        }
+      } catch (error) {
+        showToast('Error saving product', 'error');
+      } finally {
+        setProductLoading(false);
+      }
+    };
+
+    const resetProductForm = () => {
+      setProductForm({
+        name: '',
+        code: generateProductCode(),
+        price: 0,
+        category: '',
+        subcategory: '',
+        images: ['', '', '', ''],
+        sizes: { S: 0, M: 0, L: 0, XL: 0 },
+        status: 'instock',
+        rating: 4.0,
+        reviewCount: 0,
+        details: {
+          color: '',
+          brand: '',
+          style: '',
+          sleeveType: '',
+          neckline: '',
+          patternType: '',
+          sleeveLength: '',
+          fitType: '',
+          fabric: '',
+          material: '',
+          composition: '',
+          careInstructions: '',
+          pockets: 'No',
+          sheer: 'No'
+        },
+        specifications: {
+          material: '',
+          care: '',
+          weight: '',
+          origin: 'Sri Lanka'
+        }
+      });
+      setEditingProduct(null);
+      setShowAddProduct(false);
+      setImageFiles([]);
+    };
+
+    const startEditProduct = (product: Product) => {
+      setEditingProduct(product);
+      setProductForm({
+        name: product.name,
+        code: product.code,
+        price: product.price,
+        category: typeof product.category === 'string' ? product.category : product.category.name,
+        subcategory: product.subcategory || '',
+        images: Array.isArray(product.images) ? [...product.images, '', '', '', ''].slice(0, 4) : [product.image || '', '', '', ''],
+        sizes: (() => {
+          if (typeof product.sizes === 'object' && product.sizes && !Array.isArray(product.sizes)) {
+            const sizes = product.sizes as { [key: string]: number };
+            return {
+              S: sizes.S || 0,
+              M: sizes.M || 0,
+              L: sizes.L || 0,
+              XL: sizes.XL || 0
+            };
+          }
+          return { S: 0, M: 0, L: 0, XL: 0 };
+        })(),
+        status: product.status,
+        rating: typeof product.rating === 'number' ? product.rating : product.rating?.average || 4.0,
+        reviewCount: product.reviewCount || 0,
+        details: (product as any).details || {
+          color: '',
+          brand: '',
+          style: '',
+          sleeveType: '',
+          neckline: '',
+          patternType: '',
+          sleeveLength: '',
+          fitType: '',
+          fabric: '',
+          material: '',
+          composition: '',
+          careInstructions: '',
+          pockets: 'No',
+          sheer: 'No'
+        },
+        specifications: (product as any).specifications || {
+          material: '',
+          care: '',
+          weight: '',
+          origin: 'Sri Lanka'
+        }
+      });
+      setShowAddProduct(true);
+    };
+
+    const handleDeleteProduct = async (product: Product) => {
+      if (confirm(`Are you sure you want to delete "${product.name}"? This action cannot be undone.`)) {
+        const productId = String(product._id || product.id);
+        setDeletingProductId(productId);
+        try {
+          const response = await fetch(`/api/products/${productId}`, { method: 'DELETE' });
+          if (response.ok) {
+            loadData();
+            showToast('Product deleted successfully!', 'success');
+          } else {
+            const errorData = await response.json();
+            showToast(errorData.error || 'Failed to delete product', 'error');
+          }
+        } catch (error) {
+          showToast('Error deleting product', 'error');
+        } finally {
+          setDeletingProductId(null);
+        }
+      }
+    };
+
+    const startAddProduct = () => {
+      resetProductForm();
+      setProductForm(prev => ({...prev, code: generateProductCode()}));
+      setShowAddProduct(true);
+    };
+
+    return (
+      <div>
+        {showAddProduct && (
+          <div className="card mb-4">
+            <div className="card-header">
+              <h5 className="mb-0">{editingProduct ? 'Edit Product' : 'Add New Product'}</h5>
+            </div>
+            <div className="card-body">
+              <form onSubmit={handleProductSubmit}>
+                <div className="row">
+                  <div className="col-md-6 mb-3">
+                    <label className="form-label">Product Name</label>
+                    <input
+                      type="text"
+                      className="form-control"
+                      value={productForm.name}
+                      onChange={(e) => setProductForm({...productForm, name: e.target.value})}
+                      required
+                    />
                   </div>
-                  <div className="col-md-4">
-                    <div className="d-flex align-items-center justify-content-center">
-                      <i className="bi bi-check-circle text-success me-2"></i>
-                      <span>Tailoring Services</span>
-                    </div>
-                  </div>
-                  <div className="col-md-4">
-                    <div className="d-flex align-items-center justify-content-center">
-                      <i className="bi bi-check-circle text-success me-2"></i>
-                      <span>Analytics & Reports</span>
+                  <div className="col-md-6 mb-3">
+                    <label className="form-label">Product Code (Auto-generated)</label>
+                    <div className="input-group">
+                      <input
+                        type="text"
+                        className="form-control"
+                        value={productForm.code}
+                        readOnly
+                      />
+                      <button type="button" className="btn btn-outline-secondary" onClick={() => setProductForm({...productForm, code: generateProductCode()})}>
+                        <i className="bi bi-arrow-clockwise"></i>
+                      </button>
                     </div>
                   </div>
                 </div>
+
+                <div className="row">
+                  <div className="col-md-4 mb-3">
+                    <label className="form-label">Price</label>
+                    <div className="input-group">
+                      <span className="input-group-text">₹</span>
+                      <input
+                        type="number"
+                        className="form-control"
+                        value={productForm.price}
+                        onChange={(e) => setProductForm({...productForm, price: Number(e.target.value)})}
+                        required
+                      />
+                    </div>
+                  </div>
+                  <div className="col-md-4 mb-3">
+                    <label className="form-label">Category</label>
+                    <select
+                      className="form-select"
+                      value={productForm.category}
+                      onChange={(e) => setProductForm({...productForm, category: e.target.value, subcategory: ''})}
+                      required
+                    >
+                      <option value="">Select Category</option>
+                      {categories.map(cat => (
+                        <option key={cat._id} value={cat.name}>{cat.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="col-md-4 mb-3">
+                    <label className="form-label">Subcategory</label>
+                    <select
+                      className="form-select"
+                      value={productForm.subcategory}
+                      onChange={(e) => setProductForm({...productForm, subcategory: e.target.value})}
+                      disabled={!productForm.category}
+                    >
+                      <option value="">Select Subcategory</option>
+                      {categories.find(cat => cat.name === productForm.category)?.subcategories?.map(sub => (
+                        <option key={sub.slug} value={sub.name}>{sub.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                <div className="mb-3">
+                  <label className="form-label">Product Images (Upload up to 4 images)</label>
+                  <div className="row g-3">
+                    {[0, 1, 2, 3].map((index) => (
+                      <div key={index} className="col-md-3">
+                        <div className="border rounded p-3 text-center" style={{minHeight: '200px'}}>
+                          {productForm.images[index] ? (
+                            <div>
+                              <img 
+                                src={productForm.images[index]} 
+                                alt={`Product ${index + 1}`} 
+                                style={{width: '100%', height: '120px', objectFit: 'cover'}} 
+                                className="mb-2 rounded"
+                              />
+                              <button 
+                                type="button" 
+                                className="btn btn-sm btn-outline-danger d-block w-100"
+                                onClick={() => {
+                                  const newImages = [...productForm.images];
+                                  newImages[index] = '';
+                                  setProductForm({...productForm, images: newImages});
+                                }}
+                              >
+                                Remove
+                              </button>
+                            </div>
+                          ) : (
+                            <div>
+                              <i className="bi bi-cloud-upload display-4 text-muted mb-2"></i>
+                              <p className="text-muted mb-2">Image {index + 1}</p>
+                              <input
+                                type="file"
+                                accept="image/*"
+                                className="form-control"
+                                onChange={(e) => {
+                                  const file = e.target.files?.[0];
+                                  if (file) handleImageUpload(file, index);
+                                }}
+                              />
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="row">
+                  <div className="col-md-3 mb-3">
+                    <label className="form-label">Size S Stock</label>
+                    <input
+                      type="number"
+                      className="form-control"
+                      value={productForm.sizes.S}
+                      onChange={(e) => setProductForm({...productForm, sizes: {...productForm.sizes, S: Number(e.target.value)}})}
+                    />
+                  </div>
+                  <div className="col-md-3 mb-3">
+                    <label className="form-label">Size M Stock</label>
+                    <input
+                      type="number"
+                      className="form-control"
+                      value={productForm.sizes.M}
+                      onChange={(e) => setProductForm({...productForm, sizes: {...productForm.sizes, M: Number(e.target.value)}})}
+                    />
+                  </div>
+                  <div className="col-md-3 mb-3">
+                    <label className="form-label">Size L Stock</label>
+                    <input
+                      type="number"
+                      className="form-control"
+                      value={productForm.sizes.L}
+                      onChange={(e) => setProductForm({...productForm, sizes: {...productForm.sizes, L: Number(e.target.value)}})}
+                    />
+                  </div>
+                  <div className="col-md-3 mb-3">
+                    <label className="form-label">Size XL Stock</label>
+                    <input
+                      type="number"
+                      className="form-control"
+                      value={productForm.sizes.XL}
+                      onChange={(e) => setProductForm({...productForm, sizes: {...productForm.sizes, XL: Number(e.target.value)}})}
+                    />
+                  </div>
+                </div>
+
+                <div className="row">
+                  <div className="col-md-6 mb-3">
+                    <label className="form-label">Status</label>
+                    <select
+                      className="form-select"
+                      value={productForm.status}
+                      onChange={(e) => setProductForm({...productForm, status: e.target.value as any})}
+                    >
+                      <option value="instock">In Stock</option>
+                      <option value="outofstock">Out of Stock</option>
+                      <option value="active">Active</option>
+                      <option value="inactive">Inactive</option>
+                    </select>
+                  </div>
+                  <div className="col-md-6 mb-3">
+                    <label className="form-label">Rating</label>
+                    <input
+                      type="number"
+                      step="0.1"
+                      min="0"
+                      max="5"
+                      className="form-control"
+                      value={productForm.rating}
+                      onChange={(e) => setProductForm({...productForm, rating: Number(e.target.value)})}
+                    />
+                  </div>
+                </div>
+
+                {/* Product Details Section */}
+                <div className="card mb-3">
+                  <div className="card-header">
+                    <h6 className="mb-0"><i className="bi bi-info-circle me-2"></i>Product Details</h6>
+                  </div>
+                  <div className="card-body">
+                    <div className="row">
+                      <div className="col-md-4 mb-3">
+                        <label className="form-label">Color</label>
+                        <div className="input-group">
+                          <input type="color" className="form-control form-control-color" value={productForm.details.color || '#000000'} 
+                                 onChange={(e) => setProductForm({...productForm, details: {...productForm.details, color: e.target.value}})} />
+                          <input type="text" className="form-control" value={productForm.details.color} placeholder="Color name or hex" 
+                                 onChange={(e) => setProductForm({...productForm, details: {...productForm.details, color: e.target.value}})} />
+                        </div>
+                      </div>
+                      <div className="col-md-4 mb-3">
+                        <label className="form-label">Brand Name</label>
+                        <input type="text" className="form-control" placeholder="Enter brand name" value={productForm.details.brand} 
+                               onChange={(e) => setProductForm({...productForm, details: {...productForm.details, brand: e.target.value}})} />
+                      </div>
+                      <div className="col-md-4 mb-3">
+                        <label className="form-label">Style</label>
+                        <select className="form-select" value={productForm.details.style} 
+                                onChange={(e) => setProductForm({...productForm, details: {...productForm.details, style: e.target.value}})}>
+                          <option value="">Select Style</option>
+                          <option value="Casual">Casual</option>
+                          <option value="Formal">Formal</option>
+                          <option value="Party">Party</option>
+                          <option value="Sports">Sports</option>
+                        </select>
+                      </div>
+                      <div className="col-md-4 mb-3">
+                        <label className="form-label">Sleeve Type</label>
+                        <select className="form-select" value={productForm.details.sleeveType} 
+                                onChange={(e) => setProductForm({...productForm, details: {...productForm.details, sleeveType: e.target.value}})}>
+                          <option value="">Select Sleeve Type</option>
+                          <option value="Batwing Sleeve">Batwing Sleeve</option>
+                          <option value="Regular Sleeve">Regular Sleeve</option>
+                          <option value="Bell Sleeve">Bell Sleeve</option>
+                        </select>
+                      </div>
+                      <div className="col-md-4 mb-3">
+                        <label className="form-label">Neckline</label>
+                        <select className="form-select" value={productForm.details.neckline} 
+                                onChange={(e) => setProductForm({...productForm, details: {...productForm.details, neckline: e.target.value}})}>
+                          <option value="">Select Neckline</option>
+                          <option value="V neck">V neck</option>
+                          <option value="Round neck">Round neck</option>
+                          <option value="Collar">Collar</option>
+                        </select>
+                      </div>
+                      <div className="col-md-4 mb-3">
+                        <label className="form-label">Pattern Type</label>
+                        <select className="form-select" value={productForm.details.patternType} 
+                                onChange={(e) => setProductForm({...productForm, details: {...productForm.details, patternType: e.target.value}})}>
+                          <option value="">Select Pattern</option>
+                          <option value="Striped">Striped</option>
+                          <option value="Solid">Solid</option>
+                          <option value="Floral">Floral</option>
+                          <option value="Printed">Printed</option>
+                        </select>
+                      </div>
+                      <div className="col-md-4 mb-3">
+                        <label className="form-label">Sleeve Length</label>
+                        <select className="form-select" value={productForm.details.sleeveLength} 
+                                onChange={(e) => setProductForm({...productForm, details: {...productForm.details, sleeveLength: e.target.value}})}>
+                          <option value="">Select Length</option>
+                          <option value="Half Sleeve">Half Sleeve</option>
+                          <option value="Full Sleeve">Full Sleeve</option>
+                          <option value="Sleeveless">Sleeveless</option>
+                        </select>
+                      </div>
+                      <div className="col-md-6 mb-3">
+                        <label className="form-label">Fit Type</label>
+                        <select className="form-select" value={productForm.details.fitType} 
+                                onChange={(e) => setProductForm({...productForm, details: {...productForm.details, fitType: e.target.value}})}>
+                          <option value="">Select Fit</option>
+                          <option value="Regular Fit">Regular Fit</option>
+                          <option value="Slim Fit">Slim Fit</option>
+                          <option value="Loose Fit">Loose Fit</option>
+                        </select>
+                      </div>
+                      <div className="col-md-6 mb-3">
+                        <label className="form-label">Fabric</label>
+                        <select className="form-select" value={productForm.details.fabric} 
+                                onChange={(e) => setProductForm({...productForm, details: {...productForm.details, fabric: e.target.value}})}>
+                          <option value="">Select Fabric</option>
+                          <option value="Non-Stretch">Non-Stretch</option>
+                          <option value="Stretch">Stretch</option>
+                          <option value="Cotton">Cotton</option>
+                          <option value="Polyester">Polyester</option>
+                        </select>
+                      </div>
+                      <div className="col-md-12 mb-3">
+                        <label className="form-label">Composition</label>
+                        <input type="text" className="form-control" placeholder="e.g., 100% Polyester" 
+                               value={productForm.details.composition} 
+                               onChange={(e) => setProductForm({...productForm, details: {...productForm.details, composition: e.target.value}})} />
+                      </div>
+                      <div className="col-md-12 mb-3">
+                        <label className="form-label">Care Instructions</label>
+                        <textarea className="form-control" rows={2} placeholder="Machine wash or professional dry clean" 
+                                  value={productForm.details.careInstructions} 
+                                  onChange={(e) => setProductForm({...productForm, details: {...productForm.details, careInstructions: e.target.value}})} />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Product Specifications Section */}
+                <div className="card mb-3">
+                  <div className="card-header">
+                    <h6 className="mb-0"><i className="bi bi-gear me-2"></i>Product Specifications</h6>
+                  </div>
+                  <div className="card-body">
+                    <div className="row">
+                      <div className="col-md-6 mb-3">
+                        <label className="form-label">Material</label>
+                        <input type="text" className="form-control" placeholder="Woven Fabric" 
+                               value={productForm.specifications.material} 
+                               onChange={(e) => setProductForm({...productForm, specifications: {...productForm.specifications, material: e.target.value}})} />
+                      </div>
+                      <div className="col-md-6 mb-3">
+                        <label className="form-label">Care</label>
+                        <input type="text" className="form-control" placeholder="Machine wash or professional dry clean" 
+                               value={productForm.specifications.care} 
+                               onChange={(e) => setProductForm({...productForm, specifications: {...productForm.specifications, care: e.target.value}})} />
+                      </div>
+                      <div className="col-md-6 mb-3">
+                        <label className="form-label">Weight</label>
+                        <select className="form-select" value={productForm.specifications.weight} 
+                                onChange={(e) => setProductForm({...productForm, specifications: {...productForm.specifications, weight: e.target.value}})}>
+                          <option value="">Select Weight</option>
+                          <option value="Light Weight">Light Weight</option>
+                          <option value="Regular Fit">Regular Fit</option>
+                          <option value="Heavy Weight">Heavy Weight</option>
+                        </select>
+                      </div>
+                      <div className="col-md-6 mb-3">
+                        <label className="form-label">Origin</label>
+                        <select className="form-select" value={productForm.specifications.origin} 
+                                onChange={(e) => setProductForm({...productForm, specifications: {...productForm.specifications, origin: e.target.value}})}>
+                          <option value="Sri Lanka">Sri Lanka</option>
+                          <option value="India">India</option>
+                          <option value="China">China</option>
+                          <option value="Bangladesh">Bangladesh</option>
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="d-flex gap-2">
+                  <button type="submit" className="btn btn-success" disabled={productLoading}>
+                    {productLoading ? (
+                      <><i className="bi bi-hourglass-split me-2"></i>Saving...</>
+                    ) : (
+                      <><i className="bi bi-check-circle me-2"></i>{editingProduct ? 'Update Product' : 'Add Product'}</>
+                    )}
+                  </button>
+                  <button type="button" className="btn btn-secondary" onClick={resetProductForm} disabled={productLoading}>
+                    <i className="bi bi-x-circle me-2"></i>Cancel
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+
+        <div className="card">
+          <div className="card-header d-flex justify-content-between align-items-center">
+            <h5 className="mb-0">Product Management</h5>
+            <div className="d-flex gap-2">
+              <button className="btn btn-primary" onClick={startAddProduct}>
+                <i className="bi bi-plus-circle me-2"></i>Add New Product
+              </button>
+              <a href="/dashboard/products" className="btn btn-outline-primary">
+                <i className="bi bi-list me-2"></i>View All Products
+              </a>
+            </div>
+          </div>
+          <div className="card-body">
+            <div className="table-responsive">
+              <table className="table table-striped">
+                <thead>
+                  <tr>
+                    <th>Images</th>
+                    <th>Name</th>
+                    <th>Code</th>
+                    <th>Category</th>
+                    <th>Price</th>
+                    <th>Stock</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {products.slice(0, 5).map((product) => (
+                    <tr key={product.id}>
+                      <td>
+                        <div className="d-flex gap-1">
+                          {Array.isArray(product.images) ? (
+                            product.images.slice(0, 2).map((img, idx) => (
+                              <img key={idx} src={img} alt={product.name} style={{width: '30px', height: '30px', objectFit: 'cover'}} className="rounded" />
+                            ))
+                          ) : (
+                            <img src={product.image} alt={product.name} style={{width: '40px', height: '40px', objectFit: 'cover'}} className="rounded" />
+                          )}
+                          {Array.isArray(product.images) && product.images.length > 2 && (
+                            <span className="badge bg-secondary">+{product.images.length - 2}</span>
+                          )}
+                        </div>
+                      </td>
+                      <td>{product.name}</td>
+                      <td><code>{product.code}</code></td>
+                      <td>{typeof product.category === 'string' ? product.category : product.category?.name}</td>
+                      <td>₹{product.price.toLocaleString()}</td>
+                      <td>
+                        {(() => {
+                          if (!product.sizes) return 0;
+                          if (typeof product.sizes === 'object' && !Array.isArray(product.sizes)) {
+                            return Object.values(product.sizes).reduce((a: number, b: any) => {
+                              return a + (typeof b === 'number' ? b : 0);
+                            }, 0);
+                          }
+                          return 0;
+                        })()}
+                      </td>
+                      <td>
+                        <span className={`badge ${product.status === 'instock' ? 'bg-success' : 'bg-danger'}`}>
+                          {product.status}
+                        </span>
+                      </td>
+                      <td>
+                        <button 
+                          className="btn btn-sm btn-outline-primary me-1" 
+                          title="Edit"
+                          onClick={() => startEditProduct(product)}
+                        >
+                          <i className="bi bi-pencil"></i>
+                        </button>
+                        <button 
+                          className="btn btn-sm btn-outline-danger" 
+                          title="Delete"
+                          onClick={() => handleDeleteProduct(product)}
+                          disabled={deletingProductId === String(product._id || product.id)}
+                        >
+                          {deletingProductId === String(product._id || product.id) ? 
+                            <i className="bi bi-hourglass-split"></i> : 
+                            <i className="bi bi-trash"></i>
+                          }
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Category Management Component
+  function CategoryManagement() {
+    const handleCategorySubmit = async (e: React.FormEvent) => {
+      e.preventDefault();
+      setLoading(true);
+      try {
+        let response;
+        if (editingCategory) {
+          response = await fetch(`/api/categories/${editingCategory._id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(categoryForm)
+          });
+        } else {
+          response = await fetch('/api/categories', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(categoryForm)
+          });
+        }
+
+        if (response.ok) {
+          loadData();
+          setCategoryForm({ name: '', description: '', image: '' });
+          setEditingCategory(null);
+          showToast(editingCategory ? 'Category updated!' : 'Category added!', 'success');
+        } else {
+          showToast('Failed to save category', 'error');
+        }
+      } catch (error) {
+        showToast('Error saving category', 'error');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    const handleDeleteCategory = async (categoryId: string) => {
+      if (confirm('Are you sure? This will delete all subcategories too.')) {
+        try {
+          const response = await fetch(`/api/categories/${categoryId}`, { method: 'DELETE' });
+          if (response.ok) {
+            loadData();
+            showToast('Category deleted!', 'success');
+          } else {
+            showToast('Failed to delete category', 'error');
+          }
+        } catch (error) {
+          showToast('Error deleting category', 'error');
+        }
+      }
+    };
+
+    return (
+      <div className="row">
+        <div className="col-md-4">
+          <div className="card">
+            <div className="card-header">
+              <h5 className="mb-0">{editingCategory ? 'Edit Category' : 'Add Category'}</h5>
+            </div>
+            <div className="card-body">
+              <form onSubmit={handleCategorySubmit}>
+                <div className="mb-3">
+                  <label className="form-label">Category Name</label>
+                  <input
+                    type="text"
+                    className="form-control"
+                    value={categoryForm.name}
+                    onChange={(e) => setCategoryForm({...categoryForm, name: e.target.value})}
+                    required
+                  />
+                </div>
+                <div className="mb-3">
+                  <label className="form-label">Description</label>
+                  <textarea
+                    className="form-control"
+                    rows={3}
+                    value={categoryForm.description}
+                    onChange={(e) => setCategoryForm({...categoryForm, description: e.target.value})}
+                  />
+                </div>
+                <div className="mb-3">
+                  <label className="form-label">Image URL</label>
+                  <input
+                    type="url"
+                    className="form-control"
+                    value={categoryForm.image}
+                    onChange={(e) => setCategoryForm({...categoryForm, image: e.target.value})}
+                  />
+                </div>
+                <div className="d-flex gap-2">
+                  <button type="submit" className="btn btn-success" disabled={loading}>
+                    {loading ? 'Saving...' : (editingCategory ? 'Update' : 'Add Category')}
+                  </button>
+                  {editingCategory && (
+                    <button type="button" className="btn btn-secondary" 
+                            onClick={() => {setEditingCategory(null); setCategoryForm({ name: '', description: '', image: '' });}}>
+                      Cancel
+                    </button>
+                  )}
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+        <div className="col-md-8">
+          <div className="card">
+            <div className="card-header">
+              <h5 className="mb-0">Categories ({categories.length})</h5>
+            </div>
+            <div className="card-body">
+              <div className="table-responsive">
+                <table className="table table-striped">
+                  <thead>
+                    <tr>
+                      <th>Image</th>
+                      <th>Name</th>
+                      <th>Description</th>
+                      <th>Subcategories</th>
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {categories.map((category) => (
+                      <tr key={category._id}>
+                        <td>
+                          {category.image && (
+                            <img src={category.image} alt={category.name} style={{width: '40px', height: '40px', objectFit: 'cover'}} />
+                          )}
+                        </td>
+                        <td>{category.name}</td>
+                        <td>{category.description}</td>
+                        <td>{category.subcategories?.length || 0}</td>
+                        <td>
+                          <button 
+                            className="btn btn-sm btn-outline-primary me-2"
+                            onClick={() => {
+                              setEditingCategory(category);
+                              setCategoryForm({
+                                name: category.name,
+                                description: category.description || '',
+                                image: category.image || ''
+                              });
+                            }}
+                          >
+                            <i className="bi bi-pencil"></i>
+                          </button>
+                          <button 
+                            className="btn btn-sm btn-outline-danger"
+                            onClick={() => handleDeleteCategory(category._id)}
+                          >
+                            <i className="bi bi-trash"></i>
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             </div>
           </div>
         </div>
       </div>
-    </div>
-  );
+    );
+  }
+
+  // Subcategory Management Component
+  function SubcategoryManagement() {
+    const handleSubcategorySubmit = async (e: React.FormEvent) => {
+      e.preventDefault();
+      setLoading(true);
+      try {
+        const response = await fetch('/api/categories/subcategories', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(subcategoryForm)
+        });
+
+        if (response.ok) {
+          loadData();
+          setSubcategoryForm({ name: '', description: '', categoryId: '' });
+          showToast('Subcategory added!', 'success');
+        } else {
+          const errorData = await response.json();
+          showToast(errorData.error || 'Failed to add subcategory', 'error');
+        }
+      } catch (error) {
+        showToast('Error adding subcategory', 'error');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    const handleDeleteSubcategory = async (categoryId: string, subcategorySlug: string) => {
+      if (confirm('Are you sure you want to delete this subcategory?')) {
+        try {
+          const response = await fetch('/api/categories/subcategories', {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ categoryId, subcategorySlug })
+          });
+          if (response.ok) {
+            loadData();
+            showToast('Subcategory deleted!', 'success');
+          } else {
+            showToast('Failed to delete subcategory', 'error');
+          }
+        } catch (error) {
+          showToast('Error deleting subcategory', 'error');
+        }
+      }
+    };
+
+    return (
+      <div className="row">
+        <div className="col-md-4">
+          <div className="card">
+            <div className="card-header">
+              <h5 className="mb-0">Add Subcategory</h5>
+            </div>
+            <div className="card-body">
+              <form onSubmit={handleSubcategorySubmit}>
+                <div className="mb-3">
+                  <label className="form-label">Parent Category</label>
+                  <select
+                    className="form-select"
+                    value={subcategoryForm.categoryId}
+                    onChange={(e) => setSubcategoryForm({...subcategoryForm, categoryId: e.target.value})}
+                    required
+                  >
+                    <option value="">Select Category</option>
+                    {categories.map(cat => (
+                      <option key={cat._id} value={cat._id}>{cat.name}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="mb-3">
+                  <label className="form-label">Subcategory Name</label>
+                  <input
+                    type="text"
+                    className="form-control"
+                    value={subcategoryForm.name}
+                    onChange={(e) => setSubcategoryForm({...subcategoryForm, name: e.target.value})}
+                    required
+                  />
+                </div>
+                <div className="mb-3">
+                  <label className="form-label">Description</label>
+                  <textarea
+                    className="form-control"
+                    rows={3}
+                    value={subcategoryForm.description}
+                    onChange={(e) => setSubcategoryForm({...subcategoryForm, description: e.target.value})}
+                  />
+                </div>
+                <button type="submit" className="btn btn-success" disabled={loading}>
+                  {loading ? 'Adding...' : 'Add Subcategory'}
+                </button>
+              </form>
+            </div>
+          </div>
+        </div>
+        <div className="col-md-8">
+          <div className="card">
+            <div className="card-header">
+              <h5 className="mb-0">All Subcategories</h5>
+            </div>
+            <div className="card-body">
+              <div className="table-responsive">
+                <table className="table table-striped">
+                  <thead>
+                    <tr>
+                      <th>Category</th>
+                      <th>Subcategory</th>
+                      <th>Description</th>
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {categories.map(category => 
+                      category.subcategories?.map(sub => (
+                        <tr key={`${category._id}-${sub.slug}`}>
+                          <td>{category.name}</td>
+                          <td>{sub.name}</td>
+                          <td>{sub.description}</td>
+                          <td>
+                            <button 
+                              className="btn btn-sm btn-outline-danger"
+                              onClick={() => handleDeleteSubcategory(category._id, sub.slug)}
+                            >
+                              <i className="bi bi-trash"></i>
+                            </button>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Order Management Component
+  function OrderManagement() {
+    const [filters, setFilters] = useState({
+      orderId: '',
+      productCode: '',
+      paymentMethod: '',
+      status: '',
+      paymentStatus: ''
+    });
+
+    const filteredOrders = orders.filter(order => {
+      return (
+        (!filters.orderId || order._id?.toLowerCase().includes(filters.orderId.toLowerCase()) || order.orderNumber?.toLowerCase().includes(filters.orderId.toLowerCase())) &&
+        (!filters.productCode || order.items?.some((item: OrderItem) => item.name.toLowerCase().includes(filters.productCode.toLowerCase()))) &&
+        (!filters.paymentMethod || order.paymentMethod === filters.paymentMethod) &&
+        (!filters.status || order.status === filters.status) &&
+        (!filters.paymentStatus || order.paymentStatus === filters.paymentStatus)
+      );
+    });
+
+    const clearFilters = () => {
+      setFilters({
+        orderId: '',
+        productCode: '',
+        paymentMethod: '',
+        status: '',
+        paymentStatus: ''
+      });
+    };
+
+    const updateOrderStatus = async (orderId: string, status: string) => {
+      try {
+        const response = await fetch(`/api/orders/${orderId}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ status })
+        });
+
+        if (response.ok) {
+          loadData();
+          showToast('Order status updated!', 'success');
+        } else {
+          const errorData = await response.json();
+          showToast(errorData.error || 'Failed to update order', 'error');
+        }
+      } catch (error) {
+        showToast('Error updating order', 'error');
+      }
+    };
+
+    const updatePaymentStatus = async (orderId: string, paymentStatus: string) => {
+      try {
+        const response = await fetch(`/api/orders/${orderId}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ paymentStatus })
+        });
+
+        if (response.ok) {
+          loadData();
+          showToast('Payment status updated!', 'success');
+        } else {
+          showToast('Failed to update payment status', 'error');
+        }
+      } catch (error) {
+        showToast('Error updating payment status', 'error');
+      }
+    };
+
+    const verifyPayment = async (orderId: string, verified: boolean) => {
+      try {
+        const response = await fetch(`/api/orders/${orderId}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ paymentVerified: verified })
+        });
+
+        if (response.ok) {
+          loadData();
+          showToast(`Payment ${verified ? 'verified' : 'rejected'}!`, 'success');
+        } else {
+          showToast('Failed to verify payment', 'error');
+        }
+      } catch (error) {
+        showToast('Error verifying payment', 'error');
+      }
+    };
+
+    const getStatusBadge = (status: string) => {
+      const statusColors: {[key: string]: string} = {
+        pending: 'bg-warning',
+        confirmed: 'bg-info',
+        processing: 'bg-primary',
+        shipped: 'bg-success',
+        delivered: 'bg-success',
+        cancelled: 'bg-danger'
+      };
+      return statusColors[status] || 'bg-secondary';
+    };
+
+    const getPaymentBadge = (status: string) => {
+      const paymentColors: {[key: string]: string} = {
+        pending: 'bg-warning',
+        paid: 'bg-success',
+        failed: 'bg-danger',
+        verified: 'bg-success',
+        rejected: 'bg-danger'
+      };
+      return paymentColors[status] || 'bg-secondary';
+    };
+
+    const getPaymentMethodIcon = (method: string) => {
+      const icons: {[key: string]: string} = {
+        cash_on_delivery: 'bi-cash',
+        bank_transfer: 'bi-bank',
+        card: 'bi-credit-card',
+        digital_wallet: 'bi-wallet2'
+      };
+      return icons[method] || 'bi-currency-dollar';
+    };
+
+    return (
+      <div className="card">
+        <div className="card-header">
+          <h5 className="mb-0">Order Management ({filteredOrders.length} of {orders.length})</h5>
+        </div>
+        <div className="card-body">
+          {/* Filter Section */}
+          <div className="row mb-4 p-3 bg-light rounded">
+            <div className="col-md-2 mb-2">
+              <label className="form-label small">Order ID</label>
+              <input
+                type="text"
+                className="form-control form-control-sm"
+                placeholder="Search order ID"
+                value={filters.orderId}
+                onChange={(e) => setFilters({...filters, orderId: e.target.value})}
+              />
+            </div>
+            <div className="col-md-2 mb-2">
+              <label className="form-label small">Product</label>
+              <input
+                type="text"
+                className="form-control form-control-sm"
+                placeholder="Product name"
+                value={filters.productCode}
+                onChange={(e) => setFilters({...filters, productCode: e.target.value})}
+              />
+            </div>
+            <div className="col-md-2 mb-2">
+              <label className="form-label small">Payment Method</label>
+              <select
+                className="form-select form-select-sm"
+                value={filters.paymentMethod}
+                onChange={(e) => setFilters({...filters, paymentMethod: e.target.value})}
+              >
+                <option value="">All Methods</option>
+                <option value="cash_on_delivery">Cash on Delivery</option>
+                <option value="bank_transfer">Bank Transfer</option>
+                <option value="card">Card</option>
+                <option value="digital_wallet">Digital Wallet</option>
+              </select>
+            </div>
+            <div className="col-md-2 mb-2">
+              <label className="form-label small">Order Status</label>
+              <select
+                className="form-select form-select-sm"
+                value={filters.status}
+                onChange={(e) => setFilters({...filters, status: e.target.value})}
+              >
+                <option value="">All Status</option>
+                <option value="pending">Pending</option>
+                <option value="confirmed">Confirmed</option>
+                <option value="processing">Processing</option>
+                <option value="shipped">Shipped</option>
+                <option value="delivered">Delivered</option>
+                <option value="cancelled">Cancelled</option>
+              </select>
+            </div>
+            <div className="col-md-2 mb-2">
+              <label className="form-label small">Payment Status</label>
+              <select
+                className="form-select form-select-sm"
+                value={filters.paymentStatus}
+                onChange={(e) => setFilters({...filters, paymentStatus: e.target.value})}
+              >
+                <option value="">All Payment</option>
+                <option value="pending">Pending</option>
+                <option value="paid">Paid</option>
+                <option value="failed">Failed</option>
+                <option value="verified">Verified</option>
+                <option value="rejected">Rejected</option>
+              </select>
+            </div>
+            <div className="col-md-2 mb-2 d-flex align-items-end">
+              <button className="btn btn-outline-secondary btn-sm" onClick={clearFilters}>
+                <i className="bi bi-x-circle me-1"></i>Clear
+              </button>
+            </div>
+          </div>
+          <div className="table-responsive">
+            <table className="table table-striped">
+              <thead>
+                <tr>
+                  <th>Order ID</th>
+                  <th>Customer</th>
+                  <th>Items</th>
+                  <th>Total</th>
+                  <th>Payment</th>
+                  <th>Status</th>
+                  <th>Date</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredOrders.map((order) => (
+                  <tr key={order._id}>
+                    <td>#{order._id?.slice(-6)}</td>
+                    <td>
+                      <div>
+                        <strong>{order.customerInfo?.name}</strong><br/>
+                        <small className="text-muted">{order.customerInfo?.phone}</small>
+                      </div>
+                    </td>
+                    <td>
+                      {order.items?.slice(0, 2).map((item: OrderItem, idx: number) => (
+                        <div key={idx} className="small">
+                          {item.name} x{item.quantity}
+                        </div>
+                      ))}
+                      {(order.items?.length || 0) > 2 && (
+                        <small className="text-muted">+{(order.items?.length || 0) - 2} more</small>
+                      )}
+                    </td>
+                    <td>₹{order.total}</td>
+                    <td>
+                      <div className="d-flex flex-column gap-1">
+                        <div className="d-flex align-items-center gap-1">
+                          <i className={`${getPaymentMethodIcon(order.paymentMethod)} text-muted`}></i>
+                          <small>{order.paymentMethod?.replace('_', ' ')}</small>
+                        </div>
+                        <span className={`badge ${getPaymentBadge(order.paymentStatus)} badge-sm`}>
+                          {order.paymentStatus}
+                        </span>
+                      </div>
+                    </td>
+                    <td>
+                      <span className={`badge ${getStatusBadge(order.status)}`}>
+                        {order.status}
+                      </span>
+                    </td>
+                    <td>{new Date(order.createdAt).toLocaleDateString()}</td>
+                    <td>
+                      <div className="d-flex gap-1">
+                        <div className="dropdown">
+                          <button className="btn btn-sm btn-outline-primary dropdown-toggle" 
+                                  type="button" data-bs-toggle="dropdown">
+                            Status
+                          </button>
+                          <ul className="dropdown-menu">
+                            <li><button className="dropdown-item" onClick={() => updateOrderStatus(order._id, 'confirmed')}>Confirmed</button></li>
+                            <li><button className="dropdown-item" onClick={() => updateOrderStatus(order._id, 'processing')}>Processing</button></li>
+                            <li><button className="dropdown-item" onClick={() => updateOrderStatus(order._id, 'shipped')}>Shipped</button></li>
+                            <li><button className="dropdown-item" onClick={() => updateOrderStatus(order._id, 'delivered')}>Delivered</button></li>
+                            <li><hr className="dropdown-divider"/></li>
+                            <li><button className="dropdown-item text-danger" onClick={() => updateOrderStatus(order._id, 'cancelled')}>Cancel</button></li>
+                          </ul>
+                        </div>
+                        <div className="dropdown">
+                          <button className="btn btn-sm btn-outline-success dropdown-toggle" 
+                                  type="button" data-bs-toggle="dropdown">
+                            Payment
+                          </button>
+                          <ul className="dropdown-menu">
+                            <li><h6 className="dropdown-header">Payment Status</h6></li>
+                            <li><button className="dropdown-item" onClick={() => updatePaymentStatus(order._id, 'pending')}>Pending</button></li>
+                            <li><button className="dropdown-item" onClick={() => updatePaymentStatus(order._id, 'paid')}>Paid</button></li>
+                            <li><button className="dropdown-item" onClick={() => updatePaymentStatus(order._id, 'failed')}>Failed</button></li>
+                            <li><hr className="dropdown-divider"/></li>
+                            <li><h6 className="dropdown-header">Verification</h6></li>
+                            <li><button className="dropdown-item text-success" onClick={() => verifyPayment(order._id, true)}>
+                              <i className="bi bi-check-circle me-2"></i>Verify Payment
+                            </button></li>
+                            <li><button className="dropdown-item text-danger" onClick={() => verifyPayment(order._id, false)}>
+                              <i className="bi bi-x-circle me-2"></i>Reject Payment
+                            </button></li>
+                          </ul>
+                        </div>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Email Configuration Component
+  function EmailConfiguration() {
+    const [testEmail, setTestEmail] = useState('');
+    const [emailLoading, setEmailLoading] = useState(false);
+
+    const saveEmailConfig = async (e: React.FormEvent) => {
+      e.preventDefault();
+      setEmailLoading(true);
+      try {
+        const response = await fetch('/api/email/config', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(emailConfig)
+        });
+
+        if (response.ok) {
+          showToast('Email configuration saved!', 'success');
+        } else {
+          showToast('Failed to save email config', 'error');
+        }
+      } catch (error) {
+        showToast('Error saving email config', 'error');
+      } finally {
+        setEmailLoading(false);
+      }
+    };
+
+    const sendTestEmail = async () => {
+      if (!testEmail) {
+        showToast('Please enter test email address', 'error');
+        return;
+      }
+      setEmailLoading(true);
+      try {
+        const response = await fetch('/api/email/test', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: testEmail })
+        });
+
+        if (response.ok) {
+          showToast('Test email sent successfully!', 'success');
+        } else {
+          showToast('Failed to send test email', 'error');
+        }
+      } catch (error) {
+        showToast('Error sending test email', 'error');
+      } finally {
+        setEmailLoading(false);
+      }
+    };
+
+    return (
+      <div className="row">
+        <div className="col-md-8">
+          <div className="card">
+            <div className="card-header">
+              <h5 className="mb-0"><i className="bi bi-gear me-2"></i>Email Configuration</h5>
+            </div>
+            <div className="card-body">
+              <form onSubmit={saveEmailConfig}>
+                <div className="row">
+                  <div className="col-md-6 mb-3">
+                    <label className="form-label">SMTP Host</label>
+                    <input type="text" className="form-control" placeholder="smtp.gmail.com" 
+                           value={emailConfig.smtpHost} 
+                           onChange={(e) => setEmailConfig({...emailConfig, smtpHost: e.target.value})} required />
+                  </div>
+                  <div className="col-md-6 mb-3">
+                    <label className="form-label">SMTP Port</label>
+                    <input type="number" className="form-control" 
+                           value={emailConfig.smtpPort} 
+                           onChange={(e) => setEmailConfig({...emailConfig, smtpPort: Number(e.target.value)})} required />
+                  </div>
+                  <div className="col-md-6 mb-3">
+                    <label className="form-label">SMTP Username</label>
+                    <input type="email" className="form-control" 
+                           value={emailConfig.smtpUser} 
+                           onChange={(e) => setEmailConfig({...emailConfig, smtpUser: e.target.value})} required />
+                  </div>
+                  <div className="col-md-6 mb-3">
+                    <label className="form-label">SMTP Password</label>
+                    <input type="password" className="form-control" 
+                           value={emailConfig.smtpPass} 
+                           onChange={(e) => setEmailConfig({...emailConfig, smtpPass: e.target.value})} required />
+                  </div>
+                  <div className="col-md-6 mb-3">
+                    <label className="form-label">From Email</label>
+                    <input type="email" className="form-control" 
+                           value={emailConfig.fromEmail} 
+                           onChange={(e) => setEmailConfig({...emailConfig, fromEmail: e.target.value})} required />
+                  </div>
+                  <div className="col-md-6 mb-3">
+                    <label className="form-label">From Name</label>
+                    <input type="text" className="form-control" 
+                           value={emailConfig.fromName} 
+                           onChange={(e) => setEmailConfig({...emailConfig, fromName: e.target.value})} required />
+                  </div>
+                </div>
+                
+                <div className="mb-3">
+                  <h6>Email Notifications</h6>
+                  <div className="form-check">
+                    <input className="form-check-input" type="checkbox" 
+                           checked={emailConfig.orderStatusEnabled} 
+                           onChange={(e) => setEmailConfig({...emailConfig, orderStatusEnabled: e.target.checked})} />
+                    <label className="form-check-label">Order Status Change Notifications</label>
+                  </div>
+                  <div className="form-check">
+                    <input className="form-check-input" type="checkbox" 
+                           checked={emailConfig.newArrivalsEnabled} 
+                           onChange={(e) => setEmailConfig({...emailConfig, newArrivalsEnabled: e.target.checked})} />
+                    <label className="form-check-label">New Arrivals Notifications</label>
+                  </div>
+                </div>
+
+                <button type="submit" className="btn btn-success" disabled={emailLoading}>
+                  {emailLoading ? 'Saving...' : 'Save Configuration'}
+                </button>
+              </form>
+            </div>
+          </div>
+        </div>
+        
+        <div className="col-md-4">
+          <div className="card">
+            <div className="card-header">
+              <h6 className="mb-0"><i className="bi bi-envelope-check me-2"></i>Test Email</h6>
+            </div>
+            <div className="card-body">
+              <div className="mb-3">
+                <label className="form-label">Test Email Address</label>
+                <input type="email" className="form-control" 
+                       value={testEmail} 
+                       onChange={(e) => setTestEmail(e.target.value)} 
+                       placeholder="test@example.com" />
+              </div>
+              <button className="btn btn-primary w-100" onClick={sendTestEmail} disabled={emailLoading}>
+                {emailLoading ? 'Sending...' : 'Send Test Email'}
+              </button>
+            </div>
+          </div>
+          
+          <div className="card mt-3">
+            <div className="card-header">
+              <h6 className="mb-0"><i className="bi bi-info-circle me-2"></i>Email Templates</h6>
+            </div>
+            <div className="card-body">
+              <small className="text-muted">
+                <strong>Order Status:</strong> Sent when order status changes<br/>
+                <strong>New Arrivals:</strong> Sent when new products are added<br/>
+                <strong>Order Confirmation:</strong> Sent when order is placed
+              </small>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 }

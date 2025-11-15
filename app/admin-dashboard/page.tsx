@@ -1,207 +1,481 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { Product, Category, Order } from '../types';
 
-interface DashboardStats {
-  totalOrders: number;
-  totalCustomers: number;
-  totalProducts: number;
-  totalRevenue: number;
-  recentOrders: any[];
-  topProducts: any[];
-}
-
-export default function AdminDashboard() {
-  const [stats, setStats] = useState<DashboardStats>({
-    totalOrders: 0,
-    totalCustomers: 0,
+export default function AdminDashboardPage() {
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [currentUser, setCurrentUser] = useState<any>(null);
+  const [activeSection, setActiveSection] = useState('overview');
+  const [stats, setStats] = useState({
     totalProducts: 0,
+    totalCategories: 0,
+    totalOrders: 0,
     totalRevenue: 0,
-    recentOrders: [],
-    topProducts: []
+    pendingOrders: 0,
+    lowStockProducts: 0
   });
-  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetchDashboardData();
+    if (typeof window !== 'undefined') {
+      const loggedIn = localStorage.getItem('adminLoggedIn') === 'true';
+      const userData = localStorage.getItem('adminUser');
+      
+      if (loggedIn && userData) {
+        const user = JSON.parse(userData);
+        setCurrentUser(user);
+        setIsLoggedIn(true);
+        loadDashboardStats();
+      } else {
+        setIsLoggedIn(false);
+      }
+    }
   }, []);
 
-  const fetchDashboardData = async () => {
+  const loadDashboardStats = async () => {
     try {
-      const response = await fetch('/api/dashboard/stats');
-      if (!response.ok) throw new Error('API Error');
-      const data = await response.json();
-      setStats(data);
-    } catch (error) {
-      console.error('Error fetching dashboard data:', error);
+      const [productsRes, categoriesRes, ordersRes] = await Promise.all([
+        fetch('/api/products'),
+        fetch('/api/categories'),
+        fetch('/api/orders')
+      ]);
+      
+      const [products, categories, orders] = await Promise.all([
+        productsRes.json(),
+        categoriesRes.json(),
+        ordersRes.json()
+      ]);
+      
+      const totalRevenue = orders.reduce((sum: number, order: Order) => sum + (order.total || 0), 0);
+      const pendingOrders = orders.filter((order: Order) => order.status === 'pending').length;
+      const lowStockProducts = products.filter((product: Product) => {
+        const totalStock = typeof product.sizes === 'object' ? 
+          Object.values(product.sizes).reduce((a, b) => a + b, 0) : 0;
+        return totalStock < 5;
+      }).length;
+
       setStats({
-        totalOrders: 25,
-        totalCustomers: 150,
-        totalProducts: 42,
-        totalRevenue: 125000,
-        recentOrders: [
-          { id: 1, customerInfo: { name: 'John Doe' }, total: 2500, status: 'confirmed', createdAt: new Date() },
-          { id: 2, customerInfo: { name: 'Jane Smith' }, total: 1800, status: 'pending', createdAt: new Date() }
-        ],
-        topProducts: [
-          { name: 'Summer Dress', sales: 45 },
-          { name: 'Casual Shirt', sales: 38 }
-        ]
+        totalProducts: products.length,
+        totalCategories: categories.length,
+        totalOrders: orders.length,
+        totalRevenue,
+        pendingOrders,
+        lowStockProducts
       });
-    } finally {
-      setLoading(false);
+    } catch (error) {
+      console.error('Error loading dashboard stats:', error);
     }
   };
 
-  if (loading) {
+  const logout = () => {
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('adminLoggedIn');
+      localStorage.removeItem('adminUser');
+      window.location.href = '/login';
+    }
+  };
+
+  if (!isLoggedIn) {
     return (
-      <div className="min-vh-100 d-flex align-items-center justify-content-center">
-        <div className="spinner-border text-success" style={{width: '3rem', height: '3rem'}} role="status">
-          <span className="visually-hidden">Loading...</span>
+      <div className="admin-dashboard-page">
+        <div className="container py-5">
+          <div className="row justify-content-center">
+            <div className="col-lg-6 text-center">
+              <i className="bi bi-shield-x display-1 text-danger mb-4"></i>
+              <h2 className="mb-3">Access Denied</h2>
+              <p className="lead mb-4">You need to login as admin to access the dashboard.</p>
+              <a href="/login" className="btn btn-primary btn-lg">
+                <i className="bi bi-box-arrow-in-right me-2"></i>Login
+              </a>
+            </div>
+          </div>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-vh-100" style={{background: 'linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%)'}}>
-      <nav className="navbar navbar-expand-lg navbar-dark shadow-lg" style={{background: 'linear-gradient(135deg, #000000 0%, #22c55e 50%, #1a1a1a 100%)'}}>
-        <div className="container">
-          <a href="/" className="navbar-brand fw-bold fs-3" style={{color: '#22c55e'}}>
+    <div className="admin-dashboard-page">
+      {/* Navigation Header */}
+      <nav className="navbar navbar-expand-lg navbar-dark shadow-lg" style={{background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'}}>
+        <div className="container-fluid">
+          <a href="/admin-dashboard" className="navbar-brand fw-bold fs-3">
             <img src="/logo.png" alt="Fashion Breeze" style={{height: '40px', marginRight: '10px'}} />
-            Admin Dashboard
+            Fashion Breeze - Admin Control Panel
           </a>
           <div className="d-flex align-items-center gap-3">
-            <a href="/" className="btn" style={{background: 'rgba(34, 197, 94, 0.2)', border: '2px solid #22c55e', color: '#22c55e', borderRadius: '12px', fontWeight: '600'}}>
-              <i className="bi bi-house me-2"></i>Home
+            <span className="text-white">Welcome, {currentUser?.username}</span>
+            <a href="/" className="btn btn-outline-light">
+              <i className="bi bi-shop me-2"></i>View Store
             </a>
-            <a href="/dashboard" className="btn" style={{background: 'rgba(34, 197, 94, 0.2)', border: '2px solid #22c55e', color: '#22c55e', borderRadius: '12px', fontWeight: '600'}}>
-              <i className="bi bi-grid me-2"></i>Products
-            </a>
+            <button onClick={logout} className="btn btn-outline-danger">
+              <i className="bi bi-box-arrow-right me-2"></i>Logout
+            </button>
           </div>
         </div>
       </nav>
 
-      <div className="container py-5">
-        <div className="text-center mb-5">
-          <h1 className="display-4 fw-bold mb-3" style={{background: 'linear-gradient(135deg, #22c55e 0%, #000000 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text'}}>
-            Analytics Dashboard
-          </h1>
-          <div style={{width: '150px', height: '4px', background: 'linear-gradient(135deg, #22c55e 0%, #000000 100%)', margin: '0 auto', borderRadius: '2px'}}></div>
-        </div>
-
-        <div className="row mb-5">
-          <div className="col-lg-3 col-md-6 mb-4">
-            <div className="card border-0 shadow-lg h-100" style={{borderRadius: '20px', background: 'linear-gradient(135deg, #22c55e 0%, #16a34a 100%)', color: 'white'}}>
-              <div className="card-body text-center py-4">
-                <div className="bg-white bg-opacity-20 rounded-circle d-inline-flex align-items-center justify-content-center mb-3" style={{width: '60px', height: '60px'}}>
-                  <i className="bi bi-bag-check" style={{fontSize: '1.5rem'}}></i>
-                </div>
-                <h2 className="fw-bold mb-2">{stats.totalOrders}</h2>
-                <p className="mb-0 fw-semibold">Total Orders</p>
-              </div>
-            </div>
-          </div>
-          <div className="col-lg-3 col-md-6 mb-4">
-            <div className="card border-0 shadow-lg h-100" style={{borderRadius: '20px', background: 'linear-gradient(135deg, #000000 0%, #374151 100%)', color: 'white'}}>
-              <div className="card-body text-center py-4">
-                <div className="bg-white bg-opacity-20 rounded-circle d-inline-flex align-items-center justify-content-center mb-3" style={{width: '60px', height: '60px'}}>
-                  <i className="bi bi-people" style={{fontSize: '1.5rem'}}></i>
-                </div>
-                <h2 className="fw-bold mb-2">{stats.totalCustomers}</h2>
-                <p className="mb-0 fw-semibold">Customers</p>
-              </div>
-            </div>
-          </div>
-          <div className="col-lg-3 col-md-6 mb-4">
-            <div className="card border-0 shadow-lg h-100" style={{borderRadius: '20px', background: 'linear-gradient(135deg, #22c55e 0%, #059669 100%)', color: 'white'}}>
-              <div className="card-body text-center py-4">
-                <div className="bg-white bg-opacity-20 rounded-circle d-inline-flex align-items-center justify-content-center mb-3" style={{width: '60px', height: '60px'}}>
-                  <i className="bi bi-box" style={{fontSize: '1.5rem'}}></i>
-                </div>
-                <h2 className="fw-bold mb-2">{stats.totalProducts}</h2>
-                <p className="mb-0 fw-semibold">Products</p>
-              </div>
-            </div>
-          </div>
-          <div className="col-lg-3 col-md-6 mb-4">
-            <div className="card border-0 shadow-lg h-100" style={{borderRadius: '20px', background: 'linear-gradient(135deg, #000000 0%, #22c55e 100%)', color: 'white'}}>
-              <div className="card-body text-center py-4">
-                <div className="bg-white bg-opacity-20 rounded-circle d-inline-flex align-items-center justify-content-center mb-3" style={{width: '60px', height: '60px'}}>
-                  <i className="bi bi-currency-dollar" style={{fontSize: '1.5rem'}}></i>
-                </div>
-                <h2 className="fw-bold mb-2">LKR {stats.totalRevenue.toLocaleString()}</h2>
-                <p className="mb-0 fw-semibold">Revenue</p>
-              </div>
-            </div>
-          </div>
-        </div>
-
+      <div className="container-fluid py-4">
         <div className="row">
-          <div className="col-lg-8 mb-4">
-            <div className="card border-0 shadow-lg" style={{borderRadius: '20px'}}>
-              <div className="card-header" style={{background: 'linear-gradient(135deg, #000000 0%, #22c55e 50%, #1a1a1a 100%)', color: 'white', borderRadius: '20px 20px 0 0', padding: '1.5rem', border: 'none'}}>
-                <h5 className="mb-0 fw-bold">
-                  <i className="bi bi-clock-history me-2"></i>Recent Orders
-                </h5>
+          {/* Sidebar Navigation */}
+          <div className="col-md-3 col-lg-2">
+            <div className="card border-0 shadow-sm">
+              <div className="card-header bg-primary text-white">
+                <h6 className="mb-0"><i className="bi bi-grid-3x3-gap me-2"></i>Dashboard Menu</h6>
               </div>
-              <div className="card-body p-0">
-                <div className="table-responsive">
-                  <table className="table table-hover mb-0">
-                    <thead className="table-light">
-                      <tr>
-                        <th>Order ID</th>
-                        <th>Customer</th>
-                        <th>Amount</th>
-                        <th>Status</th>
-                        <th>Date</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {stats.recentOrders.map((order, index) => (
-                        <tr key={index}>
-                          <td><span className="badge bg-primary">FB{String(order.id || index + 1).padStart(6, '0')}</span></td>
-                          <td>{order.customerInfo?.name || 'N/A'}</td>
-                          <td className="fw-bold text-success">LKR {order.total?.toLocaleString() || '0'}</td>
-                          <td>
-                            <span className={`badge ${
-                              order.status === 'confirmed' ? 'bg-success' :
-                              order.status === 'pending' ? 'bg-warning text-dark' :
-                              order.status === 'shipped' ? 'bg-info' : 'bg-secondary'
-                            }`}>
-                              {order.status?.toUpperCase() || 'PENDING'}
-                            </span>
-                          </td>
-                          <td>{new Date(order.createdAt).toLocaleDateString()}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+              <div className="list-group list-group-flush">
+                <button 
+                  className={`list-group-item list-group-item-action ${activeSection === 'overview' ? 'active' : ''}`}
+                  onClick={() => setActiveSection('overview')}
+                >
+                  <i className="bi bi-house me-2"></i>Overview
+                </button>
+                <button 
+                  className={`list-group-item list-group-item-action ${activeSection === 'products' ? 'active' : ''}`}
+                  onClick={() => setActiveSection('products')}
+                >
+                  <i className="bi bi-box-seam me-2"></i>Product Management
+                </button>
+                <button 
+                  className={`list-group-item list-group-item-action ${activeSection === 'tailoring' ? 'active' : ''}`}
+                  onClick={() => setActiveSection('tailoring')}
+                >
+                  <i className="bi bi-scissors me-2"></i>Tailoring Services
+                </button>
+                <button 
+                  className={`list-group-item list-group-item-action ${activeSection === 'members' ? 'active' : ''}`}
+                  onClick={() => setActiveSection('members')}
+                >
+                  <i className="bi bi-person me-2"></i>Member Portal
+                </button>
+                <button 
+                  className={`list-group-item list-group-item-action ${activeSection === 'designs' ? 'active' : ''}`}
+                  onClick={() => setActiveSection('designs')}
+                >
+                  <i className="bi bi-palette me-2"></i>Design Management
+                </button>
+                <button 
+                  className={`list-group-item list-group-item-action ${activeSection === 'analytics' ? 'active' : ''}`}
+                  onClick={() => setActiveSection('analytics')}
+                >
+                  <i className="bi bi-graph-up me-2"></i>Analytics Dashboard
+                </button>
               </div>
             </div>
           </div>
-          <div className="col-lg-4 mb-4">
-            <div className="card border-0 shadow-lg" style={{borderRadius: '20px'}}>
-              <div className="card-header" style={{background: 'linear-gradient(135deg, #000000 0%, #22c55e 50%, #1a1a1a 100%)', color: 'white', borderRadius: '20px 20px 0 0', padding: '1.5rem', border: 'none'}}>
-                <h5 className="mb-0 fw-bold">
-                  <i className="bi bi-star me-2"></i>Top Products
-                </h5>
-              </div>
-              <div className="card-body">
-                {stats.topProducts.map((product, index) => (
-                  <div key={index} className="d-flex align-items-center mb-3 p-2 rounded" style={{background: '#f8f9fa'}}>
-                    <div className="bg-success rounded-circle d-flex align-items-center justify-content-center me-3" style={{width: '40px', height: '40px', minWidth: '40px'}}>
-                      <span className="text-white fw-bold">{index + 1}</span>
-                    </div>
-                    <div className="flex-grow-1">
-                      <h6 className="mb-1 fw-bold">{product.name}</h6>
-                      <small className="text-muted">Sales: {product.sales || 0}</small>
+
+          {/* Main Content */}
+          <div className="col-md-9 col-lg-10">
+            {activeSection === 'overview' && (
+              <div>
+                <div className="d-flex justify-content-between align-items-center mb-4">
+                  <h2 className="fw-bold">Dashboard Overview</h2>
+                  <button onClick={loadDashboardStats} className="btn btn-outline-primary">
+                    <i className="bi bi-arrow-clockwise me-2"></i>Refresh
+                  </button>
+                </div>
+
+                {/* Stats Cards */}
+                <div className="row g-4 mb-5">
+                  <div className="col-md-6 col-lg-4">
+                    <div className="card border-0 shadow-sm bg-primary text-white">
+                      <div className="card-body text-center p-4">
+                        <i className="bi bi-box-seam display-4 mb-3"></i>
+                        <h3 className="fw-bold">{stats.totalProducts}</h3>
+                        <p className="mb-0">Total Products</p>
+                      </div>
                     </div>
                   </div>
-                ))}
+                  <div className="col-md-6 col-lg-4">
+                    <div className="card border-0 shadow-sm bg-success text-white">
+                      <div className="card-body text-center p-4">
+                        <i className="bi bi-cart-check display-4 mb-3"></i>
+                        <h3 className="fw-bold">{stats.totalOrders}</h3>
+                        <p className="mb-0">Total Orders</p>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="col-md-6 col-lg-4">
+                    <div className="card border-0 shadow-sm bg-info text-white">
+                      <div className="card-body text-center p-4">
+                        <i className="bi bi-currency-rupee display-4 mb-3"></i>
+                        <h3 className="fw-bold">₹{stats.totalRevenue.toLocaleString()}</h3>
+                        <p className="mb-0">Total Revenue</p>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="col-md-6 col-lg-4">
+                    <div className="card border-0 shadow-sm bg-warning text-white">
+                      <div className="card-body text-center p-4">
+                        <i className="bi bi-clock display-4 mb-3"></i>
+                        <h3 className="fw-bold">{stats.pendingOrders}</h3>
+                        <p className="mb-0">Pending Orders</p>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="col-md-6 col-lg-4">
+                    <div className="card border-0 shadow-sm bg-danger text-white">
+                      <div className="card-body text-center p-4">
+                        <i className="bi bi-exclamation-triangle display-4 mb-3"></i>
+                        <h3 className="fw-bold">{stats.lowStockProducts}</h3>
+                        <p className="mb-0">Low Stock Items</p>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="col-md-6 col-lg-4">
+                    <div className="card border-0 shadow-sm bg-secondary text-white">
+                      <div className="card-body text-center p-4">
+                        <i className="bi bi-tags display-4 mb-3"></i>
+                        <h3 className="fw-bold">{stats.totalCategories}</h3>
+                        <p className="mb-0">Categories</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Quick Actions */}
+                <div className="row g-4">
+                  <div className="col-md-6 col-lg-4">
+                    <div className="card border-0 shadow-sm h-100">
+                      <div className="card-body text-center p-4">
+                        <i className="bi bi-box-seam display-4 text-primary mb-3"></i>
+                        <h5 className="fw-bold">Product Management</h5>
+                        <p className="text-muted mb-3">Manage your product catalog</p>
+                        <button 
+                          className="btn btn-primary"
+                          onClick={() => setActiveSection('products')}
+                        >
+                          <i className="bi bi-arrow-right me-2"></i>Manage Products
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="col-md-6 col-lg-4">
+                    <div className="card border-0 shadow-sm h-100">
+                      <div className="card-body text-center p-4">
+                        <i className="bi bi-scissors display-4 text-success mb-3"></i>
+                        <h5 className="fw-bold">Tailoring Services</h5>
+                        <p className="text-muted mb-3">Manage custom tailoring orders</p>
+                        <button 
+                          className="btn btn-success"
+                          onClick={() => setActiveSection('tailoring')}
+                        >
+                          <i className="bi bi-arrow-right me-2"></i>View Tailoring
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="col-md-6 col-lg-4">
+                    <div className="card border-0 shadow-sm h-100">
+                      <div className="card-body text-center p-4">
+                        <i className="bi bi-person display-4 text-info mb-3"></i>
+                        <h5 className="fw-bold">Member Portal</h5>
+                        <p className="text-muted mb-3">Customer member dashboard</p>
+                        <button 
+                          className="btn btn-info"
+                          onClick={() => setActiveSection('members')}
+                        >
+                          <i className="bi bi-arrow-right me-2"></i>Member Area
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="col-md-6 col-lg-4">
+                    <div className="card border-0 shadow-sm h-100">
+                      <div className="card-body text-center p-4">
+                        <i className="bi bi-palette display-4 text-warning mb-3"></i>
+                        <h5 className="fw-bold">Design Management</h5>
+                        <p className="text-muted mb-3">Manage tailoring designs</p>
+                        <button 
+                          className="btn btn-warning"
+                          onClick={() => setActiveSection('designs')}
+                        >
+                          <i className="bi bi-arrow-right me-2"></i>Manage Designs
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="col-md-6 col-lg-4">
+                    <div className="card border-0 shadow-sm h-100">
+                      <div className="card-body text-center p-4">
+                        <i className="bi bi-graph-up display-4 text-danger mb-3"></i>
+                        <h5 className="fw-bold">Analytics Dashboard</h5>
+                        <p className="text-muted mb-3">View detailed analytics</p>
+                        <button 
+                          className="btn btn-danger"
+                          onClick={() => setActiveSection('analytics')}
+                        >
+                          <i className="bi bi-arrow-right me-2"></i>View Analytics
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="col-md-6 col-lg-4">
+                    <div className="card border-0 shadow-sm h-100">
+                      <div className="card-body text-center p-4">
+                        <i className="bi bi-shop display-4 text-secondary mb-3"></i>
+                        <h5 className="fw-bold">View Store</h5>
+                        <p className="text-muted mb-3">Visit the main store</p>
+                        <a href="/" className="btn btn-secondary">
+                          <i className="bi bi-arrow-right me-2"></i>Go to Store
+                        </a>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Welcome Section */}
+                <div className="row mt-5">
+                  <div className="col-12">
+                    <div className="card border-0 shadow-sm">
+                      <div className="card-body text-center p-5">
+                        <h3 className="fw-bold mb-3">Welcome to Fashion Breeze Admin</h3>
+                        <p className="lead text-muted mb-4">
+                          Manage your e-commerce store and tailoring services from this central dashboard.
+                        </p>
+                        <div className="row g-3">
+                          <div className="col-md-4">
+                            <div className="d-flex align-items-center justify-content-center">
+                              <i className="bi bi-check-circle text-success me-2"></i>
+                              <span>Product Management</span>
+                            </div>
+                          </div>
+                          <div className="col-md-4">
+                            <div className="d-flex align-items-center justify-content-center">
+                              <i className="bi bi-check-circle text-success me-2"></i>
+                              <span>Tailoring Services</span>
+                            </div>
+                          </div>
+                          <div className="col-md-4">
+                            <div className="d-flex align-items-center justify-content-center">
+                              <i className="bi bi-check-circle text-success me-2"></i>
+                              <span>Analytics & Reports</span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
               </div>
-            </div>
+            )}
+
+            {activeSection === 'products' && (
+              <div>
+                <h2 className="fw-bold mb-4">Product Management</h2>
+                <div className="card">
+                  <div className="card-body text-center p-5">
+                    <i className="bi bi-box-seam display-1 text-primary mb-4"></i>
+                    <h4>Product Management System</h4>
+                    <p className="text-muted mb-4">Manage your entire product catalog with advanced features</p>
+                    <a href="/dashboard" className="btn btn-primary btn-lg">
+                      <i className="bi bi-arrow-right me-2"></i>Go to Product Dashboard
+                    </a>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {activeSection === 'tailoring' && (
+              <div>
+                <h2 className="fw-bold mb-4">Tailoring Services</h2>
+                <div className="card">
+                  <div className="card-body text-center p-5">
+                    <i className="bi bi-scissors display-1 text-success mb-4"></i>
+                    <h4>Tailoring Management</h4>
+                    <p className="text-muted mb-4">Manage custom tailoring orders and services</p>
+                    <a href="/tailoring" className="btn btn-success btn-lg">
+                      <i className="bi bi-arrow-right me-2"></i>View Tailoring Dashboard
+                    </a>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {activeSection === 'members' && (
+              <div>
+                <h2 className="fw-bold mb-4">Member Portal</h2>
+                <div className="card">
+                  <div className="card-body text-center p-5">
+                    <i className="bi bi-person display-1 text-info mb-4"></i>
+                    <h4>Customer Member Dashboard</h4>
+                    <p className="text-muted mb-4">Manage customer memberships and accounts</p>
+                    <a href="/member" className="btn btn-info btn-lg">
+                      <i className="bi bi-arrow-right me-2"></i>Access Member Portal
+                    </a>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {activeSection === 'designs' && (
+              <div>
+                <h2 className="fw-bold mb-4">Design Management</h2>
+                <div className="card">
+                  <div className="card-body text-center p-5">
+                    <i className="bi bi-palette display-1 text-warning mb-4"></i>
+                    <h4>Tailoring Design Management</h4>
+                    <p className="text-muted mb-4">Manage and organize tailoring designs</p>
+                    <a href="/dashboard/designs" className="btn btn-warning btn-lg">
+                      <i className="bi bi-arrow-right me-2"></i>Manage Designs
+                    </a>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {activeSection === 'analytics' && (
+              <div>
+                <h2 className="fw-bold mb-4">Analytics Dashboard</h2>
+                <div className="row g-4">
+                  <div className="col-md-6">
+                    <div className="card">
+                      <div className="card-body text-center p-4">
+                        <i className="bi bi-graph-up display-4 text-primary mb-3"></i>
+                        <h5>Sales Analytics</h5>
+                        <p className="text-muted">View detailed sales reports and trends</p>
+                        <div className="h4 text-primary">₹{stats.totalRevenue.toLocaleString()}</div>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="col-md-6">
+                    <div className="card">
+                      <div className="card-body text-center p-4">
+                        <i className="bi bi-people display-4 text-success mb-3"></i>
+                        <h5>Customer Analytics</h5>
+                        <p className="text-muted">Track customer behavior and preferences</p>
+                        <div className="h4 text-success">{stats.totalOrders} Orders</div>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="col-md-6">
+                    <div className="card">
+                      <div className="card-body text-center p-4">
+                        <i className="bi bi-box display-4 text-info mb-3"></i>
+                        <h5>Inventory Analytics</h5>
+                        <p className="text-muted">Monitor stock levels and product performance</p>
+                        <div className="h4 text-info">{stats.totalProducts} Products</div>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="col-md-6">
+                    <div className="card">
+                      <div className="card-body text-center p-4">
+                        <i className="bi bi-exclamation-triangle display-4 text-warning mb-3"></i>
+                        <h5>Alerts & Notifications</h5>
+                        <p className="text-muted">Important alerts and system notifications</p>
+                        <div className="h4 text-warning">{stats.lowStockProducts} Low Stock</div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>

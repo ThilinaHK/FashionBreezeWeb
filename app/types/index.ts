@@ -15,11 +15,7 @@ export interface Product {
   subcategory?: string;
   brand?: string;
   image: string;
-  images?: Array<{
-    url: string;
-    alt: string;
-    isPrimary: boolean;
-  }> | string[];
+  images?: string[];
   sizes?: Array<{
     size: string;
     colors?: Array<{
@@ -131,4 +127,40 @@ export interface TailoringDesign {
   isActive: boolean;
   createdAt?: Date;
   updatedAt?: Date;
+}
+
+export interface Order {
+  _id: string;
+  id?: number;
+  orderNumber?: string;
+  userId: string;
+  customerInfo: {
+    name: string;
+    email?: string;
+    phone: string;
+    address: string;
+    city?: string;
+    postalCode?: string;
+  };
+  items: Array<{
+    productId: string;
+    name: string;
+    price: number;
+    quantity: number;
+    size?: string;
+    image?: string;
+  }>;
+  subtotal: number;
+  deliveryCost?: number;
+  total: number;
+  status: 'pending' | 'confirmed' | 'processing' | 'shipped' | 'delivered' | 'cancelled';
+  paymentMethod: 'cash_on_delivery' | 'bank_transfer' | 'card';
+  paymentStatus: 'pending' | 'paid' | 'failed';
+  paymentSlip?: {
+    url: string;
+    status: 'pending' | 'approved' | 'rejected';
+  };
+  notes?: string;
+  createdAt: string;
+  updatedAt?: string;
 }
