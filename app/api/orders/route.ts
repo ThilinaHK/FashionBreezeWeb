@@ -74,48 +74,62 @@ export async function POST(request: NextRequest) {
     const Product = require('../../lib/models/Product').default;
     
     for (const item of orderItems) {
-      const product = await Product.findById(item.productId || item._id || item.id);
-      if (product) {
-        // Reduce total stock
-        if (product.inventory?.totalStock >= item.quantity) {
-          product.inventory.totalStock -= item.quantity;
-        }
-        
-        // Reduce size-specific stock if size is selected
-        if (item.size && product.sizes) {
-          const sizeIndex = product.sizes.findIndex((s: any) => s.size === item.size);
-          if (sizeIndex !== -1 && product.sizes[sizeIndex].stock >= item.quantity) {
-            product.sizes[sizeIndex].stock -= item.quantity;
+      try {
+        const product = await Product.findById(item.productId || item._id || item.id);
+        if (product) {
+          // Reduce size-specific stock if size is selected
+          if (item.size && product.sizes && typeof product.sizes === 'object') {
+            if (product.sizes[item.size] !== undefined && product.sizes[item.size] >= item.quantity) {
+              product.sizes[item.size] -= item.quantity;
+            }
           }
+          
+          // Calculate total stock from sizes
+          const totalStock = typeof product.sizes === 'object' ? 
+            Object.values(product.sizes).reduce((sum: number, stock: any) => sum + (stock || 0), 0) : 0;
+          
+          // Update inventory if exists
+          if (product.inventory) {
+            product.inventory.totalStock = totalStock;
+          }
+          
+          // Update product status if out of stock
+          if (totalStock <= 0) {
+            product.status = 'outofstock';
+          }
+          
+          await product.save();
         }
-        
-        // Update product status if out of stock
-        if (product.inventory.totalStock <= 0) {
-          product.status = 'outofstock';
-        }
-        
-        await product.save();
+      } catch (productError) {
+        console.error('Error updating product inventory:', productError);
+        // Continue with order creation even if inventory update fails
       }
     }
     
     // Calculate delivery cost
-    const deliveryResponse = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/api/delivery/calculate`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        subtotal: orderTotal,
-        location: customerInfo?.address || '',
-        items: orderItems
-      })
-    });
-    
     let deliveryCost = 0;
     let finalTotal = orderTotal;
     
-    if (deliveryResponse.ok) {
-      const deliveryData = await deliveryResponse.json();
-      deliveryCost = deliveryData.deliveryCost || 0;
-      finalTotal = deliveryData.total || orderTotal;
+    try {
+      const deliveryResponse = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/api/delivery/calculate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          subtotal: orderTotal,
+          location: customerInfo?.address || '',
+          items: orderItems
+        })
+      });
+      
+      if (deliveryResponse.ok) {
+        const deliveryData = await deliveryResponse.json();
+        deliveryCost = deliveryData.deliveryCost || 0;
+        finalTotal = deliveryData.total || orderTotal;
+      }
+    } catch (deliveryError) {
+      console.error('Delivery calculation failed, using default:', deliveryError);
+      deliveryCost = 300; // Default delivery cost
+      finalTotal = orderTotal + deliveryCost;
     }
     
     const order = await Order.create({
@@ -153,7 +167,12 @@ export async function POST(request: NextRequest) {
     }
     
     // Clear cart after successful order
-    await Cart.findOneAndDelete({ userId });
+    try {
+      await Cart.findOneAndDelete({ userId });
+    } catch (cartError) {
+      console.error('Failed to clear cart:', cartError);
+      // Don't fail order creation if cart clearing fails
+    }
     
     return NextResponse.json({ success: true, orderId: order._id, order });
   } catch (error: any) {

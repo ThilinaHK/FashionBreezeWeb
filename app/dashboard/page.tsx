@@ -299,6 +299,9 @@ export default function DashboardPage() {
     const [imageFiles, setImageFiles] = useState<File[]>([]);
     const [productLoading, setProductLoading] = useState(false);
     const [deletingProductId, setDeletingProductId] = useState<string | null>(null);
+    const [showRestockModal, setShowRestockModal] = useState(false);
+    const [restockingProduct, setRestockingProduct] = useState<Product | null>(null);
+    const [restockSizes, setRestockSizes] = useState({ S: 0, M: 0, L: 0, XL: 0 });
 
     const generateProductCode = () => {
       const timestamp = Date.now().toString().slice(-6);
@@ -456,6 +459,41 @@ export default function DashboardPage() {
         }
       });
       setShowAddProduct(true);
+    };
+
+    const handleRestock = (product: Product) => {
+      setRestockingProduct(product);
+      setRestockSizes({ S: 0, M: 0, L: 0, XL: 0 });
+      setShowRestockModal(true);
+    };
+
+    const submitRestock = async () => {
+      if (!restockingProduct) return;
+      
+      setLoading(true);
+      try {
+        const response = await fetch('/api/products/restock', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ 
+            productId: restockingProduct._id || restockingProduct.id, 
+            sizes: restockSizes,
+            sendEmail: true
+          })
+        });
+        
+        if (response.ok) {
+          loadData();
+          setShowRestockModal(false);
+          showToast('Product restocked and customers notified!', 'success');
+        } else {
+          showToast('Failed to restock product', 'error');
+        }
+      } catch (error) {
+        showToast('Error restocking product', 'error');
+      } finally {
+        setLoading(false);
+      }
     };
 
     const handleDeleteProduct = async (product: Product) => {
@@ -922,6 +960,13 @@ export default function DashboardPage() {
                           <i className="bi bi-pencil"></i>
                         </button>
                         <button 
+                          className="btn btn-sm btn-outline-success me-1" 
+                          title="Restock"
+                          onClick={() => handleRestock(product)}
+                        >
+                          <i className="bi bi-arrow-up-circle"></i>
+                        </button>
+                        <button 
                           className="btn btn-sm btn-outline-danger" 
                           title="Delete"
                           onClick={() => handleDeleteProduct(product)}
@@ -940,6 +985,57 @@ export default function DashboardPage() {
             </div>
           </div>
         </div>
+
+        {/* Restock Modal */}
+        {showRestockModal && (
+          <div className="modal show d-block" style={{backgroundColor: 'rgba(0,0,0,0.5)'}}>
+            <div className="modal-dialog">
+              <div className="modal-content">
+                <div className="modal-header">
+                  <h5 className="modal-title">Restock: {restockingProduct?.name}</h5>
+                  <button type="button" className="btn-close" onClick={() => setShowRestockModal(false)}></button>
+                </div>
+                <div className="modal-body">
+                  <div className="row">
+                    <div className="col-md-6 mb-3">
+                      <label className="form-label">Size S Stock</label>
+                      <input type="number" className="form-control" min="0" 
+                             value={restockSizes.S} 
+                             onChange={(e) => setRestockSizes({...restockSizes, S: Number(e.target.value)})} />
+                    </div>
+                    <div className="col-md-6 mb-3">
+                      <label className="form-label">Size M Stock</label>
+                      <input type="number" className="form-control" min="0" 
+                             value={restockSizes.M} 
+                             onChange={(e) => setRestockSizes({...restockSizes, M: Number(e.target.value)})} />
+                    </div>
+                    <div className="col-md-6 mb-3">
+                      <label className="form-label">Size L Stock</label>
+                      <input type="number" className="form-control" min="0" 
+                             value={restockSizes.L} 
+                             onChange={(e) => setRestockSizes({...restockSizes, L: Number(e.target.value)})} />
+                    </div>
+                    <div className="col-md-6 mb-3">
+                      <label className="form-label">Size XL Stock</label>
+                      <input type="number" className="form-control" min="0" 
+                             value={restockSizes.XL} 
+                             onChange={(e) => setRestockSizes({...restockSizes, XL: Number(e.target.value)})} />
+                    </div>
+                  </div>
+                  <div className="alert alert-info">
+                    <strong>Total:</strong> {Object.values(restockSizes).reduce((a, b) => a + b, 0)} items
+                  </div>
+                </div>
+                <div className="modal-footer">
+                  <button type="button" className="btn btn-secondary" onClick={() => setShowRestockModal(false)}>Cancel</button>
+                  <button type="button" className="btn btn-success" onClick={submitRestock} disabled={loading}>
+                    {loading ? 'Restocking...' : 'Restock'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     );
   }
