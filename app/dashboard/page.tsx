@@ -272,6 +272,9 @@ export default function DashboardPage() {
       status: 'instock' as 'active' | 'inactive' | 'draft' | 'outofstock' | 'instock',
       rating: 4.0,
       reviewCount: 0,
+      promoCode: '',
+      discount: 0,
+      originalPrice: 0,
       details: {
         color: '',
         brand: '',
@@ -383,6 +386,9 @@ export default function DashboardPage() {
         status: 'instock',
         rating: 4.0,
         reviewCount: 0,
+        promoCode: '',
+        discount: 0,
+        originalPrice: 0,
         details: {
           color: '',
           brand: '',
@@ -435,6 +441,9 @@ export default function DashboardPage() {
         status: product.status,
         rating: typeof product.rating === 'number' ? product.rating : product.rating?.average || 4.0,
         reviewCount: product.reviewCount || 0,
+        promoCode: product.promoCode || '',
+        discount: product.discount || 0,
+        originalPrice: product.originalPrice || product.price,
         details: (product as any).details || {
           color: '',
           brand: '',
@@ -717,6 +726,74 @@ export default function DashboardPage() {
                   </div>
                 </div>
 
+                {/* Pricing & Discount Section */}
+                <div className="card mb-3">
+                  <div className="card-header">
+                    <h6 className="mb-0"><i className="bi bi-percent me-2"></i>Pricing & Discounts</h6>
+                  </div>
+                  <div className="card-body">
+                    <div className="row">
+                      <div className="col-md-4 mb-3">
+                        <label className="form-label">Original Price</label>
+                        <div className="input-group">
+                          <span className="input-group-text">₹</span>
+                          <input
+                            type="number"
+                            className="form-control"
+                            value={productForm.originalPrice || productForm.price}
+                            onChange={(e) => setProductForm({...productForm, originalPrice: Number(e.target.value)})}
+                          />
+                        </div>
+                      </div>
+                      <div className="col-md-4 mb-3">
+                        <label className="form-label">Discount (%)</label>
+                        <input
+                          type="number"
+                          className="form-control"
+                          min="0"
+                          max="100"
+                          value={productForm.discount}
+                          onChange={(e) => {
+                            const discount = Number(e.target.value);
+                            const originalPrice = productForm.originalPrice || productForm.price;
+                            const discountedPrice = originalPrice - (originalPrice * discount / 100);
+                            setProductForm({...productForm, discount, price: discountedPrice});
+                          }}
+                        />
+                      </div>
+                      <div className="col-md-4 mb-3">
+                        <label className="form-label">Final Price</label>
+                        <div className="input-group">
+                          <span className="input-group-text">₹</span>
+                          <input
+                            type="number"
+                            className="form-control"
+                            value={productForm.price}
+                            onChange={(e) => setProductForm({...productForm, price: Number(e.target.value)})}
+                          />
+                        </div>
+                      </div>
+                      <div className="col-md-6 mb-3">
+                        <label className="form-label">Promo Code</label>
+                        <input
+                          type="text"
+                          className="form-control"
+                          placeholder="e.g., SAVE20, NEWUSER"
+                          value={productForm.promoCode}
+                          onChange={(e) => setProductForm({...productForm, promoCode: e.target.value.toUpperCase()})}
+                        />
+                      </div>
+                      <div className="col-md-6 mb-3">
+                        <label className="form-label">Savings</label>
+                        <div className="form-control bg-light">
+                          ₹{((productForm.originalPrice || productForm.price) - productForm.price).toFixed(2)} 
+                          ({productForm.discount}% off)
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
                 {/* Product Details Section */}
                 <div className="card mb-3">
                   <div className="card-header">
@@ -909,6 +986,7 @@ export default function DashboardPage() {
                     <th>Code</th>
                     <th>Category</th>
                     <th>Price</th>
+                    <th>Discount</th>
                     <th>Stock</th>
                     <th>Status</th>
                     <th>Actions</th>
@@ -934,7 +1012,30 @@ export default function DashboardPage() {
                       <td>{product.name}</td>
                       <td><code>{product.code}</code></td>
                       <td>{typeof product.category === 'string' ? product.category : product.category?.name}</td>
-                      <td>₹{product.price.toLocaleString()}</td>
+                      <td>
+                        <div>
+                          {product.originalPrice && product.originalPrice > product.price ? (
+                            <>
+                              <span className="text-decoration-line-through text-muted small">₹{product.originalPrice}</span><br/>
+                              <span className="fw-bold text-success">₹{product.price.toLocaleString()}</span>
+                            </>
+                          ) : (
+                            <span>₹{product.price.toLocaleString()}</span>
+                          )}
+                        </div>
+                      </td>
+                      <td>
+                        {product.discount > 0 ? (
+                          <div>
+                            <span className="badge bg-danger">{product.discount}% OFF</span>
+                            {product.promoCode && (
+                              <><br/><small className="text-primary">{product.promoCode}</small></>
+                            )}
+                          </div>
+                        ) : (
+                          <span className="text-muted">-</span>
+                        )}
+                      </td>
                       <td>
                         {(() => {
                           if (!product.sizes) return 0;
