@@ -16,6 +16,7 @@ export default function ProductsPage() {
     category: '',
     status: ''
   });
+  const [activeTab, setActiveTab] = useState('basic');
   const [formData, setFormData] = useState({
     name: '',
     code: '',
@@ -24,10 +25,22 @@ export default function ProductsPage() {
     category: '',
     subcategory: '',
     image: '',
+    additionalImages: [''],
     sizes: { S: 0, M: 0, L: 0, XL: 0 },
     status: 'instock' as 'active' | 'inactive' | 'draft' | 'outofstock' | 'instock',
     rating: 4.0,
-    reviewCount: 0
+    reviewCount: 0,
+    specifications: {
+      material: '',
+      careInstructions: '',
+      origin: '',
+      weight: ''
+    },
+    seo: {
+      metaTitle: '',
+      metaDescription: '',
+      keywords: ''
+    }
   });
 
   useEffect(() => {
@@ -134,13 +147,26 @@ export default function ProductsPage() {
       category: '',
       subcategory: '',
       image: '',
+      additionalImages: [''],
       sizes: { S: 0, M: 0, L: 0, XL: 0 },
       status: 'instock',
       rating: 4.0,
-      reviewCount: 0
+      reviewCount: 0,
+      specifications: {
+        material: '',
+        careInstructions: '',
+        origin: '',
+        weight: ''
+      },
+      seo: {
+        metaTitle: '',
+        metaDescription: '',
+        keywords: ''
+      }
     });
     setEditingProduct(null);
     setShowAddForm(false);
+    setActiveTab('basic');
   };
 
   const startEdit = (product: Product) => {
@@ -153,6 +179,7 @@ export default function ProductsPage() {
       category: typeof product.category === 'string' ? product.category : product.category.name,
       subcategory: product.subcategory || '',
       image: product.image,
+      additionalImages: (product as any).additionalImages || [''],
       sizes: (() => {
         if (typeof product.sizes === 'object' && product.sizes && !Array.isArray(product.sizes)) {
           const sizes = product.sizes as { [key: string]: number };
@@ -167,9 +194,21 @@ export default function ProductsPage() {
       })(),
       status: product.status,
       rating: typeof product.rating === 'number' ? product.rating : product.rating?.average || 4.0,
-      reviewCount: product.reviewCount || 0
+      reviewCount: product.reviewCount || 0,
+      specifications: (product as any).specifications || {
+        material: '',
+        careInstructions: '',
+        origin: '',
+        weight: ''
+      },
+      seo: (product as any).seo || {
+        metaTitle: '',
+        metaDescription: '',
+        keywords: ''
+      }
     });
     setShowAddForm(true);
+    setActiveTab('basic');
   };
 
   const getSubcategories = (categoryName: string) => {
@@ -197,180 +236,344 @@ export default function ProductsPage() {
               <h5 className="mb-0 fw-bold">{editingProduct ? 'Edit Product' : 'Add New Product'}</h5>
             </div>
           </div>
-          <div className="card-body p-4" style={{background: 'linear-gradient(145deg, #f8f9fa 0%, #ffffff 100%)'}}>
-            <form onSubmit={handleSubmit}>
-              <div className="row">
-                <div className="col-md-6 mb-3">
-                  <label className="form-label">Product Name</label>
-                  <input
-                    type="text"
-                    className="form-control"
-                    value={formData.name}
-                    onChange={(e) => setFormData({...formData, name: e.target.value})}
-                    required
-                    style={{borderRadius: '10px', border: '2px solid #e9ecef', padding: '12px 16px'}}
-                    placeholder="Enter product name"
-                  />
-                </div>
-                <div className="col-md-6 mb-3">
-                  <label className="form-label">Product Code</label>
-                  <input
-                    type="text"
-                    className="form-control"
-                    value={formData.code}
-                    onChange={(e) => setFormData({...formData, code: e.target.value})}
-                    required
-                    style={{borderRadius: '10px', border: '2px solid #e9ecef', padding: '12px 16px'}}
-                    placeholder="Enter product code"
-                  />
-                </div>
-              </div>
+          <div className="card-body p-0">
+            <ul className="nav nav-tabs" style={{borderBottom: '2px solid #e9ecef'}}>
+              <li className="nav-item">
+                <button className={`nav-link ${activeTab === 'basic' ? 'active' : ''}`} type="button" onClick={() => setActiveTab('basic')}>
+                  <i className="bi bi-info-circle me-2"></i>Basic Info
+                </button>
+              </li>
+              <li className="nav-item">
+                <button className={`nav-link ${activeTab === 'specifications' ? 'active' : ''}`} type="button" onClick={() => setActiveTab('specifications')}>
+                  <i className="bi bi-gear me-2"></i>Specifications
+                </button>
+              </li>
+              <li className="nav-item">
+                <button className={`nav-link ${activeTab === 'images' ? 'active' : ''}`} type="button" onClick={() => setActiveTab('images')}>
+                  <i className="bi bi-images me-2"></i>Images
+                </button>
+              </li>
+              <li className="nav-item">
+                <button className={`nav-link ${activeTab === 'seo' ? 'active' : ''}`} type="button" onClick={() => setActiveTab('seo')}>
+                  <i className="bi bi-search me-2"></i>SEO
+                </button>
+              </li>
+            </ul>
+            <form onSubmit={handleSubmit} className="p-4">
+              {activeTab === 'basic' && (
+                <div>
+                  <div className="row">
+                    <div className="col-md-6 mb-3">
+                      <label className="form-label">Product Name</label>
+                      <input
+                        type="text"
+                        className="form-control"
+                        value={formData.name}
+                        onChange={(e) => setFormData({...formData, name: e.target.value})}
+                        required
+                        style={{borderRadius: '10px', border: '2px solid #e9ecef', padding: '12px 16px'}}
+                        placeholder="Enter product name"
+                      />
+                    </div>
+                    <div className="col-md-6 mb-3">
+                      <label className="form-label">Product Code</label>
+                      <input
+                        type="text"
+                        className="form-control"
+                        value={formData.code}
+                        onChange={(e) => setFormData({...formData, code: e.target.value})}
+                        required
+                        style={{borderRadius: '10px', border: '2px solid #e9ecef', padding: '12px 16px'}}
+                        placeholder="Enter product code"
+                      />
+                    </div>
+                  </div>
 
-              <div className="mb-3">
-                <label className="form-label">Product Description</label>
-                <textarea
-                  className="form-control"
-                  rows={3}
-                  value={formData.description}
-                  onChange={(e) => setFormData({...formData, description: e.target.value})}
-                  placeholder="Enter product description..."
-                  style={{borderRadius: '10px', border: '2px solid #e9ecef', padding: '12px 16px'}}
-                />
-              </div>
+                  <div className="mb-3">
+                    <label className="form-label">Product Description</label>
+                    <textarea
+                      className="form-control"
+                      rows={4}
+                      value={formData.description}
+                      onChange={(e) => setFormData({...formData, description: e.target.value})}
+                      placeholder="Enter product description..."
+                      style={{borderRadius: '10px', border: '2px solid #e9ecef', padding: '12px 16px'}}
+                    />
+                  </div>
 
-              <div className="row">
-                <div className="col-md-4 mb-3">
-                  <label className="form-label">Price (₹)</label>
-                  <input
-                    type="number"
-                    className="form-control"
-                    value={formData.price}
-                    onChange={(e) => setFormData({...formData, price: Number(e.target.value)})}
-                    required
-                    style={{borderRadius: '10px', border: '2px solid #e9ecef', padding: '12px 16px'}}
-                    placeholder="0.00"
-                  />
+                  <div className="row">
+                    <div className="col-md-4 mb-3">
+                      <label className="form-label">Price (LKR)</label>
+                      <input
+                        type="number"
+                        className="form-control"
+                        value={formData.price}
+                        onChange={(e) => setFormData({...formData, price: Number(e.target.value)})}
+                        required
+                        style={{borderRadius: '10px', border: '2px solid #e9ecef', padding: '12px 16px'}}
+                        placeholder="0.00"
+                      />
+                    </div>
+                    <div className="col-md-4 mb-3">
+                      <label className="form-label">Category</label>
+                      <select
+                        className="form-select"
+                        value={formData.category}
+                        onChange={(e) => setFormData({...formData, category: e.target.value, subcategory: ''})}
+                        required
+                        style={{borderRadius: '10px', border: '2px solid #e9ecef', padding: '12px 16px'}}
+                      >
+                        <option value="">Select Category</option>
+                        {categories.map(cat => (
+                          <option key={cat._id} value={cat.name}>{cat.name}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="col-md-4 mb-3">
+                      <label className="form-label">Subcategory</label>
+                      <select
+                        className="form-select"
+                        value={formData.subcategory}
+                        onChange={(e) => setFormData({...formData, subcategory: e.target.value})}
+                        disabled={!formData.category}
+                        style={{borderRadius: '10px', border: '2px solid #e9ecef', padding: '12px 16px'}}
+                      >
+                        <option value="">Select Subcategory</option>
+                        {getSubcategories(formData.category).map(sub => (
+                          <option key={sub.slug} value={sub.name}>{sub.name}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="row">
+                    <div className="col-md-3 mb-3">
+                      <label className="form-label">Size S Stock</label>
+                      <input
+                        type="number"
+                        className="form-control"
+                        value={formData.sizes.S}
+                        onChange={(e) => setFormData({...formData, sizes: {...formData.sizes, S: Number(e.target.value)}})}
+                        style={{borderRadius: '10px', border: '2px solid #e9ecef', padding: '12px 16px'}}
+                      />
+                    </div>
+                    <div className="col-md-3 mb-3">
+                      <label className="form-label">Size M Stock</label>
+                      <input
+                        type="number"
+                        className="form-control"
+                        value={formData.sizes.M}
+                        onChange={(e) => setFormData({...formData, sizes: {...formData.sizes, M: Number(e.target.value)}})}
+                        style={{borderRadius: '10px', border: '2px solid #e9ecef', padding: '12px 16px'}}
+                      />
+                    </div>
+                    <div className="col-md-3 mb-3">
+                      <label className="form-label">Size L Stock</label>
+                      <input
+                        type="number"
+                        className="form-control"
+                        value={formData.sizes.L}
+                        onChange={(e) => setFormData({...formData, sizes: {...formData.sizes, L: Number(e.target.value)}})}
+                        style={{borderRadius: '10px', border: '2px solid #e9ecef', padding: '12px 16px'}}
+                      />
+                    </div>
+                    <div className="col-md-3 mb-3">
+                      <label className="form-label">Size XL Stock</label>
+                      <input
+                        type="number"
+                        className="form-control"
+                        value={formData.sizes.XL}
+                        onChange={(e) => setFormData({...formData, sizes: {...formData.sizes, XL: Number(e.target.value)}})}
+                        style={{borderRadius: '10px', border: '2px solid #e9ecef', padding: '12px 16px'}}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="row">
+                    <div className="col-md-4 mb-3">
+                      <label className="form-label">Status</label>
+                      <select
+                        className="form-select"
+                        value={formData.status}
+                        onChange={(e) => setFormData({...formData, status: e.target.value as any})}
+                        style={{borderRadius: '10px', border: '2px solid #e9ecef', padding: '12px 16px'}}
+                      >
+                        <option value="instock">In Stock</option>
+                        <option value="outofstock">Out of Stock</option>
+                        <option value="active">Active</option>
+                        <option value="inactive">Inactive</option>
+                      </select>
+                    </div>
+                    <div className="col-md-4 mb-3">
+                      <label className="form-label">Rating</label>
+                      <input
+                        type="number"
+                        step="0.1"
+                        min="0"
+                        max="5"
+                        className="form-control"
+                        value={formData.rating}
+                        onChange={(e) => setFormData({...formData, rating: Number(e.target.value)})}
+                        style={{borderRadius: '10px', border: '2px solid #e9ecef', padding: '12px 16px'}}
+                      />
+                    </div>
+                    <div className="col-md-4 mb-3">
+                      <label className="form-label">Review Count</label>
+                      <input
+                        type="number"
+                        className="form-control"
+                        value={formData.reviewCount}
+                        onChange={(e) => setFormData({...formData, reviewCount: Number(e.target.value)})}
+                        style={{borderRadius: '10px', border: '2px solid #e9ecef', padding: '12px 16px'}}
+                      />
+                    </div>
+                  </div>
                 </div>
-                <div className="col-md-4 mb-3">
-                  <label className="form-label">Category</label>
-                  <select
-                    className="form-select"
-                    value={formData.category}
-                    onChange={(e) => setFormData({...formData, category: e.target.value, subcategory: ''})}
-                    required
-                    style={{borderRadius: '10px', border: '2px solid #e9ecef', padding: '12px 16px'}}
-                  >
-                    <option value="">Select Category</option>
-                    {categories.map(cat => (
-                      <option key={cat._id} value={cat.name}>{cat.name}</option>
+              )}
+
+              {activeTab === 'specifications' && (
+                <div>
+                  <div className="row">
+                    <div className="col-md-6 mb-3">
+                      <label className="form-label">Material</label>
+                      <input
+                        type="text"
+                        className="form-control"
+                        value={formData.specifications.material}
+                        onChange={(e) => setFormData({...formData, specifications: {...formData.specifications, material: e.target.value}})}
+                        placeholder="e.g., 100% Cotton"
+                        style={{borderRadius: '10px', border: '2px solid #e9ecef', padding: '12px 16px'}}
+                      />
+                    </div>
+                    <div className="col-md-6 mb-3">
+                      <label className="form-label">Care Instructions</label>
+                      <input
+                        type="text"
+                        className="form-control"
+                        value={formData.specifications.careInstructions}
+                        onChange={(e) => setFormData({...formData, specifications: {...formData.specifications, careInstructions: e.target.value}})}
+                        placeholder="e.g., Machine wash cold"
+                        style={{borderRadius: '10px', border: '2px solid #e9ecef', padding: '12px 16px'}}
+                      />
+                    </div>
+                  </div>
+                  <div className="row">
+                    <div className="col-md-6 mb-3">
+                      <label className="form-label">Origin</label>
+                      <input
+                        type="text"
+                        className="form-control"
+                        value={formData.specifications.origin}
+                        onChange={(e) => setFormData({...formData, specifications: {...formData.specifications, origin: e.target.value}})}
+                        placeholder="e.g., Sri Lanka"
+                        style={{borderRadius: '10px', border: '2px solid #e9ecef', padding: '12px 16px'}}
+                      />
+                    </div>
+                    <div className="col-md-6 mb-3">
+                      <label className="form-label">Weight/Fit</label>
+                      <input
+                        type="text"
+                        className="form-control"
+                        value={formData.specifications.weight}
+                        onChange={(e) => setFormData({...formData, specifications: {...formData.specifications, weight: e.target.value}})}
+                        placeholder="e.g., Regular Fit"
+                        style={{borderRadius: '10px', border: '2px solid #e9ecef', padding: '12px 16px'}}
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {activeTab === 'images' && (
+                <div>
+                  <div className="mb-3">
+                    <label className="form-label">Main Image URL</label>
+                    <input
+                      type="url"
+                      className="form-control"
+                      value={formData.image}
+                      onChange={(e) => setFormData({...formData, image: e.target.value})}
+                      required
+                      style={{borderRadius: '10px', border: '2px solid #e9ecef', padding: '12px 16px'}}
+                      placeholder="https://example.com/image.jpg"
+                    />
+                  </div>
+                  <div className="mb-3">
+                    <label className="form-label">Additional Images</label>
+                    {formData.additionalImages.map((img, index) => (
+                      <div key={index} className="d-flex gap-2 mb-2">
+                        <input
+                          type="url"
+                          className="form-control"
+                          value={img}
+                          onChange={(e) => {
+                            const newImages = [...formData.additionalImages];
+                            newImages[index] = e.target.value;
+                            setFormData({...formData, additionalImages: newImages});
+                          }}
+                          placeholder="https://example.com/image.jpg"
+                          style={{borderRadius: '10px', border: '2px solid #e9ecef', padding: '12px 16px'}}
+                        />
+                        <button
+                          type="button"
+                          className="btn btn-outline-danger"
+                          onClick={() => {
+                            const newImages = formData.additionalImages.filter((_, i) => i !== index);
+                            setFormData({...formData, additionalImages: newImages});
+                          }}
+                        >
+                          <i className="bi bi-trash"></i>
+                        </button>
+                      </div>
                     ))}
-                  </select>
+                    <button
+                      type="button"
+                      className="btn btn-outline-primary"
+                      onClick={() => setFormData({...formData, additionalImages: [...formData.additionalImages, '']})}
+                    >
+                      <i className="bi bi-plus me-2"></i>Add Image
+                    </button>
+                  </div>
                 </div>
-                <div className="col-md-4 mb-3">
-                  <label className="form-label">Subcategory</label>
-                  <select
-                    className="form-select"
-                    value={formData.subcategory}
-                    onChange={(e) => setFormData({...formData, subcategory: e.target.value})}
-                    disabled={!formData.category}
-                    style={{borderRadius: '10px', border: '2px solid #e9ecef', padding: '12px 16px'}}
-                  >
-                    <option value="">Select Subcategory</option>
-                    {getSubcategories(formData.category).map(sub => (
-                      <option key={sub.slug} value={sub.name}>{sub.name}</option>
-                    ))}
-                  </select>
-                </div>
-              </div>
+              )}
 
-              <div className="mb-3">
-                <label className="form-label">Image URL</label>
-                <input
-                  type="url"
-                  className="form-control"
-                  value={formData.image}
-                  onChange={(e) => setFormData({...formData, image: e.target.value})}
-                  required
-                  style={{borderRadius: '10px', border: '2px solid #e9ecef', padding: '12px 16px'}}
-                  placeholder="https://example.com/image.jpg"
-                />
-              </div>
-
-              <div className="row">
-                <div className="col-md-3 mb-3">
-                  <label className="form-label">Size S Stock</label>
-                  <input
-                    type="number"
-                    className="form-control"
-                    value={formData.sizes.S}
-                    onChange={(e) => setFormData({...formData, sizes: {...formData.sizes, S: Number(e.target.value)}})}
-                  />
+              {activeTab === 'seo' && (
+                <div>
+                  <div className="mb-3">
+                    <label className="form-label">Meta Title</label>
+                    <input
+                      type="text"
+                      className="form-control"
+                      value={formData.seo.metaTitle}
+                      onChange={(e) => setFormData({...formData, seo: {...formData.seo, metaTitle: e.target.value}})}
+                      placeholder="SEO title for search engines"
+                      style={{borderRadius: '10px', border: '2px solid #e9ecef', padding: '12px 16px'}}
+                    />
+                  </div>
+                  <div className="mb-3">
+                    <label className="form-label">Meta Description</label>
+                    <textarea
+                      className="form-control"
+                      rows={3}
+                      value={formData.seo.metaDescription}
+                      onChange={(e) => setFormData({...formData, seo: {...formData.seo, metaDescription: e.target.value}})}
+                      placeholder="SEO description for search engines"
+                      style={{borderRadius: '10px', border: '2px solid #e9ecef', padding: '12px 16px'}}
+                    />
+                  </div>
+                  <div className="mb-3">
+                    <label className="form-label">Keywords</label>
+                    <input
+                      type="text"
+                      className="form-control"
+                      value={formData.seo.keywords}
+                      onChange={(e) => setFormData({...formData, seo: {...formData.seo, keywords: e.target.value}})}
+                      placeholder="keyword1, keyword2, keyword3"
+                      style={{borderRadius: '10px', border: '2px solid #e9ecef', padding: '12px 16px'}}
+                    />
+                  </div>
                 </div>
-                <div className="col-md-3 mb-3">
-                  <label className="form-label">Size M Stock</label>
-                  <input
-                    type="number"
-                    className="form-control"
-                    value={formData.sizes.M}
-                    onChange={(e) => setFormData({...formData, sizes: {...formData.sizes, M: Number(e.target.value)}})}
-                  />
-                </div>
-                <div className="col-md-3 mb-3">
-                  <label className="form-label">Size L Stock</label>
-                  <input
-                    type="number"
-                    className="form-control"
-                    value={formData.sizes.L}
-                    onChange={(e) => setFormData({...formData, sizes: {...formData.sizes, L: Number(e.target.value)}})}
-                  />
-                </div>
-                <div className="col-md-3 mb-3">
-                  <label className="form-label">Size XL Stock</label>
-                  <input
-                    type="number"
-                    className="form-control"
-                    value={formData.sizes.XL}
-                    onChange={(e) => setFormData({...formData, sizes: {...formData.sizes, XL: Number(e.target.value)}})}
-                  />
-                </div>
-              </div>
-
-              <div className="row">
-                <div className="col-md-4 mb-3">
-                  <label className="form-label">Status</label>
-                  <select
-                    className="form-select"
-                    value={formData.status}
-                    onChange={(e) => setFormData({...formData, status: e.target.value as any})}
-                  >
-                    <option value="instock">In Stock</option>
-                    <option value="outofstock">Out of Stock</option>
-                    <option value="active">Active</option>
-                    <option value="inactive">Inactive</option>
-                  </select>
-                </div>
-                <div className="col-md-4 mb-3">
-                  <label className="form-label">Rating</label>
-                  <input
-                    type="number"
-                    step="0.1"
-                    min="0"
-                    max="5"
-                    className="form-control"
-                    value={formData.rating}
-                    onChange={(e) => setFormData({...formData, rating: Number(e.target.value)})}
-                  />
-                </div>
-                <div className="col-md-4 mb-3">
-                  <label className="form-label">Review Count</label>
-                  <input
-                    type="number"
-                    className="form-control"
-                    value={formData.reviewCount}
-                    onChange={(e) => setFormData({...formData, reviewCount: Number(e.target.value)})}
-                  />
-                </div>
-              </div>
+              )}
 
               <div className="d-flex gap-3 pt-3" style={{borderTop: '1px solid #e9ecef'}}>
                 <button type="submit" className="btn btn-lg px-4" disabled={loading} style={{
@@ -508,7 +711,7 @@ export default function ProductsPage() {
                       <span className="badge bg-primary px-2 py-1">{typeof product.category === 'string' ? product.category : product.category.name}</span>
                     </td>
                     <td style={{padding: '16px'}}>
-                      <span className="fw-bold text-success" style={{fontSize: '1.1rem'}}>₹{product.price.toLocaleString()}</span>
+                      <span className="fw-bold text-success" style={{fontSize: '1.1rem'}}>LKR {product.price.toLocaleString()}</span>
                     </td>
                     <td style={{padding: '16px'}}>
                       <span className="badge bg-info px-2 py-1">

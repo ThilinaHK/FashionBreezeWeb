@@ -732,7 +732,7 @@ export default function HomePage() {
       } else if (userMessage.includes('order') || userMessage.includes('delivery')) {
         botResponse = 'Orders are processed via WhatsApp. Add items to cart and click "Place Order via WhatsApp".';
       } else if (userMessage.includes('price') || userMessage.includes('cost')) {
-        botResponse = 'All prices are in Rupees (₹). Check our promotional sidebar for current deals!';
+        botResponse = 'All prices are in Sri Lankan Rupees (LKR). Check our promotional sidebar for current deals!';
       }
       
       setChatMessages(prev => [...prev, { text: botResponse, isBot: true }]);
@@ -2219,7 +2219,7 @@ export default function HomePage() {
                                     color: '#059669',
                                     lineHeight: 1
                                   }}>
-                                    ₹{product.price.toLocaleString()}
+                                    LKR {product.price.toLocaleString()}
                                   </div>
                                   <small className="price-note" style={{color: '#6b7280', fontSize: '0.75rem'}}>Inclusive of all taxes</small>
                                 </div>
@@ -2415,7 +2415,7 @@ export default function HomePage() {
                               )}
                             </div>
                             <div className="d-flex justify-content-between align-items-center">
-                              <span className="fw-bold" style={{color: '#27ae60', fontSize: '1.1rem'}}>₹{(item.price * item.quantity).toLocaleString()}</span>
+                              <span className="fw-bold" style={{color: '#27ae60', fontSize: '1.1rem'}}>LKR {(item.price * item.quantity).toLocaleString()}</span>
                               <button onClick={() => removeFromCart(item.id || item._id || '', item.size)} className="btn btn-outline-danger btn-sm rounded-circle" style={{width: '32px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center'}}>
                                 <i className="bi bi-trash" style={{fontSize: '0.8rem'}}></i>
                               </button>
@@ -2470,26 +2470,26 @@ export default function HomePage() {
                     <div className="order-summary p-3 rounded-3" style={{background: 'linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%)', border: '1px solid #dee2e6'}}>
                       <div className="d-flex justify-content-between align-items-center mb-2">
                         <span className="text-muted">Subtotal ({cart.length} items)</span>
-                        <span className="fw-bold">₹{getSubtotal().toLocaleString()}</span>
+                        <span className="fw-bold">LKR {getSubtotal().toLocaleString()}</span>
                       </div>
                       <div className="d-flex justify-content-between align-items-center mb-2">
                         <span className="text-muted">Delivery</span>
                         <span className={`fw-bold ${deliveryCost === 0 ? 'text-success' : 'text-primary'}`}>
-                          {deliveryCost === 0 ? 'FREE' : `₹${deliveryCost.toLocaleString()}`}
+                          {deliveryCost === 0 ? 'FREE' : `LKR ${deliveryCost.toLocaleString()}`}
                         </span>
                       </div>
                       {remainingForFreeDelivery > 0 && (
                         <div className="mb-2">
                           <small className="text-info">
                             <i className="bi bi-info-circle me-1"></i>
-                            Add ₹{remainingForFreeDelivery.toLocaleString()} more for FREE delivery!
+                            Add LKR {remainingForFreeDelivery.toLocaleString()} more for FREE delivery!
                           </small>
                         </div>
                       )}
                       <hr className="my-2" />
                       <div className="d-flex justify-content-between align-items-center mb-2">
                         <span className="fw-bold" style={{fontSize: '1.1rem'}}>Total</span>
-                        <span className="fw-bold" style={{fontSize: '1.3rem', color: '#27ae60'}}>₹{getTotal().toLocaleString()}</span>
+                        <span className="fw-bold" style={{fontSize: '1.3rem', color: '#27ae60'}}>LKR {getTotal().toLocaleString()}</span>
                       </div>
                       <div className="text-center mt-2">
                         <div className="d-flex gap-2 justify-content-center flex-wrap">
@@ -2564,7 +2564,7 @@ export default function HomePage() {
                     ) : (
                       <>
                         <i className="bi bi-check-circle me-2"></i>
-                        Place Order • ₹{getTotal().toLocaleString()}
+                        Place Order • LKR {getTotal().toLocaleString()}
                       </>
                     )}
                   </button>
@@ -2821,7 +2821,7 @@ export default function HomePage() {
                       </div>
                       <div className="d-flex justify-content-between align-items-center mb-4 p-3 rounded" style={{background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.1)'}}>
                         <div>
-                          <h2 className="mb-1" style={{color: '#ffffff', fontWeight: 600, fontSize: '2.2rem'}}>₹{selectedProduct.price}</h2>
+                          <h2 className="mb-1" style={{color: '#ffffff', fontWeight: 600, fontSize: '2.2rem'}}>LKR {selectedProduct.price}</h2>
                           <small className="text-muted">Inclusive of all taxes</small>
                         </div>
                         <div className="text-end">
@@ -3230,7 +3230,7 @@ export default function HomePage() {
                             ) : (
                               <>
                                 <i className="bi bi-cart-plus me-2"></i>
-                                Add to Cart - ₹{((selectedColor ? getColorPrice(selectedSize, selectedColor) : getSizePrice(selectedSize)) * modalQuantity).toFixed(2)}
+                                Add to Cart - LKR {((selectedColor ? getColorPrice(selectedSize, selectedColor) : getSizePrice(selectedSize)) * modalQuantity).toFixed(2)}
                               </>
                             )}
                           </button>
@@ -3258,7 +3258,7 @@ export default function HomePage() {
                                   <img src={product.image} alt={product.name} className="card-img-top" style={{height: '140px', objectFit: 'cover', borderRadius: '8px 8px 0 0'}} />
                                   <div className="card-body p-3">
                                     <h6 className="card-title mb-2" style={{fontSize: '0.85rem', color: 'white', fontWeight: 500, lineHeight: 1.3}}>{product.name}</h6>
-                                    <p className="fw-semibold mb-2" style={{color: '#ffffff', fontSize: '1rem'}}>₹{product.price}</p>
+                                    <p className="fw-semibold mb-2" style={{color: '#ffffff', fontSize: '1rem'}}>LKR {product.price}</p>
                                     <div className="d-flex align-items-center">
                                       <div className="text-warning me-1">
                                         {getStars(typeof product.rating === 'object' ? (product.rating as any).average : product.rating || 0).map((star, index) => (
