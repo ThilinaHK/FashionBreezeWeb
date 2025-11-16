@@ -9,6 +9,7 @@ interface Product {
   _id?: string;
   name: string;
   code: string;
+  description?: string;
   price: number;
   category: string | { _id: string; name: string; slug: string };
   brand?: string;
@@ -2158,7 +2159,7 @@ export default function HomePage() {
                               </div>
                               
                               {/* Description Preview */}
-                              {(product as any).description && (
+                              {product.description && (
                                 <p className="product-description" style={{
                                   fontSize: '0.85rem',
                                   color: '#6b7280',
@@ -2169,7 +2170,7 @@ export default function HomePage() {
                                   WebkitBoxOrient: 'vertical',
                                   overflow: 'hidden'
                                 }}>
-                                  {(product as any).description}
+                                  {product.description}
                                 </p>
                               )}
                               
@@ -2868,7 +2869,7 @@ export default function HomePage() {
                                 fontSize: '1rem',
                                 fontWeight: '400',
                                 textAlign: 'justify'
-                              }}>{(selectedProduct as any)?.description || getProductDescription()}</p>
+                              }}>{selectedProduct?.description || getProductDescription()}</p>
                               
                               <div className="product-specs mt-3 pt-3" style={{
                                 borderTop: '1px solid rgba(255,255,255,0.1)'

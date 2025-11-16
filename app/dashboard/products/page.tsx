@@ -14,6 +14,7 @@ export default function ProductsPage() {
   const [formData, setFormData] = useState({
     name: '',
     code: '',
+    description: '',
     price: 0,
     category: '',
     subcategory: '',
@@ -108,6 +109,7 @@ export default function ProductsPage() {
     setFormData({
       name: '',
       code: '',
+      description: '',
       price: 0,
       category: '',
       subcategory: '',
@@ -126,6 +128,7 @@ export default function ProductsPage() {
     setFormData({
       name: product.name,
       code: product.code,
+      description: product.description || '',
       price: product.price,
       category: typeof product.category === 'string' ? product.category : product.category.name,
       subcategory: product.subcategory || '',
@@ -235,6 +238,17 @@ export default function ProductsPage() {
                     ))}
                   </select>
                 </div>
+              </div>
+
+              <div className="mb-3">
+                <label className="form-label">Product Description</label>
+                <textarea
+                  className="form-control"
+                  rows={3}
+                  value={formData.description}
+                  onChange={(e) => setFormData({...formData, description: e.target.value})}
+                  placeholder="Enter product description..."
+                />
               </div>
 
               <div className="mb-3">

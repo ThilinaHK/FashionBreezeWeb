@@ -87,6 +87,15 @@ export async function POST(request: NextRequest) {
         weight: 'Regular Fit',
         origin: 'Sri Lanka'
       };
+    } else if (typeof body.specifications === 'object') {
+      // Ensure specifications are properly structured
+      const specs = body.specifications;
+      body.specifications = {
+        material: specs.material || '',
+        careInstructions: specs.careInstructions || '',
+        origin: specs.origin || '',
+        weight: specs.weight || ''
+      };
     }
     
     // Handle category - for now, store as string since dashboard sends string

@@ -39,6 +39,18 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
       delete body.images;
     }
     
+    // Handle specifications - ensure it's properly structured
+    if (body.specifications && typeof body.specifications === 'object') {
+      // Clean up empty specification fields
+      const specs = body.specifications;
+      body.specifications = {
+        material: specs.material || '',
+        careInstructions: specs.careInstructions || '',
+        origin: specs.origin || '',
+        weight: specs.weight || ''
+      };
+    }
+    
     console.log('Updating product with data:', JSON.stringify(body, null, 2));
     
     // Check if id is numeric (custom id field) or ObjectId
