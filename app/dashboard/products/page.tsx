@@ -22,6 +22,9 @@ export default function ProductsPage() {
     code: '',
     description: '',
     price: 0,
+    originalPrice: 0,
+    discount: 0,
+    promoCode: '',
     category: '',
     subcategory: '',
     image: '',
@@ -30,6 +33,16 @@ export default function ProductsPage() {
     status: 'instock' as 'active' | 'inactive' | 'draft' | 'outofstock' | 'instock',
     rating: 4.0,
     reviewCount: 0,
+    color: '',
+    brand: '',
+    style: '',
+    sleeveType: '',
+    neckline: '',
+    pattern: '',
+    sleeveLength: '',
+    fitType: '',
+    fabric: '',
+    composition: '',
     specifications: {
       material: '',
       careInstructions: '',
@@ -144,6 +157,9 @@ export default function ProductsPage() {
       code: '',
       description: '',
       price: 0,
+      originalPrice: 0,
+      discount: 0,
+      promoCode: '',
       category: '',
       subcategory: '',
       image: '',
@@ -152,6 +168,16 @@ export default function ProductsPage() {
       status: 'instock',
       rating: 4.0,
       reviewCount: 0,
+      color: '',
+      brand: '',
+      style: '',
+      sleeveType: '',
+      neckline: '',
+      pattern: '',
+      sleeveLength: '',
+      fitType: '',
+      fabric: '',
+      composition: '',
       specifications: {
         material: '',
         careInstructions: '',
@@ -176,6 +202,9 @@ export default function ProductsPage() {
       code: product.code,
       description: product.description || '',
       price: product.price,
+      originalPrice: (product as any).originalPrice || product.price,
+      discount: (product as any).discount || 0,
+      promoCode: (product as any).promoCode || '',
       category: typeof product.category === 'string' ? product.category : product.category.name,
       subcategory: product.subcategory || '',
       image: product.image,
@@ -195,6 +224,16 @@ export default function ProductsPage() {
       status: product.status,
       rating: typeof product.rating === 'number' ? product.rating : product.rating?.average || 4.0,
       reviewCount: product.reviewCount || 0,
+      color: (product as any).color || '',
+      brand: (product as any).brand || '',
+      style: (product as any).style || '',
+      sleeveType: (product as any).sleeveType || '',
+      neckline: (product as any).neckline || '',
+      pattern: (product as any).pattern || '',
+      sleeveLength: (product as any).sleeveLength || '',
+      fitType: (product as any).fitType || '',
+      fabric: (product as any).fabric || '',
+      composition: (product as any).composition || '',
       specifications: (product as any).specifications || {
         material: '',
         careInstructions: '',
@@ -301,19 +340,201 @@ export default function ProductsPage() {
                     />
                   </div>
 
-                  <div className="row">
-                    <div className="col-md-4 mb-3">
-                      <label className="form-label">Price (LKR)</label>
-                      <input
-                        type="number"
-                        className="form-control"
-                        value={formData.price}
-                        onChange={(e) => setFormData({...formData, price: Number(e.target.value)})}
-                        required
-                        style={{borderRadius: '10px', border: '2px solid #e9ecef', padding: '12px 16px'}}
-                        placeholder="0.00"
-                      />
+                  <div className="mb-4">
+                    <h6 className="fw-bold mb-3">Pricing & Discounts</h6>
+                    <div className="row">
+                      <div className="col-md-4 mb-3">
+                        <label className="form-label">Original Price (LKR)</label>
+                        <input
+                          type="number"
+                          className="form-control"
+                          value={formData.originalPrice}
+                          onChange={(e) => {
+                            const original = Number(e.target.value);
+                            const final = original - (original * formData.discount / 100);
+                            setFormData({...formData, originalPrice: original, price: final});
+                          }}
+                          required
+                          style={{borderRadius: '10px', border: '2px solid #e9ecef', padding: '12px 16px'}}
+                          placeholder="0.00"
+                        />
+                      </div>
+                      <div className="col-md-4 mb-3">
+                        <label className="form-label">Discount (%)</label>
+                        <input
+                          type="number"
+                          className="form-control"
+                          value={formData.discount}
+                          onChange={(e) => {
+                            const disc = Number(e.target.value);
+                            const final = formData.originalPrice - (formData.originalPrice * disc / 100);
+                            setFormData({...formData, discount: disc, price: final});
+                          }}
+                          style={{borderRadius: '10px', border: '2px solid #e9ecef', padding: '12px 16px'}}
+                          placeholder="0"
+                        />
+                      </div>
+                      <div className="col-md-4 mb-3">
+                        <label className="form-label">Final Price (LKR)</label>
+                        <input
+                          type="number"
+                          className="form-control"
+                          value={formData.price}
+                          readOnly
+                          style={{borderRadius: '10px', border: '2px solid #e9ecef', padding: '12px 16px', backgroundColor: '#f8f9fa'}}
+                        />
+                      </div>
                     </div>
+                    <div className="row">
+                      <div className="col-md-6 mb-3">
+                        <label className="form-label">Promo Code</label>
+                        <input
+                          type="text"
+                          className="form-control"
+                          value={formData.promoCode}
+                          onChange={(e) => setFormData({...formData, promoCode: e.target.value})}
+                          placeholder="e.g., SAVE20, NEWUSER"
+                          style={{borderRadius: '10px', border: '2px solid #e9ecef', padding: '12px 16px'}}
+                        />
+                      </div>
+                      <div className="col-md-6 mb-3">
+                        <label className="form-label">Savings</label>
+                        <div className="form-control" style={{borderRadius: '10px', border: '2px solid #e9ecef', padding: '12px 16px', backgroundColor: '#f8f9fa'}}>
+                          LKR {(formData.originalPrice - formData.price).toFixed(2)} ({formData.discount}% off)
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="mb-4">
+                    <h6 className="fw-bold mb-3">Product Details</h6>
+                    <div className="row">
+                      <div className="col-md-4 mb-3">
+                        <label className="form-label">Color</label>
+                        <input
+                          type="text"
+                          className="form-control"
+                          value={formData.color}
+                          onChange={(e) => setFormData({...formData, color: e.target.value})}
+                          placeholder="Color name or hex"
+                          style={{borderRadius: '10px', border: '2px solid #e9ecef', padding: '12px 16px'}}
+                        />
+                      </div>
+                      <div className="col-md-4 mb-3">
+                        <label className="form-label">Brand Name</label>
+                        <input
+                          type="text"
+                          className="form-control"
+                          value={formData.brand}
+                          onChange={(e) => setFormData({...formData, brand: e.target.value})}
+                          placeholder="Enter brand name"
+                          style={{borderRadius: '10px', border: '2px solid #e9ecef', padding: '12px 16px'}}
+                        />
+                      </div>
+                      <div className="col-md-4 mb-3">
+                        <label className="form-label">Style</label>
+                        <select
+                          className="form-select"
+                          value={formData.style}
+                          onChange={(e) => setFormData({...formData, style: e.target.value})}
+                          style={{borderRadius: '10px', border: '2px solid #e9ecef', padding: '12px 16px'}}
+                        >
+                          <option value="">Select Style</option>
+                          <option value="casual">Casual</option>
+                          <option value="formal">Formal</option>
+                          <option value="party">Party</option>
+                          <option value="sports">Sports</option>
+                        </select>
+                      </div>
+                    </div>
+                    <div className="row">
+                      <div className="col-md-4 mb-3">
+                        <label className="form-label">Sleeve Type</label>
+                        <select
+                          className="form-select"
+                          value={formData.sleeveType}
+                          onChange={(e) => setFormData({...formData, sleeveType: e.target.value})}
+                          style={{borderRadius: '10px', border: '2px solid #e9ecef', padding: '12px 16px'}}
+                        >
+                          <option value="">Select Sleeve Type</option>
+                          <option value="short">Short Sleeve</option>
+                          <option value="long">Long Sleeve</option>
+                          <option value="sleeveless">Sleeveless</option>
+                        </select>
+                      </div>
+                      <div className="col-md-4 mb-3">
+                        <label className="form-label">Neckline</label>
+                        <select
+                          className="form-select"
+                          value={formData.neckline}
+                          onChange={(e) => setFormData({...formData, neckline: e.target.value})}
+                          style={{borderRadius: '10px', border: '2px solid #e9ecef', padding: '12px 16px'}}
+                        >
+                          <option value="">Select Neckline</option>
+                          <option value="round">Round Neck</option>
+                          <option value="v-neck">V-Neck</option>
+                          <option value="collar">Collar</option>
+                        </select>
+                      </div>
+                      <div className="col-md-4 mb-3">
+                        <label className="form-label">Pattern Type</label>
+                        <select
+                          className="form-select"
+                          value={formData.pattern}
+                          onChange={(e) => setFormData({...formData, pattern: e.target.value})}
+                          style={{borderRadius: '10px', border: '2px solid #e9ecef', padding: '12px 16px'}}
+                        >
+                          <option value="">Select Pattern</option>
+                          <option value="solid">Solid</option>
+                          <option value="striped">Striped</option>
+                          <option value="printed">Printed</option>
+                        </select>
+                      </div>
+                    </div>
+                    <div className="row">
+                      <div className="col-md-4 mb-3">
+                        <label className="form-label">Fit Type</label>
+                        <select
+                          className="form-select"
+                          value={formData.fitType}
+                          onChange={(e) => setFormData({...formData, fitType: e.target.value})}
+                          style={{borderRadius: '10px', border: '2px solid #e9ecef', padding: '12px 16px'}}
+                        >
+                          <option value="">Select Fit</option>
+                          <option value="regular">Regular Fit</option>
+                          <option value="slim">Slim Fit</option>
+                          <option value="loose">Loose Fit</option>
+                        </select>
+                      </div>
+                      <div className="col-md-4 mb-3">
+                        <label className="form-label">Fabric</label>
+                        <select
+                          className="form-select"
+                          value={formData.fabric}
+                          onChange={(e) => setFormData({...formData, fabric: e.target.value})}
+                          style={{borderRadius: '10px', border: '2px solid #e9ecef', padding: '12px 16px'}}
+                        >
+                          <option value="">Select Fabric</option>
+                          <option value="cotton">Cotton</option>
+                          <option value="polyester">Polyester</option>
+                          <option value="blend">Cotton Blend</option>
+                        </select>
+                      </div>
+                      <div className="col-md-4 mb-3">
+                        <label className="form-label">Composition</label>
+                        <input
+                          type="text"
+                          className="form-control"
+                          value={formData.composition}
+                          onChange={(e) => setFormData({...formData, composition: e.target.value})}
+                          placeholder="e.g., 100% Polyester"
+                          style={{borderRadius: '10px', border: '2px solid #e9ecef', padding: '12px 16px'}}
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="row">
                     <div className="col-md-4 mb-3">
                       <label className="form-label">Category</label>
                       <select
