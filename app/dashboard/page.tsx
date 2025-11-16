@@ -372,20 +372,27 @@ export default function DashboardPage() {
         showToast('Category is required', 'error');
         return;
       }
+      if (!productForm.price || productForm.price <= 0) {
+        showToast('Product price must be greater than 0', 'error');
+        return;
+      }
       
       setProductLoading(true);
       try {
-        const sizesArray = Object.entries(productForm.sizes).map(([size, stock]) => ({
-          size,
-          stock: Number(stock),
-          price: productForm.price
-        }));
+        const sizesArray = Object.entries(productForm.sizes)
+          .filter(([size, stock]) => size && size.trim() !== '')
+          .map(([size, stock]) => ({
+            size: size.trim(),
+            stock: Number(stock) || 0,
+            price: Number(productForm.price)
+          }));
         
         const productData = {
           ...productForm,
           image: productForm.images[0] || '',
           additionalImages: productForm.images.filter(img => img !== ''),
-          sizes: sizesArray
+          sizes: sizesArray,
+          price: Number(productForm.price)
         };
         
         delete productData.images;
@@ -405,10 +412,10 @@ export default function DashboardPage() {
           showToast(editingProduct ? 'Product updated successfully!' : 'Product added successfully!', 'success');
         } else {
           const errorData = await response.json();
-          showToast(errorData.error || 'Failed to save product', 'error');
+          showToast(`Failed to update product: ${errorData.error}`, 'error');
         }
       } catch (error) {
-        showToast('Error saving product', 'error');
+        showToast(`Error saving product: ${error}`, 'error');
       } finally {
         setProductLoading(false);
       }
@@ -418,7 +425,7 @@ export default function DashboardPage() {
       setProductForm({
         name: '',
         code: generateProductCode(),
-        price: 0,
+        price: 1500,
         category: '',
         subcategory: '',
         images: ['', '', '', ''],
