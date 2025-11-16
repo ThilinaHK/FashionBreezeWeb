@@ -226,6 +226,18 @@ export default function ProductsPage() {
                 </div>
               </div>
 
+              <div className="mb-3">
+                <label className="form-label">Product Description</label>
+                <textarea
+                  className="form-control"
+                  rows={3}
+                  value={formData.description}
+                  onChange={(e) => setFormData({...formData, description: e.target.value})}
+                  placeholder="Enter product description..."
+                  style={{borderRadius: '10px', border: '2px solid #e9ecef', padding: '12px 16px'}}
+                />
+              </div>
+
               <div className="row">
                 <div className="col-md-4 mb-3">
                   <label className="form-label">Price (₹)</label>
@@ -269,18 +281,6 @@ export default function ProductsPage() {
                     ))}
                   </select>
                 </div>
-              </div>
-
-              <div className="mb-3">
-                <label className="form-label">Product Description</label>
-                <textarea
-                  className="form-control"
-                  rows={3}
-                  value={formData.description}
-                  onChange={(e) => setFormData({...formData, description: e.target.value})}
-                  placeholder="Enter product description..."
-                  style={{borderRadius: '10px', border: '2px solid #e9ecef', padding: '12px 16px'}}
-                />
               </div>
 
               <div className="mb-3">
@@ -410,7 +410,6 @@ export default function ProductsPage() {
         </div>
       )}
 
-      {/* Filters */}
       <div className="card mb-4 shadow-sm border-0" style={{borderRadius: '12px'}}>
         <div className="card-body p-4">
           <div className="row g-3">
@@ -549,7 +548,7 @@ export default function ProductsPage() {
                       </div>
                     </td>
                   </tr>
-                ))
+                ))}
               </tbody>
             </table>
           </div>
