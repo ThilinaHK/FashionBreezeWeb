@@ -375,11 +375,20 @@ export default function DashboardPage() {
       
       setProductLoading(true);
       try {
+        const sizesArray = Object.entries(productForm.sizes).map(([size, stock]) => ({
+          size,
+          stock: Number(stock),
+          price: productForm.price
+        }));
+        
         const productData = {
           ...productForm,
           image: productForm.images[0] || '',
-          images: productForm.images.filter(img => img !== '')
+          additionalImages: productForm.images.filter(img => img !== ''),
+          sizes: sizesArray
         };
+        
+        delete productData.images;
         
         const url = editingProduct ? `/api/products/${editingProduct._id || editingProduct.id}` : '/api/products';
         const method = editingProduct ? 'PUT' : 'POST';
