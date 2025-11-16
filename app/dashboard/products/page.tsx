@@ -246,6 +246,7 @@ export default function ProductsPage() {
                     value={formData.category}
                     onChange={(e) => setFormData({...formData, category: e.target.value, subcategory: ''})}
                     required
+                    style={{borderRadius: '10px', border: '2px solid #e9ecef', padding: '12px 16px'}}
                   >
                     <option value="">Select Category</option>
                     {categories.map(cat => (
@@ -260,6 +261,7 @@ export default function ProductsPage() {
                     value={formData.subcategory}
                     onChange={(e) => setFormData({...formData, subcategory: e.target.value})}
                     disabled={!formData.category}
+                    style={{borderRadius: '10px', border: '2px solid #e9ecef', padding: '12px 16px'}}
                   >
                     <option value="">Select Subcategory</option>
                     {getSubcategories(formData.category).map(sub => (
