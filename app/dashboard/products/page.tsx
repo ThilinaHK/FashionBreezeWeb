@@ -721,6 +721,9 @@ export default function ProductsPage() {
                     {formData.image && (
                       <div className="mt-2">
                         <img src={formData.image} alt="Main preview" style={{width: '100px', height: '100px', objectFit: 'cover', borderRadius: '8px'}} />
+                        <div className="mt-1">
+                          <small className="text-muted">Image loaded</small>
+                        </div>
                       </div>
                     )}
                   </div>
@@ -744,6 +747,9 @@ export default function ProductsPage() {
                           {img && (
                             <div className="mt-1">
                               <img src={img} alt={`Preview ${index + 1}`} style={{width: '60px', height: '60px', objectFit: 'cover', borderRadius: '4px'}} />
+                              <div className="mt-1">
+                                <small className="text-muted">Image {index + 1}</small>
+                              </div>
                             </div>
                           )}
                         </div>

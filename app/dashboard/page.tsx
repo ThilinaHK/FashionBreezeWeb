@@ -262,7 +262,7 @@ export default function DashboardPage() {
               <div className="card border-0 shadow-sm h-100 bg-warning text-white">
                 <div className="card-body text-center p-4">
                   <i className="bi bi-currency-rupee display-4 mb-3"></i>
-                  <h5 className="fw-bold">₹{orders.reduce((sum, order) => sum + (order.total || 0), 0).toLocaleString()}</h5>
+                  <h5 className="fw-bold">LKR {orders.reduce((sum, order) => sum + (order.total || 0), 0).toLocaleString()}</h5>
                   <p className="mb-0">Total Revenue</p>
                 </div>
               </div>
@@ -1728,7 +1728,7 @@ export default function DashboardPage() {
                         <small className="text-muted">+{(order.items?.length || 0) - 2} more</small>
                       )}
                     </td>
-                    <td>₹{order.total}</td>
+                    <td>LKR {order.total}</td>
                     <td>
                       <div className="d-flex flex-column gap-1">
                         <div className="d-flex align-items-center gap-1">
@@ -1878,6 +1878,7 @@ export default function DashboardPage() {
                         <table className="table table-bordered">
                           <thead className="table-dark">
                             <tr>
+                              <th>Image</th>
                               <th>Product</th>
                               <th>Size</th>
                               <th>Quantity</th>
@@ -1886,15 +1887,27 @@ export default function DashboardPage() {
                             </tr>
                           </thead>
                           <tbody>
-                            {selectedOrder.items?.map((item: OrderItem, index: number) => (
-                              <tr key={index}>
-                                <td>{item.name}</td>
-                                <td>{item.size || 'N/A'}</td>
-                                <td>{item.quantity}</td>
-                                <td>₹{item.price.toLocaleString()}</td>
-                                <td>₹{(item.price * item.quantity).toLocaleString()}</td>
-                              </tr>
-                            ))}
+                            {selectedOrder.items?.map((item: OrderItem, index: number) => {
+                              const product = products.find(p => p._id === item.productId || p.id === item.productId);
+                              return (
+                                <tr key={index}>
+                                  <td>
+                                    {product?.image ? (
+                                      <img src={product.image} alt={item.name} style={{width: '50px', height: '50px', objectFit: 'cover', borderRadius: '4px'}} />
+                                    ) : (
+                                      <div style={{width: '50px', height: '50px', background: '#f8f9fa', borderRadius: '4px', display: 'flex', alignItems: 'center', justifyContent: 'center'}}>
+                                        <i className="bi bi-image text-muted"></i>
+                                      </div>
+                                    )}
+                                  </td>
+                                  <td>{item.name}</td>
+                                  <td>{item.size || 'N/A'}</td>
+                                  <td>{item.quantity}</td>
+                                  <td>LKR {item.price.toLocaleString()}</td>
+                                  <td>LKR {(item.price * item.quantity).toLocaleString()}</td>
+                                </tr>
+                              );
+                            })}
                           </tbody>
                         </table>
                       </div>
@@ -1907,10 +1920,10 @@ export default function DashboardPage() {
                         <div className="card-body">
                           <div className="row">
                             <div className="col-md-6">
-                              <p className="mb-2"><strong>Subtotal:</strong> ₹{(selectedOrder.total - (selectedOrder.deliveryCost || 0)).toLocaleString()}</p>
-                              <p className="mb-2"><strong>Delivery Cost:</strong> ₹{(selectedOrder.deliveryCost || 0).toLocaleString()}</p>
+                              <p className="mb-2"><strong>Subtotal:</strong> LKR {(selectedOrder.total - (selectedOrder.deliveryCost || 0)).toLocaleString()}</p>
+                              <p className="mb-2"><strong>Delivery Cost:</strong> LKR {(selectedOrder.deliveryCost || 0).toLocaleString()}</p>
                               <hr/>
-                              <p className="mb-0 fs-5"><strong>Total Amount:</strong> <span className="text-success">₹{selectedOrder.total.toLocaleString()}</span></p>
+                              <p className="mb-0 fs-5"><strong>Total Amount:</strong> <span className="text-success">LKR {selectedOrder.total.toLocaleString()}</span></p>
                             </div>
                             <div className="col-md-6">
                               {selectedOrder.notes && (
@@ -2372,7 +2385,7 @@ export default function DashboardPage() {
                       <tr key={order._id}>
                         <td>#{order._id?.slice(-6)}</td>
                         <td>{order.items?.length || 0} items</td>
-                        <td>₹{order.total}</td>
+                        <td>LKR {order.total}</td>
                         <td>
                           <span className={`badge ${order.status === 'delivered' ? 'bg-success' : order.status === 'cancelled' ? 'bg-danger' : 'bg-warning'}`}>
                             {order.status}
@@ -2421,7 +2434,7 @@ export default function DashboardPage() {
                           {customer.orderCount} orders
                         </button>
                       </td>
-                      <td>₹{customer.totalSpent?.toLocaleString() || 0}</td>
+                      <td>LKR {customer.totalSpent?.toLocaleString() || 0}</td>
                       <td>
                         <button 
                           className="btn btn-sm btn-outline-primary me-2"
