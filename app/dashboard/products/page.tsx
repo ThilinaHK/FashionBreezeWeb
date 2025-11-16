@@ -497,23 +497,35 @@ export default function ProductsPage() {
                       style={{borderRadius: '10px', border: '2px solid #e9ecef', padding: '12px 16px'}}
                       placeholder="https://example.com/image.jpg"
                     />
+                    {formData.image && (
+                      <div className="mt-2">
+                        <img src={formData.image} alt="Main preview" style={{width: '100px', height: '100px', objectFit: 'cover', borderRadius: '8px'}} />
+                      </div>
+                    )}
                   </div>
                   <div className="mb-3">
                     <label className="form-label">Additional Images</label>
                     {formData.additionalImages.map((img, index) => (
                       <div key={index} className="d-flex gap-2 mb-2">
-                        <input
-                          type="url"
-                          className="form-control"
-                          value={img}
-                          onChange={(e) => {
-                            const newImages = [...formData.additionalImages];
-                            newImages[index] = e.target.value;
-                            setFormData({...formData, additionalImages: newImages});
-                          }}
-                          placeholder="https://example.com/image.jpg"
-                          style={{borderRadius: '10px', border: '2px solid #e9ecef', padding: '12px 16px'}}
-                        />
+                        <div className="flex-grow-1">
+                          <input
+                            type="url"
+                            className="form-control"
+                            value={img}
+                            onChange={(e) => {
+                              const newImages = [...formData.additionalImages];
+                              newImages[index] = e.target.value;
+                              setFormData({...formData, additionalImages: newImages});
+                            }}
+                            placeholder="https://example.com/image.jpg"
+                            style={{borderRadius: '10px', border: '2px solid #e9ecef', padding: '12px 16px'}}
+                          />
+                          {img && (
+                            <div className="mt-1">
+                              <img src={img} alt={`Preview ${index + 1}`} style={{width: '60px', height: '60px', objectFit: 'cover', borderRadius: '4px'}} />
+                            </div>
+                          )}
+                        </div>
                         <button
                           type="button"
                           className="btn btn-outline-danger"
@@ -716,7 +728,7 @@ export default function ProductsPage() {
                     <td style={{padding: '16px'}}>
                       <span className="badge bg-info px-2 py-1">
                         {typeof product.sizes === 'object' ? 
-                          Object.values(product.sizes).reduce((a, b) => a + b, 0) : 0} units
+                          Object.values(product.sizes).reduce((a, b) => typeof b === 'number' ? a + b : a + (b?.stock || 0), 0) : 0} units
                       </span>
                     </td>
                     <td style={{padding: '16px'}}>
