@@ -11,6 +11,11 @@ export default function ProductsPage() {
   const [toast, setToast] = useState<{message: string, type: 'success' | 'error'} | null>(null);
   const [loading, setLoading] = useState(false);
   const [deleting, setDeleting] = useState<string | null>(null);
+  const [filters, setFilters] = useState({
+    search: '',
+    category: '',
+    status: ''
+  });
   const [formData, setFormData] = useState({
     name: '',
     code: '',
@@ -48,6 +53,21 @@ export default function ProductsPage() {
     } catch (error) {
       console.error('Error loading categories:', error);
     }
+  };
+
+  const getFilteredProducts = () => {
+    return products.filter(product => {
+      const matchesSearch = !filters.search || 
+        product.name.toLowerCase().includes(filters.search.toLowerCase()) ||
+        product.code.toLowerCase().includes(filters.search.toLowerCase());
+      
+      const matchesCategory = !filters.category || 
+        (typeof product.category === 'string' ? product.category : product.category.name) === filters.category;
+      
+      const matchesStatus = !filters.status || product.status === filters.status;
+      
+      return matchesSearch && matchesCategory && matchesStatus;
+    });
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -170,11 +190,14 @@ export default function ProductsPage() {
       </div>
 
       {showAddForm && (
-        <div className="card mb-4">
-          <div className="card-header">
-            <h5>{editingProduct ? 'Edit Product' : 'Add New Product'}</h5>
+        <div className="card mb-4 shadow-lg border-0" style={{borderRadius: '15px'}}>
+          <div className="card-header text-white" style={{background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', borderRadius: '15px 15px 0 0'}}>
+            <div className="d-flex align-items-center">
+              <i className={`bi ${editingProduct ? 'bi-pencil-square' : 'bi-plus-circle'} me-2`} style={{fontSize: '1.2rem'}}></i>
+              <h5 className="mb-0 fw-bold">{editingProduct ? 'Edit Product' : 'Add New Product'}</h5>
+            </div>
           </div>
-          <div className="card-body">
+          <div className="card-body p-4" style={{background: 'linear-gradient(145deg, #f8f9fa 0%, #ffffff 100%)'}}>
             <form onSubmit={handleSubmit}>
               <div className="row">
                 <div className="col-md-6 mb-3">
@@ -185,6 +208,8 @@ export default function ProductsPage() {
                     value={formData.name}
                     onChange={(e) => setFormData({...formData, name: e.target.value})}
                     required
+                    style={{borderRadius: '10px', border: '2px solid #e9ecef', padding: '12px 16px'}}
+                    placeholder="Enter product name"
                   />
                 </div>
                 <div className="col-md-6 mb-3">
@@ -195,6 +220,8 @@ export default function ProductsPage() {
                     value={formData.code}
                     onChange={(e) => setFormData({...formData, code: e.target.value})}
                     required
+                    style={{borderRadius: '10px', border: '2px solid #e9ecef', padding: '12px 16px'}}
+                    placeholder="Enter product code"
                   />
                 </div>
               </div>
@@ -208,6 +235,8 @@ export default function ProductsPage() {
                     value={formData.price}
                     onChange={(e) => setFormData({...formData, price: Number(e.target.value)})}
                     required
+                    style={{borderRadius: '10px', border: '2px solid #e9ecef', padding: '12px 16px'}}
+                    placeholder="0.00"
                   />
                 </div>
                 <div className="col-md-4 mb-3">
@@ -248,6 +277,7 @@ export default function ProductsPage() {
                   value={formData.description}
                   onChange={(e) => setFormData({...formData, description: e.target.value})}
                   placeholder="Enter product description..."
+                  style={{borderRadius: '10px', border: '2px solid #e9ecef', padding: '12px 16px'}}
                 />
               </div>
 
@@ -259,6 +289,8 @@ export default function ProductsPage() {
                   value={formData.image}
                   onChange={(e) => setFormData({...formData, image: e.target.value})}
                   required
+                  style={{borderRadius: '10px', border: '2px solid #e9ecef', padding: '12px 16px'}}
+                  placeholder="https://example.com/image.jpg"
                 />
               </div>
 
@@ -338,16 +370,29 @@ export default function ProductsPage() {
                 </div>
               </div>
 
-              <div className="d-flex gap-2">
-                <button type="submit" className="btn btn-success" disabled={loading}>
+              <div className="d-flex gap-3 pt-3" style={{borderTop: '1px solid #e9ecef'}}>
+                <button type="submit" className="btn btn-lg px-4" disabled={loading} style={{
+                  background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                  border: 'none',
+                  borderRadius: '12px',
+                  color: 'white',
+                  fontWeight: '600',
+                  boxShadow: '0 4px 15px rgba(16, 185, 129, 0.3)'
+                }}>
                   {loading ? (
                     <><i className="bi bi-hourglass-split me-2"></i>Saving...</>
                   ) : (
-                    <>{editingProduct ? 'Update Product' : 'Add Product'}</>
+                    <><i className={`bi ${editingProduct ? 'bi-check-circle' : 'bi-plus-circle'} me-2`}></i>{editingProduct ? 'Update Product' : 'Add Product'}</>
                   )}
                 </button>
-                <button type="button" className="btn btn-secondary" onClick={resetForm}>
-                  Cancel
+                <button type="button" className="btn btn-lg px-4" onClick={resetForm} style={{
+                  background: 'linear-gradient(135deg, #6b7280 0%, #4b5563 100%)',
+                  border: 'none',
+                  borderRadius: '12px',
+                  color: 'white',
+                  fontWeight: '600'
+                }}>
+                  <i className="bi bi-x-circle me-2"></i>Cancel
                 </button>
               </div>
             </form>
@@ -363,67 +408,146 @@ export default function ProductsPage() {
         </div>
       )}
 
-      <div className="card">
-        <div className="card-header">
-          <h5>Products ({products.length})</h5>
+      {/* Filters */}
+      <div className="card mb-4 shadow-sm border-0" style={{borderRadius: '12px'}}>
+        <div className="card-body p-4">
+          <div className="row g-3">
+            <div className="col-md-4">
+              <label className="form-label fw-semibold">Search Products</label>
+              <input
+                type="text"
+                className="form-control"
+                placeholder="Search by name or code..."
+                value={filters.search}
+                onChange={(e) => setFilters({...filters, search: e.target.value})}
+                style={{borderRadius: '8px', border: '2px solid #e9ecef'}}
+              />
+            </div>
+            <div className="col-md-3">
+              <label className="form-label fw-semibold">Category</label>
+              <select
+                className="form-select"
+                value={filters.category}
+                onChange={(e) => setFilters({...filters, category: e.target.value})}
+                style={{borderRadius: '8px', border: '2px solid #e9ecef'}}
+              >
+                <option value="">All Categories</option>
+                {categories.map(cat => (
+                  <option key={cat._id} value={cat.name}>{cat.name}</option>
+                ))}
+              </select>
+            </div>
+            <div className="col-md-3">
+              <label className="form-label fw-semibold">Status</label>
+              <select
+                className="form-select"
+                value={filters.status}
+                onChange={(e) => setFilters({...filters, status: e.target.value})}
+                style={{borderRadius: '8px', border: '2px solid #e9ecef'}}
+              >
+                <option value="">All Status</option>
+                <option value="active">Active</option>
+                <option value="instock">In Stock</option>
+                <option value="outofstock">Out of Stock</option>
+                <option value="inactive">Inactive</option>
+              </select>
+            </div>
+            <div className="col-md-2 d-flex align-items-end">
+              <button
+                className="btn btn-outline-secondary w-100"
+                onClick={() => setFilters({search: '', category: '', status: ''})}
+                style={{borderRadius: '8px'}}
+              >
+                <i className="bi bi-arrow-clockwise me-1"></i>Clear
+              </button>
+            </div>
+          </div>
         </div>
-        <div className="card-body">
+      </div>
+
+      <div className="card shadow-lg border-0" style={{borderRadius: '15px'}}>
+        <div className="card-header text-white d-flex justify-content-between align-items-center" style={{background: 'linear-gradient(135deg, #1f2937 0%, #374151 100%)', borderRadius: '15px 15px 0 0'}}>
+          <div className="d-flex align-items-center">
+            <i className="bi bi-grid-3x3-gap me-2" style={{fontSize: '1.2rem'}}></i>
+            <h5 className="mb-0 fw-bold">Products ({getFilteredProducts().length})</h5>
+          </div>
+          <span className="badge px-3 py-2" style={{background: 'rgba(255,255,255,0.2)', fontSize: '0.9rem'}}>
+            Showing: {getFilteredProducts().length} of {products.length}
+          </span>
+        </div>
+        <div className="card-body p-0">
           <div className="table-responsive">
-            <table className="table table-striped">
-              <thead>
+            <table className="table table-hover mb-0">
+              <thead style={{background: 'linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100)'}}>
                 <tr>
-                  <th>Image</th>
-                  <th>Name</th>
-                  <th>Code</th>
-                  <th>Category</th>
-                  <th>Subcategory</th>
-                  <th>Price</th>
-                  <th>Stock</th>
-                  <th>Status</th>
-                  <th>Actions</th>
+                  <th className="fw-bold text-dark" style={{padding: '16px', borderBottom: '2px solid #dee2e6'}}>Image</th>
+                  <th className="fw-bold text-dark" style={{padding: '16px', borderBottom: '2px solid #dee2e6'}}>Name</th>
+                  <th className="fw-bold text-dark" style={{padding: '16px', borderBottom: '2px solid #dee2e6'}}>Code</th>
+                  <th className="fw-bold text-dark" style={{padding: '16px', borderBottom: '2px solid #dee2e6'}}>Category</th>
+                  <th className="fw-bold text-dark" style={{padding: '16px', borderBottom: '2px solid #dee2e6'}}>Price</th>
+                  <th className="fw-bold text-dark" style={{padding: '16px', borderBottom: '2px solid #dee2e6'}}>Stock</th>
+                  <th className="fw-bold text-dark" style={{padding: '16px', borderBottom: '2px solid #dee2e6'}}>Status</th>
+                  <th className="fw-bold text-dark" style={{padding: '16px', borderBottom: '2px solid #dee2e6'}}>Actions</th>
                 </tr>
               </thead>
               <tbody>
-                {products.map((product) => (
-                  <tr key={product.id}>
-                    <td>
-                      <img src={product.image} alt={product.name} style={{width: '50px', height: '50px', objectFit: 'cover'}} />
+                {getFilteredProducts().map((product) => (
+                  <tr key={product.id} style={{borderBottom: '1px solid #f1f3f4'}}>
+                    <td style={{padding: '16px'}}>
+                      <img src={product.image} alt={product.name} style={{width: '60px', height: '60px', objectFit: 'cover', borderRadius: '8px', boxShadow: '0 2px 8px rgba(0,0,0,0.1)'}} />
                     </td>
-                    <td>{product.name}</td>
-                    <td>{product.code}</td>
-                    <td>{typeof product.category === 'string' ? product.category : product.category.name}</td>
-                    <td>{product.subcategory || '-'}</td>
-                    <td>₹{product.price}</td>
-                    <td>
-                      {typeof product.sizes === 'object' ? 
-                        Object.values(product.sizes).reduce((a, b) => a + b, 0) : 0}
+                    <td style={{padding: '16px'}}>
+                      <div className="fw-semibold text-dark">{product.name}</div>
+                      {product.subcategory && <small className="text-muted">{product.subcategory}</small>}
                     </td>
-                    <td>
-                      <span className={`badge ${product.status === 'instock' ? 'bg-success' : 'bg-danger'}`}>
-                        {product.status}
+                    <td style={{padding: '16px'}}>
+                      <span className="badge bg-light text-dark px-2 py-1" style={{fontSize: '0.8rem'}}>{product.code}</span>
+                    </td>
+                    <td style={{padding: '16px'}}>
+                      <span className="badge bg-primary px-2 py-1">{typeof product.category === 'string' ? product.category : product.category.name}</span>
+                    </td>
+                    <td style={{padding: '16px'}}>
+                      <span className="fw-bold text-success" style={{fontSize: '1.1rem'}}>₹{product.price.toLocaleString()}</span>
+                    </td>
+                    <td style={{padding: '16px'}}>
+                      <span className="badge bg-info px-2 py-1">
+                        {typeof product.sizes === 'object' ? 
+                          Object.values(product.sizes).reduce((a, b) => a + b, 0) : 0} units
                       </span>
                     </td>
-                    <td>
-                      <button 
-                        className="btn btn-sm btn-outline-primary me-2"
-                        onClick={() => startEdit(product)}
-                      >
-                        <i className="bi bi-pencil"></i>
-                      </button>
-                      <button 
-                        className="btn btn-sm btn-outline-danger"
-                        onClick={() => handleDelete(product)}
-                        disabled={deleting === String(product._id || product.id)}
-                      >
-                        {deleting === String(product._id || product.id) ? (
-                          <i className="bi bi-hourglass-split"></i>
-                        ) : (
-                          <i className="bi bi-trash"></i>
-                        )}
-                      </button>
+                    <td style={{padding: '16px'}}>
+                      <span className={`badge px-3 py-2 ${product.status === 'instock' || product.status === 'active' ? 'bg-success' : 'bg-danger'}`} style={{fontSize: '0.8rem'}}>
+                        <i className={`bi ${product.status === 'instock' || product.status === 'active' ? 'bi-check-circle' : 'bi-x-circle'} me-1`}></i>
+                        {product.status === 'instock' || product.status === 'active' ? 'In Stock' : 'Out of Stock'}
+                      </span>
+                    </td>
+                    <td style={{padding: '16px'}}>
+                      <div className="d-flex gap-2">
+                        <button 
+                          className="btn btn-sm px-3 py-2"
+                          onClick={() => startEdit(product)}
+                          style={{background: 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)', border: 'none', borderRadius: '8px', color: 'white'}}
+                          title="Edit Product"
+                        >
+                          <i className="bi bi-pencil-square"></i>
+                        </button>
+                        <button 
+                          className="btn btn-sm px-3 py-2"
+                          onClick={() => handleDelete(product)}
+                          disabled={deleting === String(product._id || product.id)}
+                          style={{background: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)', border: 'none', borderRadius: '8px', color: 'white'}}
+                          title="Delete Product"
+                        >
+                          {deleting === String(product._id || product.id) ? (
+                            <i className="bi bi-hourglass-split"></i>
+                          ) : (
+                            <i className="bi bi-trash"></i>
+                          )}
+                        </button>
+                      </div>
                     </td>
                   </tr>
-                ))}
+                ))
               </tbody>
             </table>
           </div>

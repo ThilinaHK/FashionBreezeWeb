@@ -43,10 +43,15 @@ export async function GET() {
     });
 
     // Calculate totals
-    const todayRevenue = todayOrders.reduce((sum, order) => sum + order.totalAmount, 0);
-    const yesterdayRevenue = yesterdayOrders.reduce((sum, order) => sum + order.totalAmount, 0);
-    const weekRevenue = weekOrders.reduce((sum, order) => sum + order.totalAmount, 0);
-    const monthRevenue = monthOrders.reduce((sum, order) => sum + order.totalAmount, 0);
+    const todayRevenue = todayOrders.reduce((sum, order) => sum + (order.total || order.totalAmount || 0), 0);
+    const yesterdayRevenue = yesterdayOrders.reduce((sum, order) => sum + (order.total || order.totalAmount || 0), 0);
+    const weekRevenue = weekOrders.reduce((sum, order) => sum + (order.total || order.totalAmount || 0), 0);
+    const monthRevenue = monthOrders.reduce((sum, order) => sum + (order.total || order.totalAmount || 0), 0);
+    
+    const totalSales = monthRevenue;
+    const totalOrders = monthOrders.length;
+    const averageOrder = totalOrders > 0 ? totalSales / totalOrders : 0;
+    const thisMonth = monthRevenue;
 
     const todayProductsSold = todayOrders.reduce((sum, order) => 
       sum + order.items.reduce((itemSum: number, item: any) => itemSum + item.quantity, 0), 0
@@ -57,6 +62,10 @@ export async function GET() {
     );
 
     return NextResponse.json({
+      totalSales,
+      totalOrders,
+      averageOrder,
+      thisMonth,
       today: {
         orders: todayOrders.length,
         revenue: todayRevenue,
