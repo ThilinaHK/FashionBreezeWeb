@@ -213,7 +213,17 @@ export default function ProductsPage() {
       image: product.image,
       additionalImages: (product as any).additionalImages || [''],
       sizes: (() => {
-        if (typeof product.sizes === 'object' && product.sizes && !Array.isArray(product.sizes)) {
+        if (Array.isArray(product.sizes)) {
+          // Array format from database: [{size: 'S', stock: 10}, ...]
+          const sizeMap = { S: 0, M: 0, L: 0, XL: 0 };
+          product.sizes.forEach((sizeObj: any) => {
+            if (sizeObj.size && typeof sizeObj.stock === 'number') {
+              sizeMap[sizeObj.size as keyof typeof sizeMap] = sizeObj.stock;
+            }
+          });
+          return sizeMap;
+        } else if (typeof product.sizes === 'object' && product.sizes) {
+          // Object format: {S: 0, M: 0, L: 0, XL: 0}
           const sizes = product.sizes as { [key: string]: number };
           return {
             S: sizes.S || 0,
@@ -294,7 +304,17 @@ export default function ProductsPage() {
   const startRestock = (product: Product) => {
     setRestockProduct(product);
     const currentSizes = (() => {
-      if (typeof product.sizes === 'object' && product.sizes && !Array.isArray(product.sizes)) {
+      if (Array.isArray(product.sizes)) {
+        // Array format from database: [{size: 'S', stock: 10}, ...]
+        const sizeMap = { S: 0, M: 0, L: 0, XL: 0 };
+        product.sizes.forEach((sizeObj: any) => {
+          if (sizeObj.size && typeof sizeObj.stock === 'number') {
+            sizeMap[sizeObj.size as keyof typeof sizeMap] = sizeObj.stock;
+          }
+        });
+        return sizeMap;
+      } else if (typeof product.sizes === 'object' && product.sizes) {
+        // Object format: {S: 0, M: 0, L: 0, XL: 0}
         const sizes = product.sizes as { [key: string]: number };
         return {
           S: sizes.S || 0,
