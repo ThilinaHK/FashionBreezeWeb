@@ -21,9 +21,17 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
     body.updatedBy = userId || 'system';
     body.updatedByName = userName || 'System';
     
-    // Validate and clean sizes
+    // Validate and clean sizes - remove empty or invalid entries
     if (body.sizes && Array.isArray(body.sizes)) {
-      body.sizes = body.sizes.filter((size: any) => size.size && size.size.trim());
+      body.sizes = body.sizes.filter((size: any) => {
+        const hasValidSize = size.size && typeof size.size === 'string' && size.size.trim();
+        const hasValidPrice = typeof size.price === 'number' && size.price >= 0;
+        return hasValidSize && hasValidPrice;
+      });
+      // If no valid sizes remain, set to empty array
+      if (body.sizes.length === 0) {
+        body.sizes = [];
+      }
     }
     
     // Validate and clean colors
