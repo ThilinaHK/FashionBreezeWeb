@@ -21,16 +21,32 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
     body.updatedBy = userId || 'system';
     body.updatedByName = userName || 'System';
     
-    // Validate and clean sizes - remove empty or invalid entries
-    if (body.sizes && Array.isArray(body.sizes)) {
-      body.sizes = body.sizes.filter((size: any) => {
-        const hasValidSize = size.size && typeof size.size === 'string' && size.size.trim();
-        const hasValidPrice = typeof size.price === 'number' && size.price >= 0;
-        return hasValidSize && hasValidPrice;
-      });
-      // If no valid sizes remain, set to empty array
-      if (body.sizes.length === 0) {
-        body.sizes = [];
+    // Handle product details fields
+    const detailFields = ['color', 'brand', 'style', 'sleeveType', 'neckline', 'pattern', 'sleeveLength', 'fitType', 'fabric', 'composition'];
+    detailFields.forEach(field => {
+      if (body[field] !== undefined) {
+        body[field] = body[field] || '';
+      }
+    });
+    
+    // Transform sizes from dashboard format to model format
+    if (body.sizes) {
+      if (typeof body.sizes === 'object' && !Array.isArray(body.sizes)) {
+        // Dashboard format: {S: 0, M: 0, L: 0, XL: 0}
+        body.sizes = Object.entries(body.sizes)
+          .filter(([size, stock]) => typeof stock === 'number' && stock >= 0)
+          .map(([size, stock]) => ({
+            size,
+            stock: Number(stock),
+            price: body.price || 0
+          }));
+      } else if (Array.isArray(body.sizes)) {
+        // Array format: validate and clean
+        body.sizes = body.sizes.filter((size: any) => {
+          const hasValidSize = size.size && typeof size.size === 'string' && size.size.trim();
+          const hasValidPrice = typeof size.price === 'number' && size.price >= 0;
+          return hasValidSize && hasValidPrice;
+        });
       }
     }
     
