@@ -82,17 +82,25 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
       };
     }
     
-    console.log('Updating product with data:', JSON.stringify(body, null, 2));
+    console.log('Final body before update:', JSON.stringify(body, null, 2));
+    console.log('Product details check:', {
+      color: body.color,
+      brand: body.brand,
+      style: body.style,
+      sizes: body.sizes
+    });
     
     // Check if id is numeric (custom id field) or ObjectId
     let product;
     if (/^\d+$/.test(id)) {
       // Numeric ID - use custom id field
-      product = await Product.findOneAndUpdate({ id: parseInt(id) }, body, { new: true, runValidators: true });
+      product = await Product.findOneAndUpdate({ id: parseInt(id) }, body, { new: true, runValidators: false });
     } else {
       // ObjectId - use _id field
-      product = await Product.findByIdAndUpdate(id, body, { new: true, runValidators: true });
+      product = await Product.findByIdAndUpdate(id, body, { new: true, runValidators: false });
     }
+    
+    console.log('Updated product result:', JSON.stringify(product, null, 2));
     
     if (!product) {
       return NextResponse.json({ error: 'Product not found' }, { status: 404 });

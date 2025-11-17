@@ -17,6 +17,9 @@ export default function ProductsPage() {
     status: ''
   });
   const [activeTab, setActiveTab] = useState('basic');
+  const [showRestockForm, setShowRestockForm] = useState(false);
+  const [restockProduct, setRestockProduct] = useState<Product | null>(null);
+  const [restockData, setRestockData] = useState({ S: 0, M: 0, L: 0, XL: 0 });
   const [formData, setFormData] = useState({
     name: '',
     code: '',
@@ -255,6 +258,57 @@ export default function ProductsPage() {
     return category?.subcategories || [];
   };
 
+  const handleRestock = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!restockProduct) return;
+    
+    setLoading(true);
+    try {
+      const productId = restockProduct._id || restockProduct.id;
+      const response = await fetch(`/api/products/${productId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sizes: restockData })
+      });
+
+      if (response.ok) {
+        loadProducts();
+        setShowRestockForm(false);
+        setRestockProduct(null);
+        setRestockData({ S: 0, M: 0, L: 0, XL: 0 });
+        setToast({message: 'Stock updated successfully!', type: 'success'});
+        setTimeout(() => setToast(null), 3000);
+      } else {
+        setToast({message: 'Failed to update stock', type: 'error'});
+        setTimeout(() => setToast(null), 3000);
+      }
+    } catch (error) {
+      console.error('Error updating stock:', error);
+      setToast({message: 'Error updating stock', type: 'error'});
+      setTimeout(() => setToast(null), 3000);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const startRestock = (product: Product) => {
+    setRestockProduct(product);
+    const currentSizes = (() => {
+      if (typeof product.sizes === 'object' && product.sizes && !Array.isArray(product.sizes)) {
+        const sizes = product.sizes as { [key: string]: number };
+        return {
+          S: sizes.S || 0,
+          M: sizes.M || 0,
+          L: sizes.L || 0,
+          XL: sizes.XL || 0
+        };
+      }
+      return { S: 0, M: 0, L: 0, XL: 0 };
+    })();
+    setRestockData(currentSizes);
+    setShowRestockForm(true);
+  };
+
   return (
     <div className="container-fluid py-4">
       <div className="d-flex justify-content-between align-items-center mb-4">
@@ -266,6 +320,68 @@ export default function ProductsPage() {
           <i className="bi bi-plus-circle me-2"></i>Add Product
         </button>
       </div>
+
+      {showRestockForm && (
+        <div className="card mb-4 shadow-lg border-0" style={{borderRadius: '15px'}}>
+          <div className="card-header text-white" style={{background: 'linear-gradient(135deg, #059669 0%, #047857 100%)', borderRadius: '15px 15px 0 0'}}>
+            <h5 className="mb-0 fw-bold"><i className="bi bi-box-seam me-2"></i>Restock Product: {restockProduct?.name}</h5>
+          </div>
+          <div className="card-body">
+            <form onSubmit={handleRestock}>
+              <div className="row">
+                <div className="col-md-3 mb-3">
+                  <label className="form-label">Size S Stock</label>
+                  <input
+                    type="number"
+                    className="form-control"
+                    value={restockData.S}
+                    onChange={(e) => setRestockData({...restockData, S: Number(e.target.value)})}
+                    style={{borderRadius: '10px', border: '2px solid #e9ecef', padding: '12px 16px'}}
+                  />
+                </div>
+                <div className="col-md-3 mb-3">
+                  <label className="form-label">Size M Stock</label>
+                  <input
+                    type="number"
+                    className="form-control"
+                    value={restockData.M}
+                    onChange={(e) => setRestockData({...restockData, M: Number(e.target.value)})}
+                    style={{borderRadius: '10px', border: '2px solid #e9ecef', padding: '12px 16px'}}
+                  />
+                </div>
+                <div className="col-md-3 mb-3">
+                  <label className="form-label">Size L Stock</label>
+                  <input
+                    type="number"
+                    className="form-control"
+                    value={restockData.L}
+                    onChange={(e) => setRestockData({...restockData, L: Number(e.target.value)})}
+                    style={{borderRadius: '10px', border: '2px solid #e9ecef', padding: '12px 16px'}}
+                  />
+                </div>
+                <div className="col-md-3 mb-3">
+                  <label className="form-label">Size XL Stock</label>
+                  <input
+                    type="number"
+                    className="form-control"
+                    value={restockData.XL}
+                    onChange={(e) => setRestockData({...restockData, XL: Number(e.target.value)})}
+                    style={{borderRadius: '10px', border: '2px solid #e9ecef', padding: '12px 16px'}}
+                  />
+                </div>
+              </div>
+              <div className="d-flex gap-3">
+                <button type="submit" className="btn btn-success" disabled={loading}>
+                  {loading ? 'Updating...' : 'Update Stock'}
+                </button>
+                <button type="button" className="btn btn-secondary" onClick={() => setShowRestockForm(false)}>
+                  Cancel
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {showAddForm && (
         <div className="card mb-4 shadow-lg border-0" style={{borderRadius: '15px'}}>
@@ -973,6 +1089,14 @@ export default function ProductsPage() {
                           title="Edit Product"
                         >
                           <i className="bi bi-pencil-square"></i>
+                        </button>
+                        <button 
+                          className="btn btn-sm px-3 py-2"
+                          onClick={() => startRestock(product)}
+                          style={{background: 'linear-gradient(135deg, #059669 0%, #047857 100%)', border: 'none', borderRadius: '8px', color: 'white'}}
+                          title="Restock Product"
+                        >
+                          <i className="bi bi-box-seam"></i>
                         </button>
                         <button 
                           className="btn btn-sm px-3 py-2"
