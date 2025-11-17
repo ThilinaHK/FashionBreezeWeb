@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import dbConnect from '../../lib/mongodb';
-import User from '../../lib/models/User';
+import Customer from '../../lib/models/Customer';
 import nodemailer from 'nodemailer';
 
 export async function POST(request: NextRequest) {
@@ -13,12 +13,17 @@ export async function POST(request: NextRequest) {
     }
 
     // Find customer by email
-    const user = await User.findOne({ email });
-    console.log('Looking for user with email:', email);
-    console.log('Found user:', user ? 'Yes' : 'No');
+    const customer = await Customer.findOne({ email });
+    console.log('Looking for customer with email:', email);
+    console.log('Found customer:', customer ? 'Yes' : 'No');
 
-    if (!user) {
-      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    if (!customer) {
+      return NextResponse.json({ error: 'Customer not found with this email address' }, { status: 404 });
+    }
+
+    // Verify customer is active
+    if (customer.status !== 'active') {
+      return NextResponse.json({ error: 'Account is inactive. Please contact support.' }, { status: 403 });
     }
 
     // Create email transporter
@@ -47,8 +52,8 @@ export async function POST(request: NextRequest) {
             <p>You requested to recover your password for Fashion Breeze. Here are your login details:</p>
             <div style="background: white; padding: 20px; border-radius: 8px; border-left: 4px solid #667eea;">
               <p><strong>Email:</strong> ${email}</p>
-              <p><strong>Password:</strong> ${user.password}</p>
-              <p><strong>Role:</strong> Customer</p>
+              <p><strong>Password:</strong> ${customer.password}</p>
+              <p><strong>Name:</strong> ${customer.name}</p>
             </div>
             <p style="margin-top: 20px;">For security reasons, please consider changing your password after logging in.</p>
             <div style="text-align: center; margin-top: 30px;">
