@@ -30,24 +30,31 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
     });
     
     // Transform sizes from dashboard format to model format
+    console.log('Original sizes data:', JSON.stringify(body.sizes));
     if (body.sizes) {
       if (typeof body.sizes === 'object' && !Array.isArray(body.sizes)) {
         // Dashboard format: {S: 0, M: 0, L: 0, XL: 0}
+        console.log('Converting object sizes to array format');
         body.sizes = Object.entries(body.sizes)
-          .filter(([size, stock]) => typeof stock === 'number' && stock >= 0)
+          .filter(([size, stock]) => typeof stock === 'number')
           .map(([size, stock]) => ({
             size,
             stock: Number(stock),
             price: body.price || 0
           }));
+        console.log('Converted sizes:', JSON.stringify(body.sizes));
       } else if (Array.isArray(body.sizes)) {
         // Array format: validate and clean
+        console.log('Validating array sizes format');
         body.sizes = body.sizes.filter((size: any) => {
           const hasValidSize = size.size && typeof size.size === 'string' && size.size.trim();
           const hasValidPrice = typeof size.price === 'number' && size.price >= 0;
           return hasValidSize && hasValidPrice;
         });
+        console.log('Validated sizes:', JSON.stringify(body.sizes));
       }
+    } else {
+      console.log('No sizes data provided');
     }
     
     // Validate and clean colors

@@ -121,7 +121,7 @@ export async function POST(request: NextRequest) {
       if (typeof body.sizes === 'object' && !Array.isArray(body.sizes)) {
         // Dashboard format: {S: 0, M: 0, L: 0, XL: 0}
         body.sizes = Object.entries(body.sizes)
-          .filter(([size, stock]) => typeof stock === 'number' && stock >= 0)
+          .filter(([size, stock]) => typeof stock === 'number')
           .map(([size, stock]) => ({
             size,
             stock: Number(stock),
@@ -131,7 +131,7 @@ export async function POST(request: NextRequest) {
         // Array format: validate and clean
         body.sizes = body.sizes.filter((size: any) => {
           const hasValidSize = size.size && typeof size.size === 'string' && size.size.trim();
-          const hasValidPrice = typeof size.price === 'number' && size.price >= 0;
+          const hasValidPrice = typeof size.price === 'number';
           return hasValidSize && hasValidPrice;
         });
       }
