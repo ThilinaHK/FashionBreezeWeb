@@ -16,9 +16,20 @@ export async function POST(request: NextRequest) {
     const customer = await Customer.findOne({ email });
     console.log('Looking for customer with email:', email);
     console.log('Found customer:', customer ? 'Yes' : 'No');
+    
+    // Debug: Check all customers
+    const allCustomers = await Customer.find({}).select('email');
+    console.log('All customer emails:', allCustomers.map(c => c.email));
 
     if (!customer) {
-      return NextResponse.json({ error: 'Customer not found with this email address' }, { status: 404 });
+      return NextResponse.json({ 
+        error: 'Customer not found with this email address',
+        debug: {
+          searchedEmail: email,
+          totalCustomers: allCustomers.length,
+          existingEmails: allCustomers.map(c => c.email)
+        }
+      }, { status: 404 });
     }
 
     // Verify customer is active
@@ -76,7 +87,12 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ 
       success: true, 
-      message: 'Password sent to your email successfully!' 
+      message: 'Password sent to your email successfully!',
+      debug: {
+        customerFound: true,
+        customerName: customer.name,
+        customerStatus: customer.status
+      }
     });
 
   } catch (error) {
