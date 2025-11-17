@@ -20,6 +20,7 @@ export default function ProductsPage() {
   const [showRestockForm, setShowRestockForm] = useState(false);
   const [restockProduct, setRestockProduct] = useState<Product | null>(null);
   const [restockData, setRestockData] = useState({ S: 0, M: 0, L: 0, XL: 0 });
+  const [originalStock, setOriginalStock] = useState({ S: 0, M: 0, L: 0, XL: 0 });
   const [formData, setFormData] = useState({
     name: '',
     code: '',
@@ -326,6 +327,7 @@ export default function ProductsPage() {
       return { S: 0, M: 0, L: 0, XL: 0 };
     })();
     setRestockData(currentSizes);
+    setOriginalStock(currentSizes);
     setShowRestockForm(true);
   };
 
@@ -358,6 +360,9 @@ export default function ProductsPage() {
                     onChange={(e) => setRestockData({...restockData, S: Number(e.target.value)})}
                     style={{borderRadius: '10px', border: '2px solid #e9ecef', padding: '12px 16px'}}
                   />
+                  {restockData.S < originalStock.S && (
+                    <small className="text-warning"><i className="bi bi-exclamation-triangle"></i> Reducing from {originalStock.S}</small>
+                  )}
                 </div>
                 <div className="col-md-3 mb-3">
                   <label className="form-label">Size M Stock</label>
@@ -368,6 +373,9 @@ export default function ProductsPage() {
                     onChange={(e) => setRestockData({...restockData, M: Number(e.target.value)})}
                     style={{borderRadius: '10px', border: '2px solid #e9ecef', padding: '12px 16px'}}
                   />
+                  {restockData.M < originalStock.M && (
+                    <small className="text-warning"><i className="bi bi-exclamation-triangle"></i> Reducing from {originalStock.M}</small>
+                  )}
                 </div>
                 <div className="col-md-3 mb-3">
                   <label className="form-label">Size L Stock</label>
@@ -378,6 +386,9 @@ export default function ProductsPage() {
                     onChange={(e) => setRestockData({...restockData, L: Number(e.target.value)})}
                     style={{borderRadius: '10px', border: '2px solid #e9ecef', padding: '12px 16px'}}
                   />
+                  {restockData.L < originalStock.L && (
+                    <small className="text-warning"><i className="bi bi-exclamation-triangle"></i> Reducing from {originalStock.L}</small>
+                  )}
                 </div>
                 <div className="col-md-3 mb-3">
                   <label className="form-label">Size XL Stock</label>
@@ -388,6 +399,9 @@ export default function ProductsPage() {
                     onChange={(e) => setRestockData({...restockData, XL: Number(e.target.value)})}
                     style={{borderRadius: '10px', border: '2px solid #e9ecef', padding: '12px 16px'}}
                   />
+                  {restockData.XL < originalStock.XL && (
+                    <small className="text-warning"><i className="bi bi-exclamation-triangle"></i> Reducing from {originalStock.XL}</small>
+                  )}
                 </div>
               </div>
               <div className="d-flex gap-3">
