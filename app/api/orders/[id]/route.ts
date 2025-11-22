@@ -43,20 +43,17 @@ export async function PUT(
         console.error('Failed to send status update email:', emailError);
       }
       
-      // Create notification directly
+      // Log notification (can be replaced with database storage later)
       try {
-        const Notification = require('../../../lib/models/Notification').default;
-        await Notification.create({
+        console.log('Order status notification:', {
           userId: order.customerInfo?.email || order.customerInfo?.phone,
           type: 'order_status',
           title: 'Order Status Updated',
           message: `Your order #${order._id.toString().slice(-6)} status changed to ${data.status}`,
-          orderId: order._id,
-          isRead: false,
-          createdAt: new Date()
+          orderId: order._id
         });
       } catch (notificationError) {
-        console.error('Failed to create notification:', notificationError);
+        console.error('Failed to log notification:', notificationError);
       }
     }
     
