@@ -138,7 +138,12 @@ export default function ProductsPage() {
 
       if (response.ok) {
         loadProducts();
-        await resetForm();
+        resetForm();
+        if (!editingProduct) {
+          generateProductCode().then(newCode => {
+            setFormData(prev => ({...prev, code: newCode}));
+          });
+        }
         toast.success(editingProduct ? 'Product updated successfully!' : 'Product added successfully!', {
           icon: editingProduct ? '✏️' : '➕'
         });
@@ -154,6 +159,27 @@ export default function ProductsPage() {
   };
 
   const handleDelete = async (product: Product) => {
+    const confirmDelete = () => {
+      const productId = product._id || product.id;
+      setDeleting(String(productId));
+      
+      fetch(`/api/products/${productId}`, { method: 'DELETE' })
+        .then(response => {
+          if (response.ok) {
+            loadProducts();
+            toast.success('Product deleted successfully!', { icon: '🗑️' });
+          } else {
+            toast.error('Failed to delete product');
+          }
+        })
+        .catch(() => {
+          toast.error('Error deleting product');
+        })
+        .finally(() => {
+          setDeleting(null);
+        });
+    };
+
     toast((t) => (
       <div className="d-flex align-items-center gap-3">
         <div>
@@ -163,23 +189,9 @@ export default function ProductsPage() {
         <div className="d-flex gap-2">
           <button 
             className="btn btn-sm btn-danger"
-            onClick={async () => {
+            onClick={() => {
               toast.dismiss(t.id);
-              const productId = product._id || product.id;
-              setDeleting(String(productId));
-              try {
-                const response = await fetch(`/api/products/${productId}`, { method: 'DELETE' });
-                if (response.ok) {
-                  loadProducts();
-                  toast.success('Product deleted successfully!', { icon: '🗑️' });
-                } else {
-                  toast.error('Failed to delete product');
-                }
-              } catch (error) {
-                toast.error('Error deleting product');
-              } finally {
-                setDeleting(null);
-              }
+              confirmDelete();
             }}
           >
             Delete
@@ -195,11 +207,10 @@ export default function ProductsPage() {
     ), { duration: 10000 });
   };
 
-  const resetForm = async () => {
-    const newCode = await generateProductCode();
+  const resetForm = () => {
     setFormData({
       name: '',
-      code: newCode,
+      code: '',
       description: '',
       price: 0,
       originalPrice: 0,
@@ -241,6 +252,7 @@ export default function ProductsPage() {
   };
 
   const startEdit = (product: Product) => {
+    setShowAddForm(true);
     setEditingProduct(product);
     setFormData({
       name: product.name,
@@ -301,7 +313,6 @@ export default function ProductsPage() {
         keywords: ''
       }
     });
-    setShowAddForm(true);
     setActiveTab('basic');
   };
 
@@ -383,10 +394,11 @@ export default function ProductsPage() {
         <h2>Product Management</h2>
         <button 
           className="btn btn-primary"
-          onClick={async () => {
-            const newCode = await generateProductCode();
-            setFormData({...formData, code: newCode});
+          onClick={() => {
             setShowAddForm(true);
+            generateProductCode().then(newCode => {
+              setFormData(prev => ({...prev, code: newCode}));
+            });
           }}
         >
           <i className="bi bi-plus-circle me-2"></i>Add Product
