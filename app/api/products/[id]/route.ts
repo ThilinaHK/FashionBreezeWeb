@@ -90,6 +90,17 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
       sizes: body.sizes
     });
     
+    // Check for duplicate code when updating
+    if (body.code) {
+      const existingProduct = await Product.findOne({ 
+        code: body.code, 
+        $nor: [{ id: parseInt(id) }, { _id: id }] 
+      });
+      if (existingProduct) {
+        return NextResponse.json({ error: 'Product code already exists' }, { status: 400 });
+      }
+    }
+    
     // Check if id is numeric (custom id field) or ObjectId
     let product;
     if (/^\d+$/.test(id)) {

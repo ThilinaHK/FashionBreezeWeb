@@ -858,21 +858,39 @@ export default function ProductsPage() {
               {activeTab === 'images' && (
                 <div>
                   <div className="mb-3">
-                    <label className="form-label">Main Image URL</label>
-                    <input
-                      type="url"
-                      className="form-control"
-                      value={formData.image}
-                      onChange={(e) => setFormData({...formData, image: e.target.value})}
-                      required
-                      style={{borderRadius: '10px', border: '2px solid #e9ecef', padding: '12px 16px'}}
-                      placeholder="https://example.com/image.jpg"
-                    />
+                    <label className="form-label">Main Image</label>
+                    <div className="d-flex gap-2 mb-2">
+                      <input
+                        type="url"
+                        className="form-control"
+                        value={formData.image}
+                        onChange={(e) => setFormData({...formData, image: e.target.value})}
+                        required
+                        style={{borderRadius: '10px', border: '2px solid #e9ecef', padding: '12px 16px'}}
+                        placeholder="https://example.com/image.jpg or upload file"
+                      />
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="form-control"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) {
+                            const reader = new FileReader();
+                            reader.onload = (event) => {
+                              setFormData({...formData, image: event.target?.result as string});
+                            };
+                            reader.readAsDataURL(file);
+                          }
+                        }}
+                        style={{borderRadius: '10px', border: '2px solid #e9ecef', padding: '12px 16px', maxWidth: '200px'}}
+                      />
+                    </div>
                     {formData.image && (
                       <div className="mt-2">
-                        <img src={formData.image} alt="Main preview" style={{width: '100px', height: '100px', objectFit: 'cover', borderRadius: '8px'}} />
+                        <img src={formData.image} alt="Main preview" style={{width: '150px', height: '150px', objectFit: 'cover', borderRadius: '8px', border: '2px solid #e9ecef'}} />
                         <div className="mt-1">
-                          <small className="text-muted">Image loaded</small>
+                          <small className="text-success"><i className="bi bi-check-circle"></i> Image loaded</small>
                         </div>
                       </div>
                     )}
@@ -880,8 +898,8 @@ export default function ProductsPage() {
                   <div className="mb-3">
                     <label className="form-label">Additional Images</label>
                     {formData.additionalImages.map((img, index) => (
-                      <div key={index} className="d-flex gap-2 mb-2">
-                        <div className="flex-grow-1">
+                      <div key={index} className="mb-3 p-3" style={{border: '1px solid #e9ecef', borderRadius: '10px'}}>
+                        <div className="d-flex gap-2 mb-2">
                           <input
                             type="url"
                             className="form-control"
@@ -891,28 +909,46 @@ export default function ProductsPage() {
                               newImages[index] = e.target.value;
                               setFormData({...formData, additionalImages: newImages});
                             }}
-                            placeholder="https://example.com/image.jpg"
+                            placeholder="https://example.com/image.jpg or upload file"
                             style={{borderRadius: '10px', border: '2px solid #e9ecef', padding: '12px 16px'}}
                           />
-                          {img && (
-                            <div className="mt-1">
-                              <img src={img} alt={`Preview ${index + 1}`} style={{width: '60px', height: '60px', objectFit: 'cover', borderRadius: '4px'}} />
-                              <div className="mt-1">
-                                <small className="text-muted">Image {index + 1}</small>
-                              </div>
-                            </div>
-                          )}
+                          <input
+                            type="file"
+                            accept="image/*"
+                            className="form-control"
+                            onChange={(e) => {
+                              const file = e.target.files?.[0];
+                              if (file) {
+                                const reader = new FileReader();
+                                reader.onload = (event) => {
+                                  const newImages = [...formData.additionalImages];
+                                  newImages[index] = event.target?.result as string;
+                                  setFormData({...formData, additionalImages: newImages});
+                                };
+                                reader.readAsDataURL(file);
+                              }
+                            }}
+                            style={{borderRadius: '10px', border: '2px solid #e9ecef', padding: '12px 16px', maxWidth: '200px'}}
+                          />
+                          <button
+                            type="button"
+                            className="btn btn-outline-danger"
+                            onClick={() => {
+                              const newImages = formData.additionalImages.filter((_, i) => i !== index);
+                              setFormData({...formData, additionalImages: newImages});
+                            }}
+                          >
+                            <i className="bi bi-trash"></i>
+                          </button>
                         </div>
-                        <button
-                          type="button"
-                          className="btn btn-outline-danger"
-                          onClick={() => {
-                            const newImages = formData.additionalImages.filter((_, i) => i !== index);
-                            setFormData({...formData, additionalImages: newImages});
-                          }}
-                        >
-                          <i className="bi bi-trash"></i>
-                        </button>
+                        {img && (
+                          <div className="mt-2">
+                            <img src={img} alt={`Preview ${index + 1}`} style={{width: '120px', height: '120px', objectFit: 'cover', borderRadius: '8px', border: '2px solid #e9ecef'}} />
+                            <div className="mt-1">
+                              <small className="text-success"><i className="bi bi-check-circle"></i> Image {index + 1} loaded</small>
+                            </div>
+                          </div>
+                        )}
                       </div>
                     ))}
                     <button

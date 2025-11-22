@@ -56,10 +56,20 @@ export async function POST(request: NextRequest) {
     const userId = request.headers.get('x-user-id');
     const userName = request.headers.get('x-user-name');
     
-    // Auto-generate ID
+    // Auto-generate ID and Code
     if (!body.id) {
       const lastProduct = await Product.findOne().sort({ id: -1 }).select('id');
       body.id = lastProduct ? lastProduct.id + 1 : 1;
+    }
+    
+    if (!body.code || body.code.trim() === '') {
+      body.code = `FB${String(body.id).padStart(4, '0')}`;
+    }
+    
+    // Check for duplicate code
+    const existingProduct = await Product.findOne({ code: body.code });
+    if (existingProduct) {
+      return NextResponse.json({ error: 'Product code already exists' }, { status: 400 });
     }
     
     // Add audit fields
