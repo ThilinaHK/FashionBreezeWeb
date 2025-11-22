@@ -159,52 +159,24 @@ export default function ProductsPage() {
   };
 
   const handleDelete = async (product: Product) => {
-    const confirmDelete = () => {
+    if (confirm(`Are you sure you want to delete "${product.name}"?`)) {
       const productId = product._id || product.id;
       setDeleting(String(productId));
       
-      fetch(`/api/products/${productId}`, { method: 'DELETE' })
-        .then(response => {
-          if (response.ok) {
-            loadProducts();
-            toast.success('Product deleted successfully!', { icon: '🗑️' });
-          } else {
-            toast.error('Failed to delete product');
-          }
-        })
-        .catch(() => {
-          toast.error('Error deleting product');
-        })
-        .finally(() => {
-          setDeleting(null);
-        });
-    };
-
-    toast((t) => (
-      <div className="d-flex align-items-center gap-3">
-        <div>
-          <div className="fw-bold">Delete Product</div>
-          <div className="text-muted small">Delete "{product.name}"?</div>
-        </div>
-        <div className="d-flex gap-2">
-          <button 
-            className="btn btn-sm btn-danger"
-            onClick={() => {
-              toast.dismiss(t.id);
-              confirmDelete();
-            }}
-          >
-            Delete
-          </button>
-          <button 
-            className="btn btn-sm btn-outline-secondary"
-            onClick={() => toast.dismiss(t.id)}
-          >
-            Cancel
-          </button>
-        </div>
-      </div>
-    ), { duration: 10000 });
+      try {
+        const response = await fetch(`/api/products/${productId}`, { method: 'DELETE' });
+        if (response.ok) {
+          loadProducts();
+          toast.success('Product deleted successfully!', { icon: '🗑️' });
+        } else {
+          toast.error('Failed to delete product');
+        }
+      } catch (error) {
+        toast.error('Error deleting product');
+      } finally {
+        setDeleting(null);
+      }
+    }
   };
 
   const resetForm = () => {
