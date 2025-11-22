@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { Product, Category } from '../../types/index';
+import toast from 'react-hot-toast';
 
 export default function ProductsPage() {
   const [products, setProducts] = useState<Product[]>([]);
@@ -11,6 +12,7 @@ export default function ProductsPage() {
   const [toast, setToast] = useState<{message: string, type: 'success' | 'error'} | null>(null);
   const [loading, setLoading] = useState(false);
   const [deleting, setDeleting] = useState<string | null>(null);
+  const [loadingProgress, setLoadingProgress] = useState(0);
   const [filters, setFilters] = useState({
     search: '',
     category: '',
@@ -137,42 +139,60 @@ export default function ProductsPage() {
       if (response.ok) {
         loadProducts();
         await resetForm();
-        setToast({message: editingProduct ? 'Product updated successfully!' : 'Product added successfully!', type: 'success'});
-        setTimeout(() => setToast(null), 3000);
+        toast.success(editingProduct ? 'Product updated successfully!' : 'Product added successfully!', {
+          icon: editingProduct ? '✏️' : '➕'
+        });
       } else {
-        setToast({message: 'Failed to save product', type: 'error'});
-        setTimeout(() => setToast(null), 3000);
+        toast.error('Failed to save product');
       }
     } catch (error) {
       console.error('Error saving product:', error);
-      setToast({message: 'Error saving product', type: 'error'});
-      setTimeout(() => setToast(null), 3000);
+      toast.error('Error saving product');
     } finally {
       setLoading(false);
     }
   };
 
   const handleDelete = async (product: Product) => {
-    if (confirm('Are you sure you want to delete this product?')) {
-      const productId = product._id || product.id;
-      setDeleting(String(productId));
-      try {
-        const response = await fetch(`/api/products/${productId}`, { method: 'DELETE' });
-        if (response.ok) {
-          loadProducts();
-          setToast({message: 'Product deleted successfully!', type: 'success'});
-        } else {
-          setToast({message: 'Failed to delete product', type: 'error'});
-        }
-        setTimeout(() => setToast(null), 3000);
-      } catch (error) {
-        console.error('Error deleting product:', error);
-        setToast({message: 'Error deleting product', type: 'error'});
-        setTimeout(() => setToast(null), 3000);
-      } finally {
-        setDeleting(null);
-      }
-    }
+    toast((t) => (
+      <div className="d-flex align-items-center gap-3">
+        <div>
+          <div className="fw-bold">Delete Product</div>
+          <div className="text-muted small">Delete "{product.name}"?</div>
+        </div>
+        <div className="d-flex gap-2">
+          <button 
+            className="btn btn-sm btn-danger"
+            onClick={async () => {
+              toast.dismiss(t.id);
+              const productId = product._id || product.id;
+              setDeleting(String(productId));
+              try {
+                const response = await fetch(`/api/products/${productId}`, { method: 'DELETE' });
+                if (response.ok) {
+                  loadProducts();
+                  toast.success('Product deleted successfully!', { icon: '🗑️' });
+                } else {
+                  toast.error('Failed to delete product');
+                }
+              } catch (error) {
+                toast.error('Error deleting product');
+              } finally {
+                setDeleting(null);
+              }
+            }}
+          >
+            Delete
+          </button>
+          <button 
+            className="btn btn-sm btn-outline-secondary"
+            onClick={() => toast.dismiss(t.id)}
+          >
+            Cancel
+          </button>
+        </div>
+      </div>
+    ), { duration: 10000 });
   };
 
   const resetForm = async () => {
@@ -308,16 +328,13 @@ export default function ProductsPage() {
         setShowRestockForm(false);
         setRestockProduct(null);
         setRestockData({ S: 0, M: 0, L: 0, XL: 0 });
-        setToast({message: 'Stock updated successfully!', type: 'success'});
-        setTimeout(() => setToast(null), 3000);
+        toast.success('Stock updated successfully!', { icon: '📦' });
       } else {
-        setToast({message: 'Failed to update stock', type: 'error'});
-        setTimeout(() => setToast(null), 3000);
+        toast.error('Failed to update stock');
       }
     } catch (error) {
       console.error('Error updating stock:', error);
-      setToast({message: 'Error updating stock', type: 'error'});
-      setTimeout(() => setToast(null), 3000);
+      toast.error('Error updating stock');
     } finally {
       setLoading(false);
     }
@@ -354,6 +371,14 @@ export default function ProductsPage() {
 
   return (
     <div className="container-fluid py-4">
+      {loadingProgress > 0 && (
+        <div className="progress mb-3" style={{height: '4px'}}>
+          <div 
+            className="progress-bar bg-primary" 
+            style={{width: `${loadingProgress}%`, transition: 'width 0.3s ease'}}
+          ></div>
+        </div>
+      )}
       <div className="d-flex justify-content-between align-items-center mb-4">
         <h2>Product Management</h2>
         <button 
@@ -719,8 +744,8 @@ export default function ProductsPage() {
                   </div>
 
                   <div className="row">
-                    <div className="col-md-4 mb-3">
-                      <label className="form-label">Category</label>
+                    <div className="col-md-6 mb-3">
+                      <label className="form-label">Category *</label>
                       <select
                         className="form-select"
                         value={formData.category}
@@ -728,26 +753,36 @@ export default function ProductsPage() {
                         required
                         style={{borderRadius: '10px', border: '2px solid #e9ecef', padding: '12px 16px'}}
                       >
-                        <option value="">Select Category</option>
+                        <option value="">-- Select Category --</option>
                         {categories.map(cat => (
-                          <option key={cat._id} value={cat.name}>{cat.name}</option>
+                          <option key={cat._id || cat.name} value={cat.name}>{cat.name}</option>
                         ))}
                       </select>
+                      {!formData.category && (
+                        <small className="text-muted">Please select a category first</small>
+                      )}
                     </div>
-                    <div className="col-md-4 mb-3">
+                    <div className="col-md-6 mb-3">
                       <label className="form-label">Subcategory</label>
                       <select
                         className="form-select"
                         value={formData.subcategory}
                         onChange={(e) => setFormData({...formData, subcategory: e.target.value})}
                         disabled={!formData.category}
-                        style={{borderRadius: '10px', border: '2px solid #e9ecef', padding: '12px 16px'}}
+                        style={{borderRadius: '10px', border: '2px solid #e9ecef', padding: '12px 16px', opacity: !formData.category ? 0.6 : 1}}
                       >
-                        <option value="">Select Subcategory</option>
-                        {getSubcategories(formData.category).map(sub => (
-                          <option key={sub.slug} value={sub.name}>{sub.name}</option>
+                        <option value="">-- Select Subcategory --</option>
+                        {formData.category && getSubcategories(formData.category).map(sub => (
+                          <option key={sub.slug || sub.name} value={sub.name}>{sub.name}</option>
                         ))}
                       </select>
+                      {!formData.category ? (
+                        <small className="text-muted">Select category to see subcategories</small>
+                      ) : getSubcategories(formData.category).length === 0 ? (
+                        <small className="text-warning">No subcategories available for this category</small>
+                      ) : (
+                        <small className="text-muted">{getSubcategories(formData.category).length} subcategories available</small>
+                      )}
                     </div>
                   </div>
 
@@ -1044,7 +1079,10 @@ export default function ProductsPage() {
                   boxShadow: '0 4px 15px rgba(16, 185, 129, 0.3)'
                 }}>
                   {loading ? (
-                    <><i className="bi bi-hourglass-split me-2"></i>Saving...</>
+                    <>
+                      <div className="spinner-border spinner-border-sm me-2" role="status"></div>
+                      {loadingProgress > 0 ? `${Math.round(loadingProgress)}% ` : ''}Saving...
+                    </>
                   ) : (
                     <><i className={`bi ${editingProduct ? 'bi-check-circle' : 'bi-plus-circle'} me-2`}></i>{editingProduct ? 'Update Product' : 'Add Product'}</>
                   )}
@@ -1064,13 +1102,7 @@ export default function ProductsPage() {
         </div>
       )}
 
-      {toast && (
-        <div className={`alert alert-${toast.type === 'success' ? 'success' : 'danger'} alert-dismissible fade show`} role="alert">
-          <i className={`bi ${toast.type === 'success' ? 'bi-check-circle' : 'bi-exclamation-triangle'} me-2`}></i>
-          {toast.message}
-          <button type="button" className="btn-close" onClick={() => setToast(null)}></button>
-        </div>
-      )}
+
 
       <div className="card mb-4 shadow-sm border-0" style={{borderRadius: '12px'}}>
         <div className="card-body p-4">

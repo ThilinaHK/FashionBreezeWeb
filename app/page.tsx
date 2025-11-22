@@ -388,7 +388,7 @@ export default function HomePage() {
     }
   };
 
-  const getFilteredProducts = () => {
+  const getFilteredProducts = useMemo(() => {
     let filtered = [...products];
 
     if (searchTerm && searchTerm.trim()) {
@@ -412,19 +412,21 @@ export default function HomePage() {
     );
     
     return filtered;
-  };
+  }, [products, searchTerm, selectedCategory, priceRange]);
 
-  const addToCart = async (product: Product) => {
+  const addToCart = useCallback(async (product: Product) => {
     const productId = product.id || product._id;
     setCartLoading(productId as number);
     const cartItem: CartItem = { ...product, size: 'M', quantity: 1 };
     const newCart = [...cart, cartItem];
-    console.log('Adding to cart:', cartItem);
-    console.log('New cart will have:', newCart.length, 'items');
     setCart(newCart);
-    await saveCartToMongoDB(newCart);
+    try {
+      await saveCartToMongoDB(newCart);
+    } catch (error) {
+      console.error('Failed to save cart:', error);
+    }
     setCartLoading(null);
-  };
+  }, [cart]);
 
   const removeFromCart = async (productId: number | string, size?: string) => {
     const newCart = cart.filter(item => !((item.id || item._id) === productId && (!size || item.size === size)));
@@ -479,7 +481,7 @@ export default function HomePage() {
         // Fallback calculation
         const cost = subtotal >= 5000 ? 0 : 300;
         setDeliveryCost(cost);
-        setDeliveryMessage(cost === 0 ? 'FREE' : `₹${cost}`);
+        setDeliveryMessage(cost === 0 ? 'FREE' : `LKR ${cost}`);
         setRemainingForFreeDelivery(subtotal < 5000 ? 5000 - subtotal : 0);
       }
     } catch (error) {
@@ -487,7 +489,7 @@ export default function HomePage() {
       // Fallback calculation
       const cost = subtotal >= 5000 ? 0 : 300;
       setDeliveryCost(cost);
-      setDeliveryMessage(cost === 0 ? 'FREE' : `₹${cost}`);
+      setDeliveryMessage(cost === 0 ? 'FREE' : `LKR ${cost}`);
       setRemainingForFreeDelivery(subtotal < 5000 ? 5000 - subtotal : 0);
     }
   };
@@ -604,9 +606,9 @@ export default function HomePage() {
     
     const subtotal = getSubtotal();
     const total = getTotal();
-    const deliveryInfo = deliveryCost > 0 ? `\nDelivery: ₹${deliveryCost.toFixed(2)}` : '\nDelivery: FREE';
+    const deliveryInfo = deliveryCost > 0 ? `\nDelivery: LKR ${deliveryCost.toFixed(2)}` : '\nDelivery: FREE';
     
-    const message = `🛍️ NEW ORDER - Fashion Breeze\n\nORDER ITEMS:\n${orderDetails}\n\nSUBTOTAL: ₹${subtotal.toFixed(2)}${deliveryInfo}\nTOTAL: ₹${total.toFixed(2)}\n\n${customerInfo}`;
+    const message = `🛍️ NEW ORDER - Fashion Breeze\n\nORDER ITEMS:\n${orderDetails}\n\nSUBTOTAL: LKR ${subtotal.toFixed(2)}${deliveryInfo}\nTOTAL: LKR ${total.toFixed(2)}\n\n${customerInfo}`;
     
     const whatsappUrl = `https://wa.me/94707003722?text=${encodeURIComponent(message)}`;
     window.open(whatsappUrl, '_blank');
@@ -626,7 +628,7 @@ export default function HomePage() {
     return false;
   };
 
-  const openProductModal = (product: Product) => {
+  const openProductModal = useCallback((product: Product) => {
     // Reset all states immediately
     setZoomLevel(1);
     setModalQuantity(1);
@@ -638,7 +640,7 @@ export default function HomePage() {
     // Set product directly
     setSelectedProduct(product);
     setShowProductModal(true);
-  };
+  }, []);
 
   const navigateImage = (direction: 'prev' | 'next') => {
     if (!selectedProduct) return;
@@ -1773,12 +1775,12 @@ export default function HomePage() {
                       <div className="d-flex justify-content-between align-items-center mb-2">
                         <label className="form-label fw-bold mb-0">Price Range</label>
                         <span className="badge bg-success px-3 py-2" style={{ borderRadius: '15px' }}>
-                          ₹{priceRange.min.toLocaleString()} - ₹{priceRange.max.toLocaleString()}
+                          LKR {priceRange.min.toLocaleString()} - LKR {priceRange.max.toLocaleString()}
                         </span>
                       </div>
                       <div className="row g-2">
                         <div className="col-6">
-                          <label className="form-label small">Min: ₹{priceRange.min.toLocaleString()}</label>
+                          <label className="form-label small">Min: LKR {priceRange.min.toLocaleString()}</label>
                           <input 
                             type="range" 
                             className="form-range"
@@ -1789,7 +1791,7 @@ export default function HomePage() {
                           />
                         </div>
                         <div className="col-6">
-                          <label className="form-label small">Max: ₹{priceRange.max.toLocaleString()}</label>
+                          <label className="form-label small">Max: LKR {priceRange.max.toLocaleString()}</label>
                           <input 
                             type="range" 
                             className="form-range"
@@ -1809,7 +1811,7 @@ export default function HomePage() {
                       <div className="d-flex align-items-center gap-3">
                         <span className="text-muted fw-bold">Results:</span>
                         <span className="badge bg-primary px-3 py-2" style={{ fontSize: '0.9rem' }}>
-                          {getFilteredProducts().length} of {products.length} products
+                          {getFilteredProducts.length} of {products.length} products
                         </span>
                       </div>
                     </div>
@@ -1943,7 +1945,7 @@ export default function HomePage() {
                 <div className="premium-products-grid" style={{minHeight: '600px'}}>
                   <div className="row g-4" style={{minHeight: '500px'}}>
                     <AnimatePresence mode="wait">
-                      {getFilteredProducts().map((product, index) => (
+                      {getFilteredProducts.map((product, index) => (
                         <motion.div 
                           key={product.id} 
                           className="col-xl-3 col-lg-4 col-md-6"
@@ -2313,7 +2315,7 @@ export default function HomePage() {
                   </div>
                   
                   {/* No Products Found */}
-                  {getFilteredProducts().length === 0 && !loading && products.length > 0 && (
+                  {getFilteredProducts.length === 0 && !loading && products.length > 0 && (
                     <div className="col-12">
                       <div className="no-products-found text-center py-5" style={{minHeight: '400px', display: 'flex', flexDirection: 'column', justifyContent: 'center'}}>
                         <div className="mb-4">
