@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import NotificationPopup from '../components/NotificationPopup';
 // import { useSocket } from '../components/SocketProvider';
 
 interface Customer {
@@ -597,6 +598,7 @@ export default function ProfilePage() {
             Fashion Breeze
           </a>
           <div className="d-flex align-items-center gap-3">
+            <NotificationPopup userId={customer?.email || localStorage.getItem('userEmail') || ''} />
             <a href="/" className="btn" style={{background: 'rgba(34, 197, 94, 0.2)', border: '2px solid #22c55e', color: '#22c55e', borderRadius: '12px', fontWeight: '600'}}>
               <i className="bi bi-arrow-left me-2"></i>Back to Shop
             </a>

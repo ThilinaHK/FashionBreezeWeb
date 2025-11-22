@@ -22,10 +22,13 @@ export async function PUT(
       { new: true }
     );
     
-    // Send email if status changed
+    // Send email and notification if status changed
     if (data.status && data.status !== currentOrder.status) {
+      const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+      
+      // Send email
       try {
-        await fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/email/order-status`, {
+        await fetch(`${baseUrl}/api/email/order-status`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -38,6 +41,23 @@ export async function PUT(
         });
       } catch (emailError) {
         console.error('Failed to send status update email:', emailError);
+      }
+      
+      // Create notification
+      try {
+        await fetch(`${baseUrl}/api/notifications`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            userId: order.customerInfo?.email || order.customerInfo?.phone,
+            type: 'order_status',
+            title: 'Order Status Updated',
+            message: `Your order #${order._id.toString().slice(-6)} status changed to ${data.status}`,
+            orderId: order._id
+          })
+        });
+      } catch (notificationError) {
+        console.error('Failed to create notification:', notificationError);
       }
     }
     

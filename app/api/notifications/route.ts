@@ -1,57 +1,47 @@
 import { NextRequest, NextResponse } from 'next/server';
+import dbConnect from '../../lib/mongodb';
+import Notification from '../../lib/models/Notification';
 
 export async function POST(request: NextRequest) {
   try {
-    const { email, orderNumber, status, customerName } = await request.json();
+    await dbConnect();
+    const data = await request.json();
     
-    console.log(`Sending notification to ${email} for order ${orderNumber} - Status: ${status}`);
-    
-    // In a real application, you would integrate with an email service like:
-    // - SendGrid
-    // - AWS SES
-    // - Nodemailer
-    // - Resend
-    
-    // For now, we'll simulate the notification
-    const statusMessages = {
-      confirmed: 'Your order has been confirmed and is being processed.',
-      shipped: 'Great news! Your order has been shipped and is on its way.',
-      delivered: 'Your order has been delivered successfully.',
-      cancelled: 'Your order has been cancelled. If you have questions, please contact us.'
-    };
-    
-    const message = statusMessages[status as keyof typeof statusMessages] || 'Your order status has been updated.';
-    
-    // Simulate email sending (replace with actual email service)
-    const emailData = {
-      to: email,
-      subject: `Order Update - ${orderNumber}`,
-      body: `
-        Dear ${customerName},
-        
-        ${message}
-        
-        Order Number: ${orderNumber}
-        Status: ${status.toUpperCase()}
-        
-        Thank you for shopping with Fashion Breeze!
-        
-        Best regards,
-        Fashion Breeze Team
-      `
-    };
-    
-    console.log('Email notification sent:', emailData);
-    
-    return NextResponse.json({ 
-      success: true, 
-      message: 'Customer notification sent successfully' 
+    const notification = new Notification({
+      userId: data.userId,
+      type: data.type || 'order_status',
+      title: data.title,
+      message: data.message,
+      orderId: data.orderId,
+      isRead: false,
+      createdAt: new Date()
     });
+    
+    await notification.save();
+    return NextResponse.json(notification);
   } catch (error) {
-    console.error('Notification error:', error);
-    return NextResponse.json({ 
-      success: false, 
-      message: 'Failed to send notification' 
-    });
+    console.error('Error creating notification:', error);
+    return NextResponse.json({ error: 'Failed to create notification' }, { status: 500 });
+  }
+}
+
+export async function GET(request: NextRequest) {
+  try {
+    await dbConnect();
+    const { searchParams } = new URL(request.url);
+    const userId = searchParams.get('userId');
+    
+    if (!userId) {
+      return NextResponse.json({ error: 'User ID required' }, { status: 400 });
+    }
+    
+    const notifications = await Notification.find({ userId })
+      .sort({ createdAt: -1 })
+      .limit(50);
+    
+    return NextResponse.json(notifications);
+  } catch (error) {
+    console.error('Error fetching notifications:', error);
+    return NextResponse.json({ error: 'Failed to fetch notifications' }, { status: 500 });
   }
 }
