@@ -10,14 +10,35 @@ export async function PUT(
     await dbConnect();
     const data = await request.json();
     
+    // Get the current order to check status change
+    const currentOrder = await Order.findById(params.id);
+    if (!currentOrder) {
+      return NextResponse.json({ error: 'Order not found' }, { status: 404 });
+    }
+    
     const order = await Order.findByIdAndUpdate(
       params.id,
       data,
       { new: true }
     );
     
-    if (!order) {
-      return NextResponse.json({ error: 'Order not found' }, { status: 404 });
+    // Send email if status changed
+    if (data.status && data.status !== currentOrder.status) {
+      try {
+        await fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/email/order-status`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            orderId: order._id,
+            customerEmail: order.customerInfo?.email,
+            customerName: order.customerInfo?.name,
+            newStatus: data.status,
+            oldStatus: currentOrder.status
+          })
+        });
+      } catch (emailError) {
+        console.error('Failed to send status update email:', emailError);
+      }
     }
     
     return NextResponse.json(order);
