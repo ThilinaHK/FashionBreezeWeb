@@ -144,15 +144,19 @@ export default function ProductsPage() {
             setFormData(prev => ({...prev, code: newCode}));
           });
         }
-        toast.success(editingProduct ? 'Product updated successfully!' : 'Product added successfully!', {
-          icon: editingProduct ? '✏️' : '➕'
+        setToast({
+          message: editingProduct ? 'Product updated successfully!' : 'Product added successfully!',
+          type: 'success'
         });
+        setTimeout(() => setToast(null), 3000);
       } else {
-        toast.error('Failed to save product');
+        setToast({ message: 'Failed to save product', type: 'error' });
+        setTimeout(() => setToast(null), 3000);
       }
     } catch (error) {
       console.error('Error saving product:', error);
-      toast.error('Error saving product');
+      setToast({ message: 'Error saving product', type: 'error' });
+      setTimeout(() => setToast(null), 3000);
     } finally {
       setLoading(false);
     }
@@ -167,12 +171,15 @@ export default function ProductsPage() {
         const response = await fetch(`/api/products/${productId}`, { method: 'DELETE' });
         if (response.ok) {
           loadProducts();
-          toast.success('Product deleted successfully!', { icon: '🗑️' });
+          setToast({ message: 'Product deleted successfully!', type: 'success' });
+          setTimeout(() => setToast(null), 3000);
         } else {
-          toast.error('Failed to delete product');
+          setToast({ message: 'Failed to delete product', type: 'error' });
+          setTimeout(() => setToast(null), 3000);
         }
       } catch (error) {
-        toast.error('Error deleting product');
+        setToast({ message: 'Error deleting product', type: 'error' });
+        setTimeout(() => setToast(null), 3000);
       } finally {
         setDeleting(null);
       }
@@ -311,13 +318,16 @@ export default function ProductsPage() {
         setShowRestockForm(false);
         setRestockProduct(null);
         setRestockData({ S: 0, M: 0, L: 0, XL: 0 });
-        toast.success('Stock updated successfully!', { icon: '📦' });
+        setToast({ message: 'Stock updated successfully!', type: 'success' });
+        setTimeout(() => setToast(null), 3000);
       } else {
-        toast.error('Failed to update stock');
+        setToast({ message: 'Failed to update stock', type: 'error' });
+        setTimeout(() => setToast(null), 3000);
       }
     } catch (error) {
       console.error('Error updating stock:', error);
-      toast.error('Error updating stock');
+      setToast({ message: 'Error updating stock', type: 'error' });
+      setTimeout(() => setToast(null), 3000);
     } finally {
       setLoading(false);
     }
@@ -1240,6 +1250,15 @@ export default function ProductsPage() {
           </div>
         </div>
       </div>
+      
+      {toast && (
+        <div className={`alert alert-${toast.type === 'success' ? 'success' : 'danger'} alert-dismissible fade show position-fixed`} 
+             style={{top: '20px', right: '20px', zIndex: 1050}} role="alert">
+          <i className={`bi ${toast.type === 'success' ? 'bi-check-circle' : 'bi-exclamation-triangle'} me-2`}></i>
+          {toast.message}
+          <button type="button" className="btn-close" onClick={() => setToast(null)}></button>
+        </div>
+      )}
     </div>
   );
 }

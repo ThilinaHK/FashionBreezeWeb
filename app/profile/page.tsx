@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import NotificationPopup from '../components/NotificationPopup';
+// import NotificationPopup from '../components/NotificationPopup';
 // import { useSocket } from '../components/SocketProvider';
 
 interface Customer {
@@ -79,14 +79,32 @@ export default function ProfilePage() {
   const [submittingReview, setSubmittingReview] = useState(false);
   const [toast, setToast] = useState<{message: string, type: string} | null>(null);
   const [preOrders, setPreOrders] = useState<any[]>([]);
+  const [notifications, setNotifications] = useState<any[]>([]);
+  const [showNotifications, setShowNotifications] = useState(false);
 
   useEffect(() => {
     loadProfile();
     loadAddresses();
+    loadNotifications();
     if (activeTab === 'preorders') {
       loadPreOrders();
     }
   }, [activeTab]);
+
+  const loadNotifications = async () => {
+    const userEmail = localStorage.getItem('userEmail');
+    if (!userEmail) return;
+    
+    try {
+      const response = await fetch(`/api/notifications?userId=${userEmail}`);
+      if (response.ok) {
+        const data = await response.json();
+        setNotifications(data);
+      }
+    } catch (error) {
+      console.error('Error loading notifications:', error);
+    }
+  };
 
   // useEffect(() => {
   //   if (socket && isConnected) {
@@ -598,7 +616,37 @@ export default function ProfilePage() {
             Fashion Breeze
           </a>
           <div className="d-flex align-items-center gap-3">
-            <NotificationPopup userId={customer?.email || localStorage.getItem('userEmail') || ''} />
+            <div className="position-relative">
+              <button 
+                className="btn btn-outline-primary position-relative"
+                onClick={() => setShowNotifications(!showNotifications)}
+              >
+                <i className="bi bi-bell"></i>
+                {notifications.filter(n => !n.isRead).length > 0 && (
+                  <span className="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
+                    {notifications.filter(n => !n.isRead).length}
+                  </span>
+                )}
+              </button>
+              {showNotifications && (
+                <div className="dropdown-menu show position-absolute end-0 mt-2" style={{ width: '300px', zIndex: 1050 }}>
+                  <h6 className="dropdown-header">Notifications</h6>
+                  {notifications.length === 0 ? (
+                    <div className="dropdown-item-text text-muted">No notifications</div>
+                  ) : (
+                    notifications.slice(0, 5).map((notification) => (
+                      <div key={notification._id} className={`dropdown-item ${!notification.isRead ? 'bg-light' : ''}`}>
+                        <div className="fw-bold">{notification.title}</div>
+                        <div className="small text-muted">{notification.message}</div>
+                        <div className="small text-muted">
+                          {new Date(notification.createdAt).toLocaleDateString()}
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              )}
+            </div>
             <a href="/" className="btn" style={{background: 'rgba(34, 197, 94, 0.2)', border: '2px solid #22c55e', color: '#22c55e', borderRadius: '12px', fontWeight: '600'}}>
               <i className="bi bi-arrow-left me-2"></i>Back to Shop
             </a>
