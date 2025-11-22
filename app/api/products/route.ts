@@ -8,28 +8,12 @@ export async function GET() {
     await dbConnect();
     console.log('MongoDB connected, fetching products...');
     
-    const products = await Product.find(
-      { status: { $in: ['active', 'instock'] } }
-    ).lean().limit(100).sort({ createdAt: -1 });
+    const products = await Product.find({})
+      .lean().limit(100).sort({ createdAt: -1 });
     
     console.log(`Found ${products.length} products in database`);
     
-    if (products.length === 0) {
-      console.log('No products found, checking all products...');
-      const allProducts = await Product.find({}).lean().limit(10);
-      console.log(`Total products in database: ${allProducts.length}`);
-      
-      if (allProducts.length > 0) {
-        console.log('Returning all products regardless of status');
-        return NextResponse.json(allProducts, {
-          headers: {
-            'Cache-Control': 'no-cache, no-store, must-revalidate',
-            'Pragma': 'no-cache',
-            'Expires': '0'
-          }
-        });
-      }
-    }
+
     
     return NextResponse.json(products, {
       headers: {
@@ -62,8 +46,21 @@ export async function POST(request: NextRequest) {
       body.id = lastProduct ? lastProduct.id + 1 : 1;
     }
     
+    // Auto-generate code if empty or not provided
     if (!body.code || body.code.trim() === '') {
-      body.code = `FB${String(body.id).padStart(4, '0')}`;
+      // Find the highest existing code number
+      const lastCodeProduct = await Product.findOne(
+        { code: { $regex: /^FB\d{4}$/ } },
+        { code: 1 }
+      ).sort({ code: -1 });
+      
+      let nextNumber = 1;
+      if (lastCodeProduct && lastCodeProduct.code) {
+        const lastNumber = parseInt(lastCodeProduct.code.substring(2));
+        nextNumber = lastNumber + 1;
+      }
+      
+      body.code = `FB${String(nextNumber).padStart(4, '0')}`;
     }
     
     // Check for duplicate code

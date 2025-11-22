@@ -65,6 +65,26 @@ export default function ProductsPage() {
     loadCategories();
   }, []);
 
+  const generateProductCode = async () => {
+    try {
+      const response = await fetch('/api/products');
+      const products = await response.json();
+      const existingCodes = products
+        .map((p: any) => p.code)
+        .filter((code: string) => code && code.match(/^FB\d{4}$/));
+      
+      let nextNumber = 1;
+      if (existingCodes.length > 0) {
+        const numbers = existingCodes.map((code: string) => parseInt(code.substring(2)));
+        nextNumber = Math.max(...numbers) + 1;
+      }
+      
+      return `FB${String(nextNumber).padStart(4, '0')}`;
+    } catch (error) {
+      return `FB${String(Date.now()).slice(-4)}`;
+    }
+  };
+
   const loadProducts = async () => {
     try {
       const response = await fetch('/api/products');
@@ -116,7 +136,7 @@ export default function ProductsPage() {
 
       if (response.ok) {
         loadProducts();
-        resetForm();
+        await resetForm();
         setToast({message: editingProduct ? 'Product updated successfully!' : 'Product added successfully!', type: 'success'});
         setTimeout(() => setToast(null), 3000);
       } else {
@@ -155,10 +175,11 @@ export default function ProductsPage() {
     }
   };
 
-  const resetForm = () => {
+  const resetForm = async () => {
+    const newCode = await generateProductCode();
     setFormData({
       name: '',
-      code: '',
+      code: newCode,
       description: '',
       price: 0,
       originalPrice: 0,
@@ -337,7 +358,11 @@ export default function ProductsPage() {
         <h2>Product Management</h2>
         <button 
           className="btn btn-primary"
-          onClick={() => setShowAddForm(true)}
+          onClick={async () => {
+            const newCode = await generateProductCode();
+            setFormData({...formData, code: newCode});
+            setShowAddForm(true);
+          }}
         >
           <i className="bi bi-plus-circle me-2"></i>Add Product
         </button>
@@ -561,14 +586,23 @@ export default function ProductsPage() {
                     <div className="row">
                       <div className="col-md-4 mb-3">
                         <label className="form-label">Color</label>
-                        <input
-                          type="text"
-                          className="form-control"
-                          value={formData.color}
-                          onChange={(e) => setFormData({...formData, color: e.target.value})}
-                          placeholder="Color name or hex"
-                          style={{borderRadius: '10px', border: '2px solid #e9ecef', padding: '12px 16px'}}
-                        />
+                        <div className="d-flex gap-2">
+                          <input
+                            type="text"
+                            className="form-control"
+                            value={formData.color}
+                            onChange={(e) => setFormData({...formData, color: e.target.value})}
+                            placeholder="Color name or hex"
+                            style={{borderRadius: '10px', border: '2px solid #e9ecef', padding: '12px 16px'}}
+                          />
+                          <input
+                            type="color"
+                            className="form-control"
+                            value={formData.color.startsWith('#') ? formData.color : '#000000'}
+                            onChange={(e) => setFormData({...formData, color: e.target.value})}
+                            style={{borderRadius: '10px', border: '2px solid #e9ecef', width: '60px', padding: '4px'}}
+                          />
+                        </div>
                       </div>
                       <div className="col-md-4 mb-3">
                         <label className="form-label">Brand Name</label>
