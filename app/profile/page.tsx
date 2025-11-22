@@ -96,11 +96,17 @@ export default function ProfilePage() {
     if (!userEmail) return;
     
     try {
-      const response = await fetch(`/api/notifications?userId=${userEmail}`);
-      if (response.ok) {
-        const data = await response.json();
-        setNotifications(data);
-      }
+      // Mock notifications for now - can be replaced with actual API later
+      const mockNotifications = [
+        {
+          _id: '1',
+          title: 'Order Status Updated',
+          message: 'Your order status has been updated',
+          isRead: false,
+          createdAt: new Date().toISOString()
+        }
+      ];
+      setNotifications(mockNotifications);
     } catch (error) {
       console.error('Error loading notifications:', error);
     }
