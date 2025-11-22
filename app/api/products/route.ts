@@ -157,6 +157,11 @@ export async function POST(request: NextRequest) {
       delete body.images;
     }
     
+    // Handle reviewCount field
+    if (body.reviewCount !== undefined) {
+      body.reviewCount = Number(body.reviewCount) || 0;
+    }
+    
     console.log('Creating product with data:', JSON.stringify(body, null, 2));
     const product = await Product.create(body);
     

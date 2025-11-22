@@ -217,6 +217,14 @@ export default function DashboardPage() {
             </button>
           </li>
           <li className="nav-item" role="presentation">
+            <button 
+              className={`nav-link ${activeTab === 'locations' ? 'active' : ''}`}
+              onClick={() => setActiveTab('locations')}
+            >
+              <i className="bi bi-geo-alt me-2"></i>Locations
+            </button>
+          </li>
+          <li className="nav-item" role="presentation">
             <a href="/reports" className="nav-link text-info">
               <i className="bi bi-graph-up me-2"></i>Reports
             </a>
@@ -276,6 +284,7 @@ export default function DashboardPage() {
         {activeTab === 'orders' && <OrderManagement />}
         {activeTab === 'banners' && <BannerManagement />}
         {activeTab === 'customers' && <CustomerManagement />}
+        {activeTab === 'locations' && <LocationManagement />}
 
         {toast && (
           <div className={`alert alert-${toast.type === 'success' ? 'success' : 'danger'} alert-dismissible fade show position-fixed`} 
@@ -1072,7 +1081,7 @@ export default function DashboardPage() {
                         </div>
                       </td>
                       <td>
-                        {product.discount > 0 ? (
+                        {product.discount && product.discount > 0 ? (
                           <div>
                             <span className="badge bg-danger">{product.discount}% OFF</span>
                             {product.promoCode && (
@@ -2469,6 +2478,290 @@ export default function DashboardPage() {
                   ))}
                 </tbody>
               </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Location Management Component
+  function LocationManagement() {
+    const [countries, setCountries] = useState<any[]>([]);
+    const [regions, setRegions] = useState<any[]>([]);
+    const [provinces, setProvinces] = useState<any[]>([]);
+    const [districts, setDistricts] = useState<any[]>([]);
+    const [cities, setCities] = useState<any[]>([]);
+    const [activeLocationTab, setActiveLocationTab] = useState('countries');
+    const [locationForm, setLocationForm] = useState({ name: '', parentId: '' });
+    const [editingLocation, setEditingLocation] = useState<any>(null);
+    const [locationLoading, setLocationLoading] = useState(false);
+
+    useEffect(() => {
+      loadLocations();
+    }, [activeLocationTab]);
+
+    const loadLocations = async () => {
+      try {
+        const [countriesRes, regionsRes, provincesRes, districtsRes, citiesRes] = await Promise.all([
+          fetch('/api/addresses?type=country'),
+          fetch('/api/addresses?type=region'),
+          fetch('/api/addresses?type=province'),
+          fetch('/api/addresses?type=district'),
+          fetch('/api/addresses?type=city')
+        ]);
+        
+        const [countriesData, regionsData, provincesData, districtsData, citiesData] = await Promise.all([
+          countriesRes.json(),
+          regionsRes.json(),
+          provincesRes.json(),
+          districtsRes.json(),
+          citiesRes.json()
+        ]);
+        
+        setCountries(Array.isArray(countriesData) ? countriesData : []);
+        setRegions(Array.isArray(regionsData) ? regionsData : []);
+        setProvinces(Array.isArray(provincesData) ? provincesData : []);
+        setDistricts(Array.isArray(districtsData) ? districtsData : []);
+        setCities(Array.isArray(citiesData) ? citiesData : []);
+      } catch (error) {
+        console.error('Error loading locations:', error);
+      }
+    };
+
+    const handleLocationSubmit = async (e: React.FormEvent) => {
+      e.preventDefault();
+      setLocationLoading(true);
+      try {
+        const response = await fetch('/api/addresses', {
+          method: editingLocation ? 'PUT' : 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            ...locationForm,
+            type: activeLocationTab.slice(0, -1), // Remove 's' from plural
+            id: editingLocation?.id
+          })
+        });
+
+        if (response.ok) {
+          loadLocations();
+          setLocationForm({ name: '', parentId: '' });
+          setEditingLocation(null);
+          showToast(`${activeLocationTab.slice(0, -1)} ${editingLocation ? 'updated' : 'added'} successfully!`, 'success');
+        } else {
+          const errorData = await response.json();
+          showToast(errorData.error || 'Failed to save location', 'error');
+        }
+      } catch (error) {
+        showToast('Error saving location', 'error');
+      } finally {
+        setLocationLoading(false);
+      }
+    };
+
+    const handleDeleteLocation = async (locationId: string) => {
+      if (confirm('Are you sure? This will delete all child locations too.')) {
+        try {
+          const response = await fetch(`/api/addresses?id=${locationId}&type=${activeLocationTab.slice(0, -1)}`, { 
+            method: 'DELETE' 
+          });
+          if (response.ok) {
+            loadLocations();
+            showToast('Location deleted successfully!', 'success');
+          } else {
+            showToast('Failed to delete location', 'error');
+          }
+        } catch (error) {
+          showToast('Error deleting location', 'error');
+        }
+      }
+    };
+
+    const startEditLocation = (location: any) => {
+      setEditingLocation(location);
+      setLocationForm({ 
+        name: location.name, 
+        parentId: location.parentId || location.countryId || location.regionId || location.provinceId || location.districtId || '' 
+      });
+    };
+
+    const getParentOptions = () => {
+      switch (activeLocationTab) {
+        case 'regions': return countries;
+        case 'provinces': return regions;
+        case 'districts': return provinces;
+        case 'cities': return districts;
+        default: return [];
+      }
+    };
+
+    const getCurrentData = () => {
+      switch (activeLocationTab) {
+        case 'countries': return countries;
+        case 'regions': return regions;
+        case 'provinces': return provinces;
+        case 'districts': return districts;
+        case 'cities': return cities;
+        default: return [];
+      }
+    };
+
+    const getParentName = (item: any) => {
+      const parentOptions = getParentOptions();
+      const parentId = item.countryId || item.regionId || item.provinceId || item.districtId;
+      const parent = parentOptions.find(p => p.id === parentId);
+      return parent?.name || '-';
+    };
+
+    return (
+      <div>
+        <div className="row mb-4">
+          <div className="col-12">
+            <div className="card">
+              <div className="card-header">
+                <h5 className="mb-0">Location Hierarchy Management</h5>
+                <small className="text-muted">Manage geographical hierarchy: Country → Region → Province → District → City</small>
+              </div>
+              <div className="card-body">
+                <ul className="nav nav-pills mb-4">
+                  <li className="nav-item">
+                    <button className={`nav-link ${activeLocationTab === 'countries' ? 'active' : ''}`} 
+                            onClick={() => setActiveLocationTab('countries')}>
+                      <i className="bi bi-globe me-2"></i>Countries ({countries.length})
+                    </button>
+                  </li>
+                  <li className="nav-item">
+                    <button className={`nav-link ${activeLocationTab === 'regions' ? 'active' : ''}`} 
+                            onClick={() => setActiveLocationTab('regions')}>
+                      <i className="bi bi-map me-2"></i>Regions ({regions.length})
+                    </button>
+                  </li>
+                  <li className="nav-item">
+                    <button className={`nav-link ${activeLocationTab === 'provinces' ? 'active' : ''}`} 
+                            onClick={() => setActiveLocationTab('provinces')}>
+                      <i className="bi bi-geo me-2"></i>Provinces ({provinces.length})
+                    </button>
+                  </li>
+                  <li className="nav-item">
+                    <button className={`nav-link ${activeLocationTab === 'districts' ? 'active' : ''}`} 
+                            onClick={() => setActiveLocationTab('districts')}>
+                      <i className="bi bi-geo-alt me-2"></i>Districts ({districts.length})
+                    </button>
+                  </li>
+                  <li className="nav-item">
+                    <button className={`nav-link ${activeLocationTab === 'cities' ? 'active' : ''}`} 
+                            onClick={() => setActiveLocationTab('cities')}>
+                      <i className="bi bi-building me-2"></i>Cities ({cities.length})
+                    </button>
+                  </li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="row">
+          <div className="col-md-4">
+            <div className="card">
+              <div className="card-header">
+                <h6 className="mb-0">
+                  {editingLocation ? 'Edit' : 'Add'} {activeLocationTab.slice(0, -1).charAt(0).toUpperCase() + activeLocationTab.slice(1, -1)}
+                </h6>
+              </div>
+              <div className="card-body">
+                <form onSubmit={handleLocationSubmit}>
+                  <div className="mb-3">
+                    <label className="form-label">
+                      {activeLocationTab.slice(0, -1).charAt(0).toUpperCase() + activeLocationTab.slice(1, -1)} Name
+                    </label>
+                    <input
+                      type="text"
+                      className="form-control"
+                      value={locationForm.name}
+                      onChange={(e) => setLocationForm({...locationForm, name: e.target.value})}
+                      required
+                      placeholder={`Enter ${activeLocationTab.slice(0, -1)} name`}
+                    />
+                  </div>
+                  {activeLocationTab !== 'countries' && (
+                    <div className="mb-3">
+                      <label className="form-label">
+                        Parent {activeLocationTab === 'regions' ? 'Country' : 
+                               activeLocationTab === 'provinces' ? 'Region' :
+                               activeLocationTab === 'districts' ? 'Province' : 'District'}
+                      </label>
+                      <select
+                        className="form-select"
+                        value={locationForm.parentId}
+                        onChange={(e) => setLocationForm({...locationForm, parentId: e.target.value})}
+                        required
+                      >
+                        <option value="">Select parent location</option>
+                        {getParentOptions().map(parent => (
+                          <option key={parent.id} value={parent.id}>{parent.name}</option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+                  <div className="d-flex gap-2">
+                    <button type="submit" className="btn btn-success" disabled={locationLoading}>
+                      {locationLoading ? 'Saving...' : (editingLocation ? 'Update' : 'Add')}
+                    </button>
+                    {editingLocation && (
+                      <button type="button" className="btn btn-secondary" 
+                              onClick={() => {setEditingLocation(null); setLocationForm({ name: '', parentId: '' });}}>
+                        Cancel
+                      </button>
+                    )}
+                  </div>
+                </form>
+              </div>
+            </div>
+          </div>
+          <div className="col-md-8">
+            <div className="card">
+              <div className="card-header">
+                <h6 className="mb-0">
+                  {activeLocationTab.charAt(0).toUpperCase() + activeLocationTab.slice(1)} ({getCurrentData().length})
+                </h6>
+              </div>
+              <div className="card-body">
+                <div className="table-responsive">
+                  <table className="table table-striped">
+                    <thead>
+                      <tr>
+                        <th>ID</th>
+                        <th>Name</th>
+                        {activeLocationTab !== 'countries' && <th>Parent</th>}
+                        <th>Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {getCurrentData().map((item) => (
+                        <tr key={item.id}>
+                          <td><code>{item.id}</code></td>
+                          <td>{item.name}</td>
+                          {activeLocationTab !== 'countries' && <td>{getParentName(item)}</td>}
+                          <td>
+                            <button 
+                              className="btn btn-sm btn-outline-primary me-2"
+                              onClick={() => startEditLocation(item)}
+                            >
+                              <i className="bi bi-pencil"></i>
+                            </button>
+                            <button 
+                              className="btn btn-sm btn-outline-danger"
+                              onClick={() => handleDeleteLocation(item.id)}
+                            >
+                              <i className="bi bi-trash"></i>
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
             </div>
           </div>
         </div>

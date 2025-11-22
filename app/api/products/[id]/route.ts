@@ -82,6 +82,11 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
       };
     }
     
+    // Handle reviewCount field
+    if (body.reviewCount !== undefined) {
+      body.reviewCount = Number(body.reviewCount) || 0;
+    }
+    
     console.log('Final body before update:', JSON.stringify(body, null, 2));
     console.log('Product details check:', {
       color: body.color,

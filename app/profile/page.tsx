@@ -267,7 +267,8 @@ export default function ProfilePage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           userId: localStorage.getItem('userId'),
-          ...formData
+          ...formData,
+          deliveryAddress
         })
       });
       
@@ -277,7 +278,7 @@ export default function ProfilePage() {
         setCustomer({ ...customer, ...formData });
         localStorage.setItem('userEmail', formData.email);
         setEditMode(false);
-        alert('Profile updated successfully!');
+        alert('Profile and delivery address updated successfully!');
       } else {
         alert(data.error || 'Failed to update profile');
       }
@@ -420,25 +421,7 @@ export default function ProfilePage() {
     }
   };
 
-  const saveDeliveryAddress = async () => {
-    try {
-      const response = await fetch('/api/auth/update', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          userId: localStorage.getItem('userId'),
-          deliveryAddress
-        })
-      });
-      
-      if (response.ok) {
-        alert('Delivery address saved successfully!');
-      }
-    } catch (error) {
-      console.error('Error saving delivery address:', error);
-      alert('Failed to save delivery address');
-    }
-  };
+
 
   const submitVerification = async () => {
     console.log('Submitting verification:', verifyData);
@@ -722,21 +705,7 @@ export default function ProfilePage() {
                         <span className={`badge ms-2`} style={{fontSize: '0.7rem', fontWeight: 'bold', background: activeTab === 'returns' ? '#ffffff' : '#22c55e', color: activeTab === 'returns' ? '#000000' : '#ffffff'}}>0</span>
                       </button>
                     </li>
-                    <li className="nav-item">
-                      <button className={`nav-link ${activeTab === 'delivery' ? 'active' : ''}`} onClick={() => setActiveTab('delivery')} style={{
-                        borderRadius: '15px',
-                        fontWeight: '600',
-                        padding: '1rem 2rem',
-                        border: '2px solid rgba(255,255,255,0.2)',
-                        background: activeTab === 'delivery' ? 'linear-gradient(135deg, #22c55e 0%, #16a34a 100%)' : 'rgba(255,255,255,0.9)',
-                        color: activeTab === 'delivery' ? 'white' : '#000000',
-                        boxShadow: activeTab === 'delivery' ? '0 8px 25px rgba(0,0,0,0.15)' : 'none',
-                        backdropFilter: 'blur(10px)',
-                        transition: 'all 0.3s ease'
-                      }}>
-                        <i className="bi bi-geo-alt me-2"></i>Delivery Address
-                      </button>
-                    </li>
+
                     <li className="nav-item">
                       <button className={`nav-link ${activeTab === 'preorders' ? 'active' : ''}`} onClick={() => setActiveTab('preorders')} style={{
                         borderRadius: '15px',
@@ -897,6 +866,7 @@ export default function ProfilePage() {
                         {editMode ? (
                           <div className="row g-3">
                             <div className="col-md-6">
+                              <label className="form-label small fw-semibold">Select City</label>
                               <select 
                                 className="form-select" 
                                 value={deliveryAddress.cityId || ''}
@@ -909,13 +879,22 @@ export default function ProfilePage() {
                                 ))}
                               </select>
                             </div>
+                            {deliveryAddress.city && (
+                              <div className="col-md-6">
+                                <label className="form-label small fw-semibold">Address Hierarchy</label>
+                                <div className="p-2 bg-light rounded" style={{fontSize: '0.85rem'}}>
+                                  <div className="text-muted mb-1">{deliveryAddress.country} → {deliveryAddress.region} → {deliveryAddress.district} → {deliveryAddress.city}</div>
+                                </div>
+                              </div>
+                            )}
                             <div className="col-12">
+                              <label className="form-label small fw-semibold">Detailed Address</label>
                               <textarea 
                                 className="form-control" 
                                 rows={2}
                                 value={deliveryAddress.addressLine}
                                 onChange={(e) => setDeliveryAddress({...deliveryAddress, addressLine: e.target.value})}
-                                placeholder="Enter detailed address"
+                                placeholder="Enter house number, street, landmarks, etc."
                                 style={{borderRadius: '10px', border: '2px solid #e9ecef', padding: '0.75rem'}}
                               ></textarea>
                             </div>
@@ -925,7 +904,7 @@ export default function ProfilePage() {
                             {deliveryAddress.city ? (
                               <>
                                 {deliveryAddress.addressLine}<br />
-                                {deliveryAddress.city}, {deliveryAddress.district}, {deliveryAddress.region}, {deliveryAddress.country}
+                                <small className="text-muted">{deliveryAddress.city}, {deliveryAddress.district}, {deliveryAddress.region}, {deliveryAddress.country}</small>
                               </>
                             ) : 'Not provided'}
                           </div>
@@ -1328,71 +1307,7 @@ export default function ProfilePage() {
               </div>
             )}
 
-            {activeTab === 'delivery' && (
-              <div className="card border-0" style={{borderRadius: '20px', boxShadow: '0 20px 60px rgba(0,0,0,0.1)'}}>
-                <div className="card-header" style={{background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', color: 'white', borderRadius: '20px 20px 0 0', padding: '2rem', border: 'none'}}>
-                  <div className="d-flex align-items-center">
-                    <div className="bg-white bg-opacity-20 rounded-circle p-3 me-3">
-                      <i className="bi bi-geo-alt" style={{fontSize: '1.5rem'}}></i>
-                    </div>
-                    <div>
-                      <h4 className="mb-1 fw-bold">Delivery Address</h4>
-                      <p className="mb-0 opacity-75">Set your preferred delivery location</p>
-                    </div>
-                  </div>
-                </div>
-                <div className="card-body" style={{padding: '2.5rem'}}>
-                  <div className="row g-4">
-                    <div className="col-md-6">
-                      <label className="form-label fw-bold">Select City *</label>
-                      <select 
-                        className="form-select" 
-                        value={deliveryAddress.cityId || ''}
-                        onChange={(e) => handleCityChange(e.target.value)}
-                        style={{borderRadius: '12px', border: '2px solid #e9ecef', padding: '0.75rem'}}
-                      >
-                        <option value="">Select City</option>
-                        {cities.map((city: any) => (
-                          <option key={city.id} value={city.id}>{city.name}</option>
-                        ))}
-                      </select>
-                    </div>
-                    {deliveryAddress.city && (
-                      <div className="col-md-6">
-                        <label className="form-label fw-bold">Address Hierarchy</label>
-                        <div className="p-3 bg-light rounded" style={{borderRadius: '12px'}}>
-                          <div className="small text-muted mb-1">Country: <strong>{deliveryAddress.country}</strong></div>
-                          <div className="small text-muted mb-1">Region: <strong>{deliveryAddress.region}</strong></div>
-                          <div className="small text-muted mb-1">District: <strong>{deliveryAddress.district}</strong></div>
-                          <div className="small text-muted">City: <strong>{deliveryAddress.city}</strong></div>
-                        </div>
-                      </div>
-                    )}
-                    <div className="col-12">
-                      <label className="form-label fw-bold">Address Line</label>
-                      <textarea 
-                        className="form-control" 
-                        rows={3}
-                        value={deliveryAddress.addressLine}
-                        onChange={(e) => setDeliveryAddress({...deliveryAddress, addressLine: e.target.value})}
-                        placeholder="Enter your detailed address (house number, street, landmarks, etc.)"
-                        style={{borderRadius: '12px', border: '2px solid #e9ecef', padding: '0.75rem'}}
-                      ></textarea>
-                    </div>
-                    <div className="col-12">
-                      <button 
-                        className="btn btn-lg px-4" 
-                        onClick={saveDeliveryAddress}
-                        disabled={!deliveryAddress.cityId}
-                        style={{background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', border: 'none', borderRadius: '12px', color: 'white', fontWeight: '600'}}
-                      >
-                        <i className="bi bi-check-circle me-2"></i>Save Delivery Address
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
+
 
             {activeTab === 'chat' && (
               <div className="card border-0 shadow-sm">
