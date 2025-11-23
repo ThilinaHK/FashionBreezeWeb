@@ -21,8 +21,8 @@ export default function ProductsPage() {
   const [activeTab, setActiveTab] = useState('basic');
   const [showRestockForm, setShowRestockForm] = useState(false);
   const [restockProduct, setRestockProduct] = useState<Product | null>(null);
-  const [restockData, setRestockData] = useState({ S: 0, M: 0, L: 0, XL: 0 });
-  const [originalStock, setOriginalStock] = useState({ S: 0, M: 0, L: 0, XL: 0 });
+  const [restockData, setRestockData] = useState({ S: 0, M: 0, L: 0, XL: 0, XXL: 0 });
+  const [originalStock, setOriginalStock] = useState({ S: 0, M: 0, L: 0, XL: 0, XXL: 0 });
   const [formData, setFormData] = useState({
     name: '',
     code: '',
@@ -35,7 +35,7 @@ export default function ProductsPage() {
     subcategory: '',
     image: '',
     additionalImages: [''],
-    sizes: { S: 0, M: 0, L: 0, XL: 0 },
+    sizes: { S: 0, M: 0, L: 0, XL: 0, XXL: 0 },
     status: 'instock' as 'active' | 'inactive' | 'draft' | 'outofstock' | 'instock',
     rating: 4.0,
     reviewCount: 0,
@@ -782,44 +782,101 @@ export default function ProductsPage() {
 
                   <div className="row">
                     <div className="col-md-3 mb-3">
-                      <label className="form-label">Size S Stock</label>
-                      <input
-                        type="number"
-                        className="form-control"
-                        value={formData.sizes.S}
-                        onChange={(e) => setFormData({...formData, sizes: {...formData.sizes, S: Number(e.target.value)}})}
-                        style={{borderRadius: '10px', border: '2px solid #e9ecef', padding: '12px 16px'}}
-                      />
+                      <label className="form-label">Size S</label>
+                      <div className="d-flex gap-2">
+                        <input
+                          type="number"
+                          className="form-control"
+                          placeholder="Stock"
+                          value={formData.sizes.S}
+                          onChange={(e) => setFormData({...formData, sizes: {...formData.sizes, S: Number(e.target.value)}})}
+                          style={{borderRadius: '10px', border: '2px solid #e9ecef', padding: '12px 16px'}}
+                        />
+                        <input
+                          type="color"
+                          className="form-control"
+                          title="Color for Size S"
+                          style={{borderRadius: '10px', border: '2px solid #e9ecef', width: '60px', padding: '4px'}}
+                        />
+                      </div>
                     </div>
                     <div className="col-md-3 mb-3">
-                      <label className="form-label">Size M Stock</label>
-                      <input
-                        type="number"
-                        className="form-control"
-                        value={formData.sizes.M}
-                        onChange={(e) => setFormData({...formData, sizes: {...formData.sizes, M: Number(e.target.value)}})}
-                        style={{borderRadius: '10px', border: '2px solid #e9ecef', padding: '12px 16px'}}
-                      />
+                      <label className="form-label">Size M</label>
+                      <div className="d-flex gap-2">
+                        <input
+                          type="number"
+                          className="form-control"
+                          placeholder="Stock"
+                          value={formData.sizes.M}
+                          onChange={(e) => setFormData({...formData, sizes: {...formData.sizes, M: Number(e.target.value)}})}
+                          style={{borderRadius: '10px', border: '2px solid #e9ecef', padding: '12px 16px'}}
+                        />
+                        <input
+                          type="color"
+                          className="form-control"
+                          title="Color for Size M"
+                          style={{borderRadius: '10px', border: '2px solid #e9ecef', width: '60px', padding: '4px'}}
+                        />
+                      </div>
                     </div>
                     <div className="col-md-3 mb-3">
-                      <label className="form-label">Size L Stock</label>
-                      <input
-                        type="number"
-                        className="form-control"
-                        value={formData.sizes.L}
-                        onChange={(e) => setFormData({...formData, sizes: {...formData.sizes, L: Number(e.target.value)}})}
-                        style={{borderRadius: '10px', border: '2px solid #e9ecef', padding: '12px 16px'}}
-                      />
+                      <label className="form-label">Size L</label>
+                      <div className="d-flex gap-2">
+                        <input
+                          type="number"
+                          className="form-control"
+                          placeholder="Stock"
+                          value={formData.sizes.L}
+                          onChange={(e) => setFormData({...formData, sizes: {...formData.sizes, L: Number(e.target.value)}})}
+                          style={{borderRadius: '10px', border: '2px solid #e9ecef', padding: '12px 16px'}}
+                        />
+                        <input
+                          type="color"
+                          className="form-control"
+                          title="Color for Size L"
+                          style={{borderRadius: '10px', border: '2px solid #e9ecef', width: '60px', padding: '4px'}}
+                        />
+                      </div>
                     </div>
                     <div className="col-md-3 mb-3">
-                      <label className="form-label">Size XL Stock</label>
-                      <input
-                        type="number"
-                        className="form-control"
-                        value={formData.sizes.XL}
-                        onChange={(e) => setFormData({...formData, sizes: {...formData.sizes, XL: Number(e.target.value)}})}
-                        style={{borderRadius: '10px', border: '2px solid #e9ecef', padding: '12px 16px'}}
-                      />
+                      <label className="form-label">Size XL</label>
+                      <div className="d-flex gap-2">
+                        <input
+                          type="number"
+                          className="form-control"
+                          placeholder="Stock"
+                          value={formData.sizes.XL}
+                          onChange={(e) => setFormData({...formData, sizes: {...formData.sizes, XL: Number(e.target.value)}})}
+                          style={{borderRadius: '10px', border: '2px solid #e9ecef', padding: '12px 16px'}}
+                        />
+                        <input
+                          type="color"
+                          className="form-control"
+                          title="Color for Size XL"
+                          style={{borderRadius: '10px', border: '2px solid #e9ecef', width: '60px', padding: '4px'}}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                  <div className="row">
+                    <div className="col-md-3 mb-3">
+                      <label className="form-label">Size XXL</label>
+                      <div className="d-flex gap-2">
+                        <input
+                          type="number"
+                          className="form-control"
+                          placeholder="Stock"
+                          value={formData.sizes.XXL}
+                          onChange={(e) => setFormData({...formData, sizes: {...formData.sizes, XXL: Number(e.target.value)}})}
+                          style={{borderRadius: '10px', border: '2px solid #e9ecef', padding: '12px 16px'}}
+                        />
+                        <input
+                          type="color"
+                          className="form-control"
+                          title="Color for Size XXL"
+                          style={{borderRadius: '10px', border: '2px solid #e9ecef', width: '60px', padding: '4px'}}
+                        />
+                      </div>
                     </div>
                   </div>
 

@@ -32,6 +32,14 @@ const CustomerSchema = new mongoose.Schema({
     line2: String,
     line3: String,
   },
+  deliveryAddress: {
+    country: String,
+    region: String,
+    district: String,
+    city: String,
+    cityId: Number,
+    addressLine: String,
+  },
   status: {
     type: String,
     enum: ['active', 'inactive'],

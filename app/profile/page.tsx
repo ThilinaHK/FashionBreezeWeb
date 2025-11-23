@@ -153,6 +153,15 @@ export default function ProfilePage() {
           if (userData && Array.isArray(userData) && userData.length > 0) {
             const user = userData[0];
             setCustomer(user);
+            const deliveryAddr = user.deliveryAddress || {
+              country: '',
+              region: '',
+              district: '',
+              city: '',
+              cityId: 0,
+              addressLine: ''
+            };
+            
             setFormData({
               name: user.name || '',
               email: user.email || '',
@@ -163,18 +172,10 @@ export default function ProfilePage() {
                 line2: user.address?.line2 || '',
                 line3: user.address?.line3 || ''
               },
-              deliveryAddress: user.deliveryAddress || {
-                country: '',
-                region: '',
-                district: '',
-                city: '',
-                addressLine: ''
-              }
+              deliveryAddress: deliveryAddr
             });
             
-            if (user.deliveryAddress) {
-              setDeliveryAddress(user.deliveryAddress);
-            }
+            setDeliveryAddress(deliveryAddr);
             
             // Load orders for this specific user
             const ordersResponse = await fetch(`/api/orders?userId=${userId}`);
