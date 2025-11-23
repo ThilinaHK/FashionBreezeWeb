@@ -36,6 +36,7 @@ export default function ProductsPage() {
     image: '',
     additionalImages: [''],
     sizes: { S: 0, M: 0, L: 0, XL: 0, XXL: 0 },
+    sizeColors: { S: '#000000', M: '#000000', L: '#000000', XL: '#000000', XXL: '#000000' },
     status: 'instock' as 'active' | 'inactive' | 'draft' | 'outofstock' | 'instock',
     rating: 4.0,
     reviewCount: 0,
@@ -199,7 +200,8 @@ export default function ProductsPage() {
       subcategory: '',
       image: '',
       additionalImages: [''],
-      sizes: { S: 0, M: 0, L: 0, XL: 0 },
+      sizes: { S: 0, M: 0, L: 0, XL: 0, XXL: 0 },
+      sizeColors: { S: '#000000', M: '#000000', L: '#000000', XL: '#000000', XXL: '#000000' },
       status: 'instock',
       rating: 4.0,
       reviewCount: 0,
@@ -248,7 +250,7 @@ export default function ProductsPage() {
       sizes: (() => {
         if (Array.isArray(product.sizes)) {
           // Array format from database: [{size: 'S', stock: 10}, ...]
-          const sizeMap = { S: 0, M: 0, L: 0, XL: 0 };
+          const sizeMap = { S: 0, M: 0, L: 0, XL: 0, XXL: 0 };
           product.sizes.forEach((sizeObj: any) => {
             if (sizeObj.size && typeof sizeObj.stock === 'number') {
               sizeMap[sizeObj.size as keyof typeof sizeMap] = sizeObj.stock;
@@ -256,17 +258,19 @@ export default function ProductsPage() {
           });
           return sizeMap;
         } else if (typeof product.sizes === 'object' && product.sizes) {
-          // Object format: {S: 0, M: 0, L: 0, XL: 0}
+          // Object format: {S: 0, M: 0, L: 0, XL: 0, XXL: 0}
           const sizes = product.sizes as { [key: string]: number };
           return {
             S: sizes.S || 0,
             M: sizes.M || 0,
             L: sizes.L || 0,
-            XL: sizes.XL || 0
+            XL: sizes.XL || 0,
+            XXL: sizes.XXL || 0
           };
         }
-        return { S: 0, M: 0, L: 0, XL: 0 };
+        return { S: 0, M: 0, L: 0, XL: 0, XXL: 0 };
       })(),
+      sizeColors: (product as any).sizeColors || { S: '#000000', M: '#000000', L: '#000000', XL: '#000000', XXL: '#000000' },
       status: product.status,
       rating: typeof product.rating === 'number' ? product.rating : product.rating?.average || 4.0,
       reviewCount: product.reviewCount || 0,
@@ -796,6 +800,8 @@ export default function ProductsPage() {
                           type="color"
                           className="form-control"
                           title="Color for Size S"
+                          value={formData.sizeColors.S}
+                          onChange={(e) => setFormData({...formData, sizeColors: {...formData.sizeColors, S: e.target.value}})}
                           style={{borderRadius: '10px', border: '2px solid #e9ecef', width: '60px', padding: '4px'}}
                         />
                       </div>
@@ -815,6 +821,8 @@ export default function ProductsPage() {
                           type="color"
                           className="form-control"
                           title="Color for Size M"
+                          value={formData.sizeColors.M}
+                          onChange={(e) => setFormData({...formData, sizeColors: {...formData.sizeColors, M: e.target.value}})}
                           style={{borderRadius: '10px', border: '2px solid #e9ecef', width: '60px', padding: '4px'}}
                         />
                       </div>
@@ -834,6 +842,8 @@ export default function ProductsPage() {
                           type="color"
                           className="form-control"
                           title="Color for Size L"
+                          value={formData.sizeColors.L}
+                          onChange={(e) => setFormData({...formData, sizeColors: {...formData.sizeColors, L: e.target.value}})}
                           style={{borderRadius: '10px', border: '2px solid #e9ecef', width: '60px', padding: '4px'}}
                         />
                       </div>
@@ -853,6 +863,8 @@ export default function ProductsPage() {
                           type="color"
                           className="form-control"
                           title="Color for Size XL"
+                          value={formData.sizeColors.XL}
+                          onChange={(e) => setFormData({...formData, sizeColors: {...formData.sizeColors, XL: e.target.value}})}
                           style={{borderRadius: '10px', border: '2px solid #e9ecef', width: '60px', padding: '4px'}}
                         />
                       </div>
@@ -874,6 +886,8 @@ export default function ProductsPage() {
                           type="color"
                           className="form-control"
                           title="Color for Size XXL"
+                          value={formData.sizeColors.XXL}
+                          onChange={(e) => setFormData({...formData, sizeColors: {...formData.sizeColors, XXL: e.target.value}})}
                           style={{borderRadius: '10px', border: '2px solid #e9ecef', width: '60px', padding: '4px'}}
                         />
                       </div>
