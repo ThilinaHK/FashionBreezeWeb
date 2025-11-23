@@ -839,24 +839,7 @@ export default function ProfilePage() {
                         )}
                       </div>
                     </div>
-                    <div className="col-md-6">
-                      <div className="profile-field p-3 rounded-3" style={{background: '#f8f9fa', border: '1px solid #e9ecef'}}>
-                        <label className="form-label fw-bold mb-2" style={{color: '#2c3e50'}}>
-                          <i className="bi bi-globe me-2" style={{color: '#667eea'}}></i>Country
-                        </label>
-                        {editMode ? (
-                          <input 
-                            type="text" 
-                            className="form-control" 
-                            value={formData.country}
-                            onChange={(e) => setFormData({...formData, country: e.target.value})}
-                            style={{borderRadius: '10px', border: '2px solid #e9ecef', padding: '0.75rem'}}
-                          />
-                        ) : (
-                          <div className="fw-semibold" style={{color: '#495057', fontSize: '1.1rem'}}>{customer.country || 'Not provided'}</div>
-                        )}
-                      </div>
-                    </div>
+
                     <div className="col-12">
                       <div className="profile-field p-3 rounded-3" style={{background: '#f8f9fa', border: '1px solid #e9ecef'}}>
                         <label className="form-label fw-bold mb-2" style={{color: '#2c3e50'}}>
