@@ -87,6 +87,29 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
       body.reviewCount = Number(body.reviewCount) || 0;
     }
     
+    // Handle reviews field
+    if (body.reviews !== undefined) {
+      if (Array.isArray(body.reviews)) {
+        body.reviews = body.reviews.map((review: any) => ({
+          user: review.user || '',
+          rating: Number(review.rating) || 0,
+          comment: review.comment || '',
+          date: review.date ? new Date(review.date) : new Date(),
+          verified: Boolean(review.verified)
+        }));
+      }
+    }
+    
+    // Handle rating field
+    if (body.rating !== undefined) {
+      if (typeof body.rating === 'object') {
+        body.rating = {
+          average: Number(body.rating.average) || 0,
+          count: Number(body.rating.count) || 0
+        };
+      }
+    }
+    
     console.log('Final body before update:', JSON.stringify(body, null, 2));
     console.log('Product details check:', {
       color: body.color,
