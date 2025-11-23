@@ -1967,7 +1967,7 @@ export default function HomePage() {
               ) : (
                 <div className="premium-products-grid" style={{minHeight: '600px'}}>
                   <div className="row g-4" style={{minHeight: '500px'}}>
-                    <AnimatePresence mode="wait">
+                    <AnimatePresence>
                       {getFilteredProducts.map((product, index) => (
                         <motion.div 
                           key={product.id} 
