@@ -143,6 +143,10 @@ const ProductSchema = new mongoose.Schema({
       default: false,
     },
   }],
+  reviewCount: {
+    type: Number,
+    default: 0,
+  },
   inventory: {
     totalStock: {
       type: Number,

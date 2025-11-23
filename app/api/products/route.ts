@@ -160,6 +160,8 @@ export async function POST(request: NextRequest) {
     // Handle reviewCount field
     if (body.reviewCount !== undefined) {
       body.reviewCount = Number(body.reviewCount) || 0;
+    } else {
+      body.reviewCount = 0;
     }
     
     // Handle reviews field
