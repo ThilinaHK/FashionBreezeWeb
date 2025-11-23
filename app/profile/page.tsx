@@ -389,17 +389,16 @@ export default function ProfilePage() {
 
   const loadAddresses = async () => {
     try {
-      const response = await fetch('/api/addresses?type=city');
+      const response = await fetch('/api/addresses');
       if (response.ok) {
         const data = await response.json();
-        console.log('All cities:', data);
-        const filteredCities = Array.isArray(data) ? data.filter(city => city.name === 'Avissawella') : [];
-        console.log('Filtered cities:', filteredCities);
-        setCities(filteredCities);
+        setCountries(data.countries || []);
+        setRegions(data.regions || []);
+        setDistricts(data.districts || []);
+        setCities(data.cities || []);
       }
     } catch (error) {
-      console.error('Error loading cities:', error);
-      setCities([]);
+      console.error('Error loading addresses:', error);
     }
   };
 
@@ -866,18 +865,61 @@ export default function ProfilePage() {
                         {editMode ? (
                           <div className="row g-3">
                             <div className="col-md-6">
-                              <label className="form-label small fw-semibold">Select City</label>
+                              <label className="form-label small fw-semibold">Select Country</label>
                               <select 
                                 className="form-select" 
-                                value={deliveryAddress.cityId || ''}
-                                onChange={(e) => handleCityChange(e.target.value)}
+                                value={deliveryAddress.country || ''}
+                                onChange={(e) => {
+                                  const selectedCountry = countries.find(c => c.name === e.target.value);
+                                  setDeliveryAddress({...deliveryAddress, country: e.target.value, region: '', district: '', city: '', cityId: 0});
+                                }}
                                 style={{borderRadius: '10px', border: '2px solid #e9ecef', padding: '0.75rem'}}
                               >
-                                <option value="">Select City</option>
-                                {cities.map((city: any) => (
-                                  <option key={city.id} value={city.id}>{city.name}</option>
+                                <option value="">Select Country</option>
+                                {countries.map((country: any) => (
+                                  <option key={country.id} value={country.name}>{country.name}</option>
                                 ))}
                               </select>
+                            </div>
+                            <div className="col-md-6">
+                              <label className="form-label small fw-semibold">Select City</label>
+                              <input 
+                                type="text"
+                                className="form-control" 
+                                value={deliveryAddress.city || ''}
+                                onChange={(e) => {
+                                  const input = e.target.value;
+                                  const match = input.match(/^(.+) \((\d+)\)$/);
+                                  if (match) {
+                                    const [, cityName, cityCode] = match;
+                                    const selectedCity = cities.find(c => c.name === cityName && c.id.toString() === cityCode);
+                                    if (selectedCity) {
+                                      handleCityChange(selectedCity.id.toString());
+                                    }
+                                  } else {
+                                    const selectedCity = cities.find(c => c.name === input);
+                                    if (selectedCity) {
+                                      handleCityChange(selectedCity.id.toString());
+                                    } else {
+                                      setDeliveryAddress({...deliveryAddress, city: input, cityId: 0});
+                                    }
+                                  }
+                                }}
+                                list="cityList"
+                                placeholder="Type to search cities..."
+                                style={{borderRadius: '10px', border: '2px solid #e9ecef', padding: '0.75rem'}}
+                                disabled={!deliveryAddress.country}
+                              />
+                              <datalist id="cityList">
+                                {cities.filter((city: any) => {
+                                  const district = districts.find(d => d.id === city.parentId);
+                                  const region = regions.find(r => r.id === district?.parentId);
+                                  const country = countries.find(c => c.id === region?.parentId);
+                                  return country?.name === deliveryAddress.country;
+                                }).map((city: any) => (
+                                  <option key={city.id} value={`${city.name} (${city.id})`} />
+                                ))}
+                              </datalist>
                             </div>
                             {deliveryAddress.city && (
                               <div className="col-md-6">
@@ -901,10 +943,24 @@ export default function ProfilePage() {
                           </div>
                         ) : (
                           <div className="fw-semibold" style={{color: '#495057', fontSize: '1.1rem'}}>
-                            {deliveryAddress.city ? (
+                            {deliveryAddress.country || deliveryAddress.city ? (
                               <>
-                                {deliveryAddress.addressLine}<br />
-                                <small className="text-muted">{deliveryAddress.city}, {deliveryAddress.district}, {deliveryAddress.region}, {deliveryAddress.country}</small>
+                                <div className="mb-2">
+                                  <strong>Country:</strong> {deliveryAddress.country || 'Not specified'}
+                                </div>
+                                <div className="mb-2">
+                                  <strong>City:</strong> {deliveryAddress.city || 'Not specified'} {deliveryAddress.cityId ? `(${deliveryAddress.cityId})` : ''}
+                                </div>
+                                {deliveryAddress.addressLine && (
+                                  <div className="mb-2">
+                                    <strong>Address:</strong> {deliveryAddress.addressLine}
+                                  </div>
+                                )}
+                                {deliveryAddress.district && deliveryAddress.region && (
+                                  <small className="text-muted d-block">
+                                    Full Location: {deliveryAddress.city}, {deliveryAddress.district}, {deliveryAddress.region}, {deliveryAddress.country}
+                                  </small>
+                                )}
                               </>
                             ) : 'Not provided'}
                           </div>
