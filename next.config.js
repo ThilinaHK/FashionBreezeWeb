@@ -10,16 +10,7 @@ const nextConfig = {
     ignoreBuildErrors: true,
   },
   swcMinify: true,
-  experimental: {
-    turbo: {
-      rules: {
-        '*.svg': {
-          loaders: ['@svgr/webpack'],
-          as: '*.js',
-        },
-      },
-    },
-  },
+
   webpack: (config, { dev }) => {
     if (dev) {
       config.watchOptions = {
