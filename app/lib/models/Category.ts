@@ -20,6 +20,11 @@ const SubCategorySchema = new mongoose.Schema({
 });
 
 const CategorySchema = new mongoose.Schema({
+  id: {
+    type: Number,
+    unique: true,
+    sparse: true,
+  },
   name: {
     type: String,
     required: true,
@@ -42,8 +47,22 @@ const CategorySchema = new mongoose.Schema({
     type: Number,
     default: 0,
   },
+  deliveryCost: {
+    type: Number,
+    default: 300,
+    min: 0,
+  },
 }, {
   timestamps: true,
+});
+
+CategorySchema.set('toJSON', {
+  transform: function(doc, ret) {
+    if (ret.deliveryCost === undefined || ret.deliveryCost === null) {
+      ret.deliveryCost = 300;
+    }
+    return ret;
+  }
 });
 
 export default mongoose.models.Category || mongoose.model('Category', CategorySchema);

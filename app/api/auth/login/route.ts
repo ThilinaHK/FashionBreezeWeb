@@ -1,41 +1,44 @@
 import { NextRequest, NextResponse } from 'next/server';
+import dbConnect from '../../../lib/mongodb';
+import Customer from '../../../lib/models/Customer';
 
 export async function POST(request: NextRequest) {
   try {
-    const { email } = await request.json();
+    await dbConnect();
+    const { email, password, phone } = await request.json();
     
-    console.log('=== CUSTOMER LOGIN ===');
-    console.log('Login email:', email);
-    
-    try {
-      const mongoUri = process.env.MONGODB_URI || 'mongodb://localhost:27017';
-      const { MongoClient } = require('mongodb');
-      const client = new MongoClient(mongoUri);
-      await client.connect();
-      const db = client.db('fashionBreeze');
-      
-      const customer = await db.collection('customers').findOne({ email });
-      console.log('Customer found:', !!customer);
-      
-      await client.close();
-      
-      if (customer) {
-        return NextResponse.json({ 
-          success: true, 
-          user: { id: customer._id, name: customer.name, email: customer.email, ...customer } 
-        });
-      } else {
-        return NextResponse.json({ error: 'Customer not found' }, { status: 404 });
-      }
-    } catch (dbError) {
-      console.error('MongoDB login error:', dbError);
-      // Fallback: simulate successful login
-      return NextResponse.json({ 
-        success: true, 
-        user: { id: Date.now().toString(), name: 'Demo User', email } 
-      });
+    if (!email && !phone) {
+      return NextResponse.json({ success: false, error: 'Email or phone required' }, { status: 400 });
     }
-  } catch (error) {
-    return NextResponse.json({ error: 'Login failed' }, { status: 500 });
+    
+    if (email && !password) {
+      return NextResponse.json({ success: false, error: 'Password required' }, { status: 400 });
+    }
+    
+    // Find customer by email or phone
+    const query = email ? { email } : { phone };
+    const customer = await Customer.findOne(query);
+    
+    if (!customer) {
+      return NextResponse.json({ success: false, error: 'Invalid email or password' }, { status: 401 });
+    }
+    
+    // Validate password if logging in with email
+    if (email && customer.password !== password) {
+      return NextResponse.json({ success: false, error: 'Invalid email or password' }, { status: 401 });
+    }
+    
+    if (customer.status !== 'active') {
+      return NextResponse.json({ success: false, error: 'Account is inactive' }, { status: 403 });
+    }
+    
+    return NextResponse.json({ 
+      success: true, 
+      user: { ...customer.toObject(), password: undefined }, // Don't send password back
+      userId: customer._id.toString() 
+    });
+  } catch (error: any) {
+    console.error('Login error:', error);
+    return NextResponse.json({ success: false, error: 'Login failed' }, { status: 500 });
   }
 }

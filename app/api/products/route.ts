@@ -1,170 +1,211 @@
 import { NextRequest, NextResponse } from 'next/server';
-import fs from 'fs';
-import path from 'path';
+import dbConnect from '../../lib/mongodb';
+import Product from '../../lib/models/Product';
 
 export async function GET() {
-  console.log('=== LOADING PRODUCTS ===');
-  
-  // Return hardcoded products for testing
-  const products = [
-    {
-      id: 1,
-      name: "Classic White T-Shirt",
-      code: "CL001",
-      price: 5997,
-      category: "For Men",
-      image: "https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=400&h=400&fit=crop",
-      sizes: { "S": 12, "M": 8, "L": 15, "XL": 3 },
-      status: "instock",
-      rating: 4.5,
-      reviewCount: 128
-    },
-    {
-      id: 2,
-      name: "Blue Denim Jeans",
-      code: "CL002", 
-      price: 14997,
-      category: "For Men",
-      image: "https://images.unsplash.com/photo-1542272604-787c3835535d?w=400&h=400&fit=crop",
-      sizes: { "S": 7, "M": 10, "L": 6, "XL": 4 },
-      status: "instock",
-      rating: 4.2,
-      reviewCount: 89
-    },
-    {
-      id: 3,
-      name: "Summer Floral Dress",
-      code: "WD001",
-      price: 8997,
-      category: "For Women", 
-      image: "https://images.unsplash.com/photo-1595777457583-95e059d581b8?w=400&h=400&fit=crop",
-      sizes: { "XS": 5, "S": 8, "M": 12, "L": 7 },
-      status: "instock",
-      rating: 4.7,
-      reviewCount: 156
-    },
-    {
-      id: 4,
-      name: "Kids Rainbow Hoodie",
-      code: "KH001",
-      price: 6997,
-      category: "Kids",
-      image: "https://images.unsplash.com/photo-1503944583220-79d8926ad5e2?w=400&h=400&fit=crop", 
-      sizes: { "XS": 10, "S": 15, "M": 8, "L": 5 },
-      status: "instock",
-      rating: 4.8,
-      reviewCount: 203
-    },
-    {
-      id: 5,
-      name: "Black Leather Jacket",
-      code: "LJ001",
-      price: 25997,
-      category: "For Men",
-      image: "https://images.unsplash.com/photo-1551028719-00167b16eac5?w=400&h=400&fit=crop",
-      sizes: { "S": 5, "M": 8, "L": 12, "XL": 6 },
-      status: "instock",
-      rating: 4.6,
-      reviewCount: 95
-    },
-    {
-      id: 6,
-      name: "Red Evening Gown",
-      code: "EG001",
-      price: 18997,
-      category: "For Women",
-      image: "https://images.unsplash.com/photo-1566479179817-c0ae8e4b4b3d?w=400&h=400&fit=crop",
-      sizes: { "XS": 3, "S": 6, "M": 9, "L": 4 },
-      status: "instock",
-      rating: 4.9,
-      reviewCount: 187
-    },
-    {
-      id: 7,
-      name: "Hair Shampoo",
-      code: "HS001",
-      price: 2997,
-      category: "Hair",
-      image: "https://images.unsplash.com/photo-1556228578-8c89e6adf883?w=400&h=400&fit=crop",
-      sizes: { "S": 25, "M": 30, "L": 20 },
-      status: "instock",
-      rating: 4.4,
-      reviewCount: 312
-    },
-    {
-      id: 8,
-      name: "Rose Perfume",
-      code: "RP001",
-      price: 15997,
-      category: "Fragrances",
-      image: "https://images.unsplash.com/photo-1541643600914-78b084683601?w=400&h=400&fit=crop",
-      sizes: { "S": 15, "M": 12, "L": 8 },
-      status: "instock",
-      rating: 4.7,
-      reviewCount: 189
-    },
-    {
-      id: 9,
-      name: "Face Moisturizer",
-      code: "FM001",
-      price: 4997,
-      category: "Skin",
-      image: "https://images.unsplash.com/photo-1556228453-efd6c1ff04f6?w=400&h=400&fit=crop",
-      sizes: { "S": 20, "M": 25, "L": 15 },
-      status: "instock",
-      rating: 4.6,
-      reviewCount: 267
-    },
-    {
-      id: 10,
-      name: "Scented Candle",
-      code: "SC001",
-      price: 3997,
-      category: "Home",
-      image: "https://images.unsplash.com/photo-1602874801006-2bd9c81f5d5e?w=400&h=400&fit=crop",
-      sizes: { "S": 30, "M": 25, "L": 20 },
-      status: "instock",
-      rating: 4.5,
-      reviewCount: 145
-    }
-  ];
-  
-  console.log('Returning hardcoded products:', products.length);
-  return NextResponse.json(products);
+  try {
+    console.log('Connecting to MongoDB...');
+    await dbConnect();
+    console.log('MongoDB connected, fetching products...');
+    
+    const products = await Product.find({})
+      .lean().limit(100).sort({ createdAt: -1 });
+    
+    console.log(`Found ${products.length} products in database`);
+    
+
+    
+    return NextResponse.json(products, {
+      headers: {
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0'
+      }
+    });
+  } catch (error) {
+    console.error('Products API error:', error);
+    console.error('Error details:', error.message);
+    return NextResponse.json([], {
+      headers: {
+        'Cache-Control': 'no-cache, no-store, must-revalidate'
+      }
+    });
+  }
 }
 
 export async function POST(request: NextRequest) {
   try {
+    await dbConnect();
     const body = await request.json();
-    console.log('=== CREATING PRODUCT ===');
-    console.log('Product data:', body);
+    const userId = request.headers.get('x-user-id');
+    const userName = request.headers.get('x-user-name');
     
-    try {
-      const mongoUri = process.env.MONGODB_URI || 'mongodb://localhost:27017';
-      const { MongoClient } = require('mongodb');
-      const client = new MongoClient(mongoUri);
-      await client.connect();
-      const db = client.db('fashionBreeze');
-      
-      // Get next ID
-      const lastProduct = await db.collection('products').findOne({}, { sort: { id: -1 } });
-      const nextId = lastProduct ? lastProduct.id + 1 : 1;
-      
-      const newProduct = { ...body, id: nextId };
-      console.log('Inserting product with ID:', nextId);
-      
-      const result = await db.collection('products').insertOne(newProduct);
-      console.log('Product created with ID:', result.insertedId);
-      
-      await client.close();
-      
-      return NextResponse.json(newProduct, { status: 201 });
-    } catch (dbError) {
-      console.error('MongoDB product creation error:', dbError);
-      return NextResponse.json({ success: true, id: Date.now() }, { status: 201 });
+    // Auto-generate ID and Code
+    if (!body.id) {
+      const lastProduct = await Product.findOne().sort({ id: -1 }).select('id');
+      body.id = lastProduct ? lastProduct.id + 1 : 1;
     }
-  } catch (error) {
+    
+    // Auto-generate code if empty or not provided
+    if (!body.code || body.code.trim() === '') {
+      // Find the highest existing code number
+      const lastCodeProduct = await Product.findOne(
+        { code: { $regex: /^FB\d{4}$/ } },
+        { code: 1 }
+      ).sort({ code: -1 });
+      
+      let nextNumber = 1;
+      if (lastCodeProduct && lastCodeProduct.code) {
+        const lastNumber = parseInt(lastCodeProduct.code.substring(2));
+        nextNumber = lastNumber + 1;
+      }
+      
+      body.code = `FB${String(nextNumber).padStart(4, '0')}`;
+    }
+    
+    // Check for duplicate code
+    const existingProduct = await Product.findOne({ code: body.code });
+    if (existingProduct) {
+      return NextResponse.json({ error: 'Product code already exists' }, { status: 400 });
+    }
+    
+    // Add audit fields
+    body.createdBy = userId || 'system';
+    body.createdByName = userName || 'System';
+    body.updatedBy = userId || 'system';
+    body.updatedByName = userName || 'System';
+    
+    // Handle product details fields
+    const detailFields = ['color', 'brand', 'style', 'sleeveType', 'neckline', 'pattern', 'sleeveLength', 'fitType', 'fabric', 'composition'];
+    detailFields.forEach(field => {
+      if (body[field] !== undefined) {
+        body[field] = body[field] || '';
+      }
+    });
+    
+    // Auto-generate missing required fields
+    if (!body.slug) {
+      body.slug = body.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') + '-' + body.id;
+    }
+    if (!body.description) {
+      body.description = `High-quality ${body.name} - ${body.category}`;
+    }
+    if (!body.subcategory) {
+      body.subcategory = 'General';
+    }
+    
+    // Handle specifications
+    if (!body.specifications) {
+      body.specifications = {
+        material: 'Premium Cotton',
+        careInstructions: 'Machine Wash',
+        weight: 'Regular Fit',
+        origin: 'Sri Lanka'
+      };
+    } else if (typeof body.specifications === 'object') {
+      // Ensure specifications are properly structured
+      const specs = body.specifications;
+      body.specifications = {
+        material: specs.material || '',
+        careInstructions: specs.careInstructions || '',
+        origin: specs.origin || '',
+        weight: specs.weight || ''
+      };
+    }
+    
+    // Handle category - for now, store as string since dashboard sends string
+    // In a full implementation, you'd look up the category ObjectId
+    
+    // Map dashboard status to model status
+    if (body.status === 'instock') {
+      body.status = 'active';
+    } else if (body.status === 'outofstock') {
+      body.status = 'outofstock';
+    }
+    
+    // Transform sizes from dashboard format to model format
+    if (body.sizes) {
+      if (typeof body.sizes === 'object' && !Array.isArray(body.sizes)) {
+        // Dashboard format: {S: 0, M: 0, L: 0, XL: 0}
+        body.sizes = Object.entries(body.sizes)
+          .filter(([size, stock]) => typeof stock === 'number')
+          .map(([size, stock]) => ({
+            size,
+            stock: Number(stock),
+            price: body.price || 0
+          }));
+      } else if (Array.isArray(body.sizes)) {
+        // Array format: validate and clean
+        body.sizes = body.sizes.filter((size: any) => {
+          const hasValidSize = size.size && typeof size.size === 'string' && size.size.trim();
+          const hasValidPrice = typeof size.price === 'number';
+          return hasValidSize && hasValidPrice;
+        });
+      }
+    }
+    
+    // Validate colors if provided
+    if (body.colors && Array.isArray(body.colors)) {
+      body.colors = body.colors.filter((color: any) => color.name && color.name.trim());
+    }
+    
+    // Handle additional images array
+    if (body.additionalImages && Array.isArray(body.additionalImages)) {
+      body.additionalImages = body.additionalImages.filter((img: string) => img && img.trim());
+    } else if (body.images && Array.isArray(body.images)) {
+      body.additionalImages = body.images.filter((img: string) => img && img.trim());
+      delete body.images;
+    }
+    
+    // Handle reviewCount field
+    if (body.reviewCount !== undefined) {
+      body.reviewCount = Number(body.reviewCount) || 0;
+    } else {
+      body.reviewCount = 0;
+    }
+    
+    // Handle reviews field
+    if (body.reviews !== undefined) {
+      if (Array.isArray(body.reviews)) {
+        body.reviews = body.reviews.map((review: any) => ({
+          user: review.user || '',
+          rating: Number(review.rating) || 0,
+          comment: review.comment || '',
+          date: review.date ? new Date(review.date) : new Date(),
+          verified: Boolean(review.verified)
+        }));
+      } else {
+        body.reviews = [];
+      }
+    }
+    
+    // Handle rating field
+    if (body.rating !== undefined) {
+      if (typeof body.rating === 'object') {
+        body.rating = {
+          average: Number(body.rating.average) || 0,
+          count: Number(body.rating.count) || 0
+        };
+      } else {
+        body.rating = { average: 0, count: 0 };
+      }
+    }
+    
+    console.log('Creating product with data:', JSON.stringify(body, null, 2));
+    const product = await Product.create(body);
+    
+    return NextResponse.json(product, { 
+      status: 201,
+      headers: {
+        'Cache-Control': 'no-cache'
+      }
+    });
+  } catch (error: any) {
     console.error('Product creation error:', error);
-    return NextResponse.json({ error: 'Failed to create product' }, { status: 500 });
+    console.error('Error details:', error.message);
+    if (error.code === 11000) {
+      return NextResponse.json({ error: 'Product code or slug already exists' }, { status: 400 });
+    }
+    return NextResponse.json({ error: `Failed to create product: ${error.message}` }, { status: 500 });
   }
 }

@@ -1,15 +1,38 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 
 export default function RegisterPage() {
   const router = useRouter();
+
+  useEffect(() => {
+    loadAddresses();
+  }, []);
+
+  const loadAddresses = async () => {
+    try {
+      const response = await fetch('/api/addresses');
+      if (response.ok) {
+        const data = await response.json();
+        setCountries(data.countries || []);
+        setRegions(data.regions || []);
+        setDistricts(data.districts || []);
+        setCities(data.cities || []);
+      }
+    } catch (error) {
+      console.error('Error loading addresses:', error);
+    }
+  };
   const [formData, setFormData] = useState({
     name: '',
     email: '',
+    password: '',
+    confirmPassword: '',
     phone: '',
+    age: '',
     country: '',
+    city: '',
     address: {
       line1: '',
       line2: '',
@@ -19,6 +42,24 @@ export default function RegisterPage() {
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [countries, setCountries] = useState<any[]>([]);
+  const [regions, setRegions] = useState<any[]>([]);
+  const [districts, setDistricts] = useState<any[]>([]);
+  const [cities, setCities] = useState<any[]>([]);
+
+  const checkEmailExists = async (email: string) => {
+    try {
+      const response = await fetch('/api/auth/check-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email })
+      });
+      const data = await response.json();
+      return data.exists;
+    } catch (error) {
+      return false;
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -26,6 +67,27 @@ export default function RegisterPage() {
     setError('');
     
     try {
+      // Validate passwords match
+      if (formData.password !== formData.confirmPassword) {
+        setError('Passwords do not match.');
+        setLoading(false);
+        return;
+      }
+      
+      if (formData.password.length < 6) {
+        setError('Password must be at least 6 characters long.');
+        setLoading(false);
+        return;
+      }
+      
+      // Check if email already exists
+      const emailExists = await checkEmailExists(formData.email);
+      if (emailExists) {
+        setError('Email address is already registered. Please use a different email.');
+        setLoading(false);
+        return;
+      }
+
       const response = await fetch('/api/auth/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -37,8 +99,14 @@ export default function RegisterPage() {
       if (data.success) {
         localStorage.setItem('userRegistered', 'true');
         localStorage.setItem('userName', data.user.name);
-        localStorage.setItem('userId', data.user.id);
+        localStorage.setItem('userId', data.userId);
         localStorage.setItem('userEmail', data.user.email);
+        localStorage.setItem('userPhone', data.user.phone);
+        localStorage.setItem('userCountry', data.user.country);
+        if (data.user.address) {
+          localStorage.setItem('userAddress', JSON.stringify(data.user.address));
+        }
+        document.cookie = `userId=${data.userId}; path=/; max-age=86400`;
         router.push('/');
       } else {
         setError(data.error || 'Registration failed');
@@ -122,7 +190,33 @@ export default function RegisterPage() {
                         value={formData.email}
                         onChange={handleInputChange}
                         required 
-                        placeholder="Enter your email" 
+                        placeholder="Enter your email"
+                      />
+                    </div>
+                    <div className="col-md-6">
+                      <label className="form-label fw-bold">Password *</label>
+                      <input 
+                        type="password" 
+                        className="form-control" 
+                        name="password"
+                        value={formData.password}
+                        onChange={handleInputChange}
+                        required 
+                        minLength={6}
+                        placeholder="Enter password (min 6 characters)"
+                      />
+                    </div>
+                    <div className="col-md-6">
+                      <label className="form-label fw-bold">Confirm Password *</label>
+                      <input 
+                        type="password" 
+                        className="form-control" 
+                        name="confirmPassword"
+                        value={formData.confirmPassword}
+                        onChange={handleInputChange}
+                        required 
+                        minLength={6}
+                        placeholder="Confirm your password"
                       />
                     </div>
                     <div className="col-md-6">
@@ -137,17 +231,58 @@ export default function RegisterPage() {
                         placeholder="Enter your phone number" 
                       />
                     </div>
-                    <div className="col-12">
-                      <label className="form-label fw-bold">Country *</label>
+                    <div className="col-md-6">
+                      <label className="form-label fw-bold">Age *</label>
                       <input 
-                        type="text" 
+                        type="number" 
                         className="form-control" 
+                        name="age"
+                        value={formData.age}
+                        onChange={handleInputChange}
+                        required 
+                        min="13"
+                        max="120"
+                        placeholder="Enter your age" 
+                      />
+                    </div>
+                    <div className="col-md-6">
+                      <label className="form-label fw-bold">Country *</label>
+                      <select 
+                        className="form-select" 
                         name="country"
                         value={formData.country}
                         onChange={handleInputChange}
-                        required 
-                        placeholder="Enter your country" 
+                        required
+                      >
+                        <option value="">Select Country</option>
+                        {countries.map((country: any) => (
+                          <option key={country.id} value={country.name}>{country.name}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="col-md-6">
+                      <label className="form-label fw-bold">City *</label>
+                      <input 
+                        type="text"
+                        className="form-control" 
+                        name="city"
+                        value={formData.city}
+                        onChange={handleInputChange}
+                        list="cityList"
+                        placeholder="Type to search cities..."
+                        disabled={!formData.country}
+                        required
                       />
+                      <datalist id="cityList">
+                        {cities.filter((city: any) => {
+                          const district = districts.find(d => d.id === city.parentId);
+                          const region = regions.find(r => r.id === district?.parentId);
+                          const country = countries.find(c => c.id === region?.parentId);
+                          return country?.name === formData.country;
+                        }).map((city: any) => (
+                          <option key={city.id} value={`${city.name} (${city.id})`} />
+                        ))}
+                      </datalist>
                     </div>
                     <div className="col-12">
                       <label className="form-label fw-bold">Address Line 1 *</label>
@@ -193,7 +328,8 @@ export default function RegisterPage() {
                       </button>
                     </div>
                     <div className="col-12 text-center">
-                      <p className="mb-0">Already have an account? <a href="/login" className="text-primary">Login here</a></p>
+                      <p className="mb-2">Already have an account? <a href="/login" className="text-primary">Login here</a></p>
+                      <p className="mb-0"><a href="/forgot-password" className="text-muted">Forgot your password?</a></p>
                     </div>
                   </div>
                 </form>
