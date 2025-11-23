@@ -269,106 +269,22 @@ export default function HomePage() {
   const loadProducts = async () => {
     try {
       setLoading(true);
-      console.log('Loading products from database...');
-      
-      const response = await fetch(`/api/products?t=${Date.now()}`, {
-        cache: 'no-store',
-        headers: {
-          'Cache-Control': 'no-cache'
-        }
-      });
-      
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-      
-      const products = await response.json();
-      console.log('Received products from API:', products.length);
-      
-      if (Array.isArray(products) && products.length > 0) {
-        console.log('Setting products from database:', products);
-        setProducts(products);
-        updateCategories(products);
-      } else {
-        console.warn('No products received from database, loading fallback products');
-        loadFallbackProducts();
+      const response = await fetch('/api/products');
+      if (response.ok) {
+        const data = await response.json();
+        setProducts(data);
+        updateCategories(data);
       }
     } catch (error) {
-      console.error('Error loading products from database:', error);
-      console.log('Loading fallback products due to error');
-      loadFallbackProducts();
+      console.error('Error loading products:', error);
     } finally {
       setLoading(false);
     }
   };
 
-  const loadFallbackProducts = () => {
-    const fallbackProducts = [
-      {
-        id: 1,
-        name: "Classic White T-Shirt",
-        code: "CL001",
-        price: 5997,
-        category: "For Men",
-        brand: "Nike",
-        image: "https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=400&h=400&fit=crop",
-        images: [
-          "https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=400&h=400&fit=crop",
-          "https://images.unsplash.com/photo-1583743814966-8936f37f4678?w=400&h=400&fit=crop",
-          "https://images.unsplash.com/photo-1586790170083-2f9ceadc732d?w=400&h=400&fit=crop"
-        ],
-        sizes: { "XS": 5, "S": 12, "M": 8, "L": 15, "XL": 3, "XXL": 0 },
-        status: "instock" as const,
-        rating: 4.5,
-        reviewCount: 128
-      },
-      {
-        id: 2,
-        name: "Blue Denim Jeans",
-        code: "CL002",
-        price: 14997,
-        category: "For Men",
-        brand: "Levi's",
-        image: "https://images.unsplash.com/photo-1542272604-787c3835535d?w=400&h=400&fit=crop",
-        images: [
-          "https://images.unsplash.com/photo-1542272604-787c3835535d?w=400&h=400&fit=crop",
-          "https://images.unsplash.com/photo-1541099649105-f69ad21f3246?w=400&h=400&fit=crop",
-          "https://images.unsplash.com/photo-1594633312681-425c7b97ccd1?w=400&h=400&fit=crop"
-        ],
-        sizes: { "XS": 0, "S": 7, "M": 10, "L": 6, "XL": 4, "XXL": 2 },
-        status: "instock" as const,
-        rating: 4.2,
-        reviewCount: 89
-      },
-      {
-        id: 3,
-        name: "T-Shirt",
-        code: "FB01159664",
-        price: 500019,
-        category: "XXX CCCzzz",
-        brand: "Adidas",
-        image: "https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=400&h=400&fit=crop",
-        images: [
-          "https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=400&h=400&fit=crop",
-          "https://images.unsplash.com/photo-1618354691373-d851c5c3a990?w=400&h=400&fit=crop",
-          "https://images.unsplash.com/photo-1571945153237-4929e783af4a?w=400&h=400&fit=crop"
-        ],
-        sizes: { "XS": 10, "S": 15, "M": 20, "L": 18, "XL": 12, "XXL": 8 },
-        status: "instock" as const,
-        rating: 4.8,
-        reviewCount: 256
-      }
-    ];
-    setProducts(fallbackProducts);
-    updateCategories(fallbackProducts);
-  };
-
   const updateCategories = (productList: Product[]) => {
     const uniqueCategories = [...new Set(productList.map(p => getCategoryName(p.category)))];
-    // Only update categories if we don't have API categories loaded
-    if (categories.length <= 1) {
-      setCategories(['All', ...uniqueCategories]);
-    }
+    setCategories(['All', ...uniqueCategories]);
     const maxProductPrice = Math.max(...productList.map(p => p.price));
     setMaxPrice(Math.ceil(maxProductPrice));
     setPriceRange({ min: 0, max: Math.ceil(maxProductPrice) });
@@ -381,13 +297,25 @@ export default function HomePage() {
         const apiCategories = await response.json();
         const categoryNames = apiCategories.map((cat: any) => cat.name);
         setCategories(['All', ...categoryNames]);
-      } else {
-        setCategories(['All', "Men's Fashion", "Women's Fashion", 'Kids Fashion']);
       }
-    } catch {
-      setCategories(['All', "Men's Fashion", "Women's Fashion", 'Kids Fashion']);
+    } catch (error) {
+      console.error('Error loading categories:', error);
     }
   };
+
+  const loadSlides = async () => {
+    try {
+      const response = await fetch('/api/banners');
+      if (response.ok) {
+        const data = await response.json();
+        setSlides(data.filter((banner: any) => banner.isActive));
+      }
+    } catch (error) {
+      console.error('Error loading slides:', error);
+    }
+  };
+
+
 
   const getFilteredProducts = useMemo(() => {
     let filtered = [...products];
@@ -1046,18 +974,7 @@ export default function HomePage() {
     localStorage.setItem('backgroundAnimation', newValue.toString());
   };
 
-  const loadSlides = async () => {
-    try {
-      const response = await fetch('/api/banners');
-      if (response.ok) {
-        const bannersData = await response.json();
-        const activeBanners = bannersData.filter((banner: any) => banner.isActive);
-        setSlides(activeBanners);
-      }
-    } catch (error) {
-      console.error('Error loading banners:', error);
-    }
-  };
+
 
   const nextSlideshow = () => {
     setCurrentSlideIndex((prev) => (prev + 1) % slides.length);
@@ -1410,7 +1327,7 @@ export default function HomePage() {
                       fontSize: '0.8rem'
                     }}>LIMITED TIME</span>
                   </div>
-                  <span style={{fontSize: '0.95rem', opacity: 0.9}}>Up to 70% OFF + FREE Shipping on orders over ₹5000!</span>
+                  <span style={{fontSize: '0.95rem', opacity: 0.9}}>Up to 70% OFF + FREE Shipping on orders over LKR5000!</span>
                 </div>
               </div>
             </div>
