@@ -146,6 +146,22 @@ export async function POST(request: NextRequest) {
       paymentStatus: paymentStatus || 'pending'
     });
     
+    // Create initial order history entry
+    try {
+      await OrderHistory.create({
+        orderId: order._id,
+        previousStatus: 'none',
+        newStatus: 'pending',
+        changedBy: {
+          userId: 'system',
+          username: 'System'
+        },
+        timestamp: new Date()
+      });
+    } catch (historyError) {
+      console.error('Failed to create initial order history:', historyError);
+    }
+    
     // Send real-time notification to admin dashboard
     try {
       await fetch(`${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/api/notifications/socket`, {
