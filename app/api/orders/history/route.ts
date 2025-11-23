@@ -13,33 +13,6 @@ export async function GET(request: NextRequest) {
     let history;
     if (orderId) {
       history = await OrderHistory.find({ orderId }).sort({ timestamp: -1 }).lean();
-      
-      // If no history found for this order, create a basic entry from the order itself
-      if (history.length === 0) {
-        const Order = require('../../../lib/models/Order').default;
-        const order = await Order.findById(orderId);
-        if (order) {
-          const basicHistory = {
-            orderId: order._id,
-            previousStatus: 'none',
-            newStatus: order.status || 'pending',
-            changedBy: {
-              userId: 'system',
-              username: 'System'
-            },
-            timestamp: order.createdAt || new Date()
-          };
-          
-          // Save to database for future use
-          try {
-            await OrderHistory.create(basicHistory);
-            history = [basicHistory];
-          } catch (saveError) {
-            // If save fails, still return the basic history
-            history = [basicHistory];
-          }
-        }
-      }
     } else {
       history = await OrderHistory.find({}).sort({ timestamp: -1 }).lean();
     }

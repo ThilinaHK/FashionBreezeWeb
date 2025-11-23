@@ -686,7 +686,7 @@ export default function ProfilePage() {
                         transition: 'all 0.3s ease'
                       }}>
                         <i className="bi bi-clock-history me-2"></i>Order History
-                        <span className={`badge ms-2`} style={{fontSize: '0.7rem', fontWeight: 'bold', background: activeTab === 'orders' ? '#ffffff' : '#22c55e', color: activeTab === 'orders' ? '#000000' : '#ffffff'}}>{orders.length}</span>
+                        <span className={`badge ms-2`} style={{fontSize: '0.7rem', fontWeight: 'bold', background: activeTab === 'orders' ? '#ffffff' : '#22c55e', color: activeTab === 'orders' ? '#000000' : '#ffffff'}}>2</span>
                       </button>
                     </li>
                     <li className="nav-item">
@@ -702,7 +702,7 @@ export default function ProfilePage() {
                         transition: 'all 0.3s ease'
                       }}>
                         <i className="bi bi-arrow-return-left me-2"></i>My Returns
-                        <span className={`badge ms-2`} style={{fontSize: '0.7rem', fontWeight: 'bold', background: activeTab === 'returns' ? '#ffffff' : '#22c55e', color: activeTab === 'returns' ? '#000000' : '#ffffff'}}>{returns.length}</span>
+                        <span className={`badge ms-2`} style={{fontSize: '0.7rem', fontWeight: 'bold', background: activeTab === 'returns' ? '#ffffff' : '#22c55e', color: activeTab === 'returns' ? '#000000' : '#ffffff'}}>0</span>
                       </button>
                     </li>
 
@@ -746,7 +746,7 @@ export default function ProfilePage() {
                 <div className="card-header" style={{background: 'linear-gradient(135deg, #000000 0%, #22c55e 50%, #1a1a1a 100%)', color: 'white', borderRadius: '20px 20px 0 0', padding: '2rem', border: 'none'}}>
                   <div className="d-flex justify-content-between align-items-center">
                     <div className="d-flex align-items-center">
-                      <div className="bg-gradient bg-opacity-20 rounded-circle p-3 me-3">
+                      <div className="bg-white bg-opacity-20 rounded-circle p-3 me-3">
                         <i className="bi bi-person-circle" style={{fontSize: '1.5rem'}}></i>
                       </div>
                       <div>
@@ -931,7 +931,7 @@ export default function ProfilePage() {
                     </div>
                   </div>
                   <div className="bg-white bg-opacity-20 rounded-3 px-3 py-2">
-                    <span className="fw-bold text-gradient">{getFilteredOrders().length}</span>
+                    <span className="fw-bold text-white">{getFilteredOrders().length}</span>
                     <small className="ms-1 opacity-75 text-white">orders</small>
                   </div>
                 </div>
@@ -1079,7 +1079,23 @@ export default function ProfilePage() {
                                   >
                                     <i className="bi bi-clock-history"></i>
                                   </button>
-
+                                  {/* Debug info - remove this after testing */}
+                                  <button 
+                                    className="btn btn-sm btn-outline-secondary" 
+                                    onClick={() => {
+                                      console.log('=== ORDER DEBUG ===');
+                                      console.log('Order ID:', order._id);
+                                      console.log('Payment Method:', order.paymentMethod);
+                                      console.log('Order Status:', order.status);
+                                      console.log('Has Payment Slip:', !!order.paymentSlip);
+                                      console.log('Should show upload?', (order.paymentMethod === 'bank_transfer' || order.status === 'confirmed') && !order.paymentSlip);
+                                      console.log('Full Order:', order);
+                                      console.log('==================');
+                                    }}
+                                    title="Debug Order"
+                                  >
+                                    <i className="bi bi-bug"></i>
+                                  </button>
 
                                   {/* Upload/View Payment Slip */}
                                   {(order.paymentMethod?.toLowerCase().replace(/\s+/g, '_') === 'bank_transfer' || order.status?.toLowerCase() === 'confirmed') && (

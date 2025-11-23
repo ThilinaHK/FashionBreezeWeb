@@ -3,7 +3,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import toast from 'react-hot-toast';
-import DiscountCountdown from './components/DiscountCountdown';
 
 interface Product {
   id?: number;
@@ -603,9 +602,7 @@ export default function HomePage() {
       currentCustomer.address?.line3
     ].filter((line: any) => line && line.trim()).join('\n');
     
-    const deliveryAddress = addressLines || localStorage.getItem('userAddress') || 'Please provide delivery address';
-    
-    const customerInfo = `CUSTOMER DETAILS:\nName: ${currentCustomer.name || getUserName()}\nEmail: ${currentCustomer.email || localStorage.getItem('userEmail') || 'Not provided'}\nPhone: ${currentCustomer.phone || localStorage.getItem('userPhone') || 'Not provided'}\nCountry: ${currentCustomer.country || 'Sri Lanka'}\n\nDELIVERY ADDRESS:\n${deliveryAddress}`;
+    const customerInfo = `CUSTOMER DETAILS:\nName: ${currentCustomer.name || getUserName()}\nEmail: ${currentCustomer.email || 'N/A'}\nPhone: ${currentCustomer.phone || 'N/A'}\nCountry: ${currentCustomer.country || 'N/A'}\n\nDELIVERY ADDRESS:\n${addressLines || 'N/A'}`;
     
     const subtotal = getSubtotal();
     const total = getTotal();
@@ -1207,31 +1204,6 @@ export default function HomePage() {
 
   return (
     <div className="client-app" style={{position: 'relative', overflow: 'hidden'}}>
-      {/* Countdown Animations */}
-      <style jsx>{`
-        @keyframes pulse {
-          0%, 100% { transform: scale(1); opacity: 1; }
-          50% { transform: scale(1.05); opacity: 0.8; }
-        }
-        
-        @keyframes glow {
-          0%, 100% { box-shadow: 0 0 5px rgba(239, 68, 68, 0.5); }
-          50% { box-shadow: 0 0 20px rgba(239, 68, 68, 0.8), 0 0 30px rgba(239, 68, 68, 0.6); }
-        }
-        
-        .navbar-countdown {
-          animation: glow 3s ease-in-out infinite;
-        }
-        
-        .discount-countdown .time-unit {
-          transition: all 0.3s ease;
-        }
-        
-        .discount-countdown .time-unit:hover {
-          transform: scale(1.1);
-        }
-      `}</style>
-      
       {/* Background Animation */}
       {backgroundAnimation && (
         <div className="background-animation" style={{
@@ -1301,32 +1273,6 @@ export default function HomePage() {
             </ul>
 
             <div className="d-flex align-items-center gap-3">
-              {/* Compact Countdown in Navbar */}
-              <div className="d-none d-lg-block">
-                <div className="navbar-countdown d-flex align-items-center px-3 py-1 rounded-pill" style={{
-                  background: 'linear-gradient(135deg, #ef4444, #dc2626)',
-                  color: 'white',
-                  fontSize: '0.8rem',
-                  fontWeight: '600',
-                  boxShadow: '0 2px 8px rgba(239, 68, 68, 0.3)',
-                  animation: 'pulse 2s infinite'
-                }}>
-                  <i className="bi bi-clock me-2" style={{ fontSize: '0.9rem' }}></i>
-                  <span>Sale ends in: </span>
-                  <span className="ms-1 fw-bold">
-                    {(() => {
-                      const endTime = new Date(Date.now() + 2 * 60 * 60 * 1000); // 2 hours from now
-                      const now = new Date();
-                      const diff = endTime.getTime() - now.getTime();
-                      const hours = Math.floor(diff / (1000 * 60 * 60));
-                      const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-                      return `${hours}h ${minutes}m`;
-                    })()
-                  }
-                  </span>
-                </div>
-              </div>
-              
               {mounted && isUserRegistered() ? (
                 <div className="dropdown">
                   <button className="btn btn-outline-dark dropdown-toggle" type="button" data-bs-toggle="dropdown">
@@ -1377,8 +1323,8 @@ export default function HomePage() {
         </div>
       </nav>
 
-      {/* Promotion Banner with Countdown */}
-      <div className="promotion-banner py-4" style={{
+      {/* Promotion Banner */}
+      <div className="promotion-banner py-3" style={{
         background: 'linear-gradient(135deg, #1a1a1a 0%, #22c55e 100%)',
         color: 'white',
         position: 'relative',
@@ -1389,8 +1335,8 @@ export default function HomePage() {
           opacity: 0.1
         }}></div>
         <div className="container position-relative">
-          <div className="row align-items-center g-4">
-            <div className="col-lg-6">
+          <div className="row align-items-center">
+            <div className="col-md-8">
               <div className="d-flex align-items-center">
                 <div className="promotion-icon me-3 d-flex align-items-center justify-content-center" style={{
                   width: '50px',
@@ -1414,7 +1360,7 @@ export default function HomePage() {
                 </div>
               </div>
             </div>
-            <div className="col-lg-3">
+            <div className="col-md-4 text-md-end">
               <div className="promo-code p-2 rounded" style={{
                 background: 'rgba(255,255,255,0.15)',
                 backdropFilter: 'blur(10px)',
@@ -1423,50 +1369,6 @@ export default function HomePage() {
                 <small className="d-block mb-1">Use promo code:</small>
                 <strong style={{fontSize: '1.1rem', letterSpacing: '1px'}}>FASHION70</strong>
               </div>
-            </div>
-            <div className="col-lg-3">
-              <DiscountCountdown 
-                endDate={new Date(Date.now() + 2 * 24 * 60 * 60 * 1000)} // 2 days from now
-                discountPercentage={70}
-                title="FLASH SALE"
-                style={{ margin: 0, padding: '1rem' }}
-              />
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Mega Sale Countdown Banner */}
-      <div className="mega-sale-banner py-4" style={{
-        background: 'linear-gradient(135deg, #dc2626 0%, #ef4444 50%, #f97316 100%)',
-        color: 'white',
-        position: 'relative',
-        overflow: 'hidden'
-      }}>
-        <div className="container">
-          <div className="row align-items-center justify-content-center">
-            <div className="col-lg-8 text-center">
-              <motion.div
-                initial={{ opacity: 0, y: -20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.6 }}
-              >
-                <h2 className="fw-bold mb-3" style={{ fontSize: '2.5rem' }}>
-                  🔥 MEGA SALE EVENT 🔥
-                </h2>
-                <p className="lead mb-4">Don't miss out on our biggest sale of the year!</p>
-                <DiscountCountdown 
-                  endDate={new Date(Date.now() + 5 * 24 * 60 * 60 * 1000)} // 5 days from now
-                  discountPercentage={80}
-                  title="MEGA SALE"
-                  style={{ 
-                    maxWidth: '500px', 
-                    margin: '0 auto',
-                    background: 'linear-gradient(135deg, #1f2937 0%, #374151 100%)',
-                    boxShadow: '0 20px 60px rgba(0,0,0,0.4)'
-                  }}
-                />
-              </motion.div>
             </div>
           </div>
         </div>
@@ -1935,7 +1837,7 @@ export default function HomePage() {
             {/* Left Sidebar - Featured Categories */}
             <div className="col-lg-2 d-none d-lg-block">
               <div className="position-sticky" style={{top: '20px'}}>
-                <div className="sidebar-card mb-4" style={{
+                <div className="sidebar-card" style={{
                   background: 'linear-gradient(135deg, #22c55e, #16a34a)',
                   borderRadius: '15px',
                   padding: '20px',
@@ -1977,14 +1879,6 @@ export default function HomePage() {
                     </div>
                   </div>
                 </div>
-                
-                {/* Sidebar Countdown */}
-                <DiscountCountdown 
-                  endDate={new Date(Date.now() + 6 * 60 * 60 * 1000)} // 6 hours from now
-                  discountPercentage={50}
-                  title="WEEKEND DEAL"
-                  style={{ fontSize: '0.8rem' }}
-                />
               </div>
             </div>
             
@@ -2128,36 +2022,21 @@ export default function HomePage() {
                             {/* Overlay Elements */}
                             <div className="position-absolute top-0 start-0 w-100 h-100" style={{background: 'linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0.1) 100%)'}}></div>
                             
-                            {/* Discount Badge with Countdown */}
+                            {/* Discount Badge */}
                             {(product as any).discount && (
                               <div className="position-absolute top-0 end-0 m-3">
-                                {(product as any).saleEndDate ? (
-                                  <div style={{ width: '120px' }}>
-                                    <DiscountCountdown 
-                                      endDate={new Date((product as any).saleEndDate)}
-                                      discountPercentage={(product as any).discount}
-                                      title="SALE"
-                                      style={{ 
-                                        padding: '0.5rem', 
-                                        fontSize: '0.7rem',
-                                        background: 'linear-gradient(135deg, #ef4444, #dc2626)'
-                                      }}
-                                    />
-                                  </div>
-                                ) : (
-                                  <div className="discount-badge" style={{
-                                    background: 'linear-gradient(135deg, #ef4444, #dc2626)',
-                                    color: 'white',
-                                    padding: '8px 16px',
-                                    borderRadius: '20px',
-                                    fontSize: '0.8rem',
-                                    fontWeight: '700',
-                                    boxShadow: '0 4px 15px rgba(239, 68, 68, 0.4)',
-                                    animation: 'pulse 2s infinite'
-                                  }}>
-                                    -{(product as any).discount}% OFF
-                                  </div>
-                                )}
+                                <div className="discount-badge" style={{
+                                  background: 'linear-gradient(135deg, #ef4444, #dc2626)',
+                                  color: 'white',
+                                  padding: '8px 16px',
+                                  borderRadius: '20px',
+                                  fontSize: '0.8rem',
+                                  fontWeight: '700',
+                                  boxShadow: '0 4px 15px rgba(239, 68, 68, 0.4)',
+                                  animation: 'pulse 2s infinite'
+                                }}>
+                                  -{(product as any).discount}% OFF
+                                </div>
                               </div>
                             )}
                             
@@ -2176,23 +2055,6 @@ export default function HomePage() {
                                 #{product.code}
                               </span>
                             </div>
-                            
-                            {/* Flash Sale Badge */}
-                            {(product as any).flashSale && (
-                              <div className="position-absolute bottom-0 start-0 m-3">
-                                <DiscountCountdown 
-                                  endDate={new Date(Date.now() + 3 * 60 * 60 * 1000)} // 3 hours from now
-                                  discountPercentage={30}
-                                  title="FLASH"
-                                  style={{ 
-                                    padding: '0.5rem', 
-                                    fontSize: '0.6rem',
-                                    width: '100px',
-                                    background: 'linear-gradient(135deg, #8b5cf6, #7c3aed)'
-                                  }}
-                                />
-                              </div>
-                            )}
                             
                             {/* Brand Label */}
                             <div className="position-absolute top-50 start-0 translate-middle-y">
